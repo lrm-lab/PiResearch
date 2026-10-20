@@ -11,10 +11,12 @@ export function Notices() {
   const view = useGalaxy((state) => state.view);
   const loadState = useGalaxy((state) => state.loadState);
   const error = useGalaxy((state) => state.error);
+  const errorKind = useGalaxy((state) => state.errorKind);
   const online = useOnline();
 
-  const retrying = !view && loadState === "error" && error === FIRST_LOAD_FAILED;
-  const missing = !view && loadState === "error" && error !== FIRST_LOAD_FAILED;
+  // Only a 404 study is missing; network errors and 5xx keep retrying.
+  const missing = !view && loadState === "error" && errorKind === "missing";
+  const retrying = !view && loadState === "error" && !missing;
   const empty = Boolean(view && !view.ok);
   // The store reports refresh failures with a view in `error` (once it does, this shows).
   const stale = Boolean(view && error);

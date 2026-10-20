@@ -89,6 +89,10 @@ export function Labels({ graph, fx, portal }: { graph: SceneGraph; fx: SceneFx; 
   const selectedId = useGalaxy((state) => state.selectedId);
   const select = useGalaxy((state) => state.select);
   const hover = useGalaxy((state) => state.hover);
+  // Leaving one label must not clear a hover another label (or a body) already took.
+  const unhover = (id: string) => {
+    if (useGalaxy.getState().hoveredId === id) hover(null);
+  };
   const sorted = useMemo(() => [...graph.nodes].sort((a, b) => compareNodes(a.node, b.node)), [graph]);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const applied = useRef(new Map<string, Applied>());
@@ -242,9 +246,9 @@ export function Labels({ graph, fx, portal }: { graph: SceneGraph; fx: SceneFx; 
                 select(node.id);
               }}
               onPointerEnter={() => hover(node.id)}
-              onPointerLeave={() => hover(null)}
+              onPointerLeave={() => unhover(node.id)}
               onFocus={() => hover(node.id)}
-              onBlur={() => hover(null)}
+              onBlur={() => unhover(node.id)}
             >
               {!node.node.goal && <span className="gx-dot" data-status={dotStatus(node)} aria-hidden="true" />}
               <span className="gx-id" aria-hidden="true">

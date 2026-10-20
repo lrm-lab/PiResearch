@@ -9,7 +9,7 @@ import { gsap } from "gsap";
 import { useEffect, useRef, type ComponentRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
 import { useGalaxy } from "../store";
-import { fitOverview, type FitPoint } from "./framing";
+import { fitOverview, shouldRefit, type FitPoint } from "./framing";
 import type { SceneFx } from "./fx";
 import type { SceneGraph } from "./graph";
 
@@ -109,6 +109,10 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
   const introFor = useRef<string | null>(null);
   /** Focal offset of the last flight with no panel: the overview's pan, or zero. */
   const restFocal = useRef(new Vector3());
+  /** The camera rests at (or flies to) the overview and the user has not moved it since. */
+  const atOverview = useRef(false);
+  /** Node count of the graph the overview was last fitted to. */
+  const fittedCount = useRef(0);
   const graphRef = useRef(graph);
   graphRef.current = graph;
 
@@ -169,9 +173,11 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
    * Fit every body and its label into OVERVIEW_FILL of the area below the top
    * bar, panning with the focal offset. Portrait screens are width-bound, so
    * there the azimuth that fits tightest (long axis running up the screen) wins.
-   * Intro, the overview command and R all land on this same pose.
+   * Intro, the overview command and R all land on this same pose. With
+   * `keepAzimuth` (refits on landscape screens) it fits at that angle instead.
+   * No side effects; see overviewPose.
    */
-  function overviewPose(): Pose {
+  function fitPose(keepAzimuth?: number): Pose {
     const points = framePoints(graphRef.current, Math.min(LABEL_HALF, size.width * 0.06));
     const view = {
       polar: OVERVIEW_POLAR,
@@ -182,9 +188,9 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
       top: topBarHeight(gl.domElement),
       fill: OVERVIEW_FILL,
     };
-    let azimuth = OVERVIEW_AZIMUTH;
-    let fit = fitOverview(points, view);
-    if (size.width < size.height) {
+    let azimuth = keepAzimuth ?? OVERVIEW_AZIMUTH;
+    let fit = fitOverview(points, { ...view, azimuth });
+    if (keepAzimuth === undefined && size.width < size.height) {
       for (let i = 1; i < PORTRAIT_STEPS; i++) {
         const candidate = OVERVIEW_AZIMUTH + (i / PORTRAIT_STEPS) * Math.PI * 2;
         const next = fitOverview(points, { ...view, azimuth: candidate });
@@ -195,11 +201,25 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
         }
       }
     }
-    fx.overviewDistance = fit.distance;
     // camera-controls moves the camera by -focal.y along its up axis.
     const focal = new Vector3(fit.focalX, -fit.focalY, 0);
-    restFocal.current.copy(focal);
     return { target: new Vector3(), distance: fit.distance, polar: OVERVIEW_POLAR, azimuth, focal };
+  }
+
+  /** The overview pose, recorded as the rest pose the camera is about to fly to. */
+  function overviewPose(keepAzimuth?: number): Pose {
+    const pose = fitPose(keepAzimuth);
+    fx.overviewDistance = pose.distance;
+    fittedCount.current = graphRef.current.nodes.length;
+    restFocal.current.copy(pose.focal);
+    atOverview.current = true;
+    return pose;
+  }
+
+  /** Refits keep the auto-rotated azimuth on settled landscape screens; portrait searches again. */
+  function refitAzimuth(): number | undefined {
+    const rig = controls.current;
+    return rig && !tween.current && size.width >= size.height ? rig.azimuthAngle : undefined;
   }
 
   function focus(id: string) {
@@ -214,6 +234,7 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
     const travel = current.distanceTo(target);
     const hop = Math.min(0.5, travel / 40);
     restFocal.current.set(0, 0, 0);
+    atOverview.current = false;
     fly(
       { target, distance, polar: FOCUS_POLAR, azimuth: rig.azimuthAngle, focal: panelOffset(distance, true) },
       1.1,
@@ -227,6 +248,7 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
     if (!rig) return;
     const r = graphRef.current.goal?.p.r ?? 0.8;
     restFocal.current.set(0, 0, 0);
+    atOverview.current = false;
     fly({ target: new Vector3(), distance: r * 3.4, polar: 1.18, azimuth: rig.azimuthAngle, focal: new Vector3() }, 0.9, "power2.in");
   }
 
@@ -243,6 +265,24 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
     applyPose(rig, { target: new Vector3(), distance: end.distance * 3.2, polar: 0.12, azimuth: end.azimuth - 1.75, focal: new Vector3() });
     fly(end, 1.8, "power2.inOut");
   }, [studyId, loadState, graph]);
+
+  // The intro may have framed an empty graph (no snapshot yet, ok:false, a
+  // first-load error): when tasks arrive or outgrow the frame, refit while
+  // the camera still rests at the overview with nothing selected.
+  useEffect(() => {
+    if (!controls.current || introFor.current !== studyId || !atOverview.current || selectedId) return;
+    const azimuth = refitAzimuth();
+    const next = fitPose(azimuth);
+    const fitted = { count: fittedCount.current, distance: fx.overviewDistance };
+    if (!shouldRefit(fitted, { count: graph.nodes.length, distance: next.distance })) return;
+    fly(overviewPose(azimuth), 1.1, "power3.inOut");
+  }, [graph]);
+
+  // Resized while resting at the overview: refit to the new viewport.
+  useEffect(() => {
+    if (!controls.current || introFor.current !== studyId || !atOverview.current || selectedId) return;
+    fly(overviewPose(refitAzimuth()), tween.current ? 0.6 : 0, "power2.out");
+  }, [size.width, size.height]);
 
   useEffect(() => {
     if (!command) return;
@@ -274,6 +314,7 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
     const onGrab = () => {
       tween.current?.kill();
       tween.current = null;
+      atOverview.current = false;
       onInput();
     };
     rig?.addEventListener("controlstart", onGrab);

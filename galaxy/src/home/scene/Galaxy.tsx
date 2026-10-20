@@ -3,7 +3,7 @@
 // is driven per frame from the shared gallery motion, without React renders.
 
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -22,6 +22,7 @@ import {
 import { galaxyStudyHref } from "../../lib/api";
 import { hash01 } from "../../lib/space";
 import type { HistoryRow } from "../../types/api";
+import { navigate } from "../flags";
 import { buildGalaxy, hexToRgb } from "../geometry";
 import { slotPose, slotX } from "../layout";
 import { captionEls, captionSizes, gallery } from "../motion";
@@ -99,8 +100,8 @@ export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: Gal
     return { data, points, lines };
   }, [thumb, id]);
 
+  // Created once per galaxy; data-dependent uniforms are updated in place below.
   const materials = useMemo(() => {
-    const [cr, cg, cb] = built.data.core;
     const outerTone = hexToRgb(hash01(`${id}#hue`) < 0.5 ? "#6d9cff" : "#aa8cff");
     const pointsMaterial = new ShaderMaterial({
       vertexShader: galaxyVertex,
@@ -132,7 +133,7 @@ export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: Gal
         uFade: { value: 0 },
         uImplode: { value: 0 },
         uIgnite: { value: 1 },
-        uInner: { value: new Color(Math.min(1, cr * 0.6 + 0.4), Math.min(1, cg * 0.6 + 0.4), Math.min(1, cb * 0.6 + 0.4)) },
+        uInner: { value: new Color() },
         uOuter: { value: new Color(...outerTone) },
       },
       transparent: true,
@@ -150,7 +151,17 @@ export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: Gal
       blending: AdditiveBlending,
     });
     return { pointsMaterial, discMaterial, lineMaterial, ringMaterial };
-  }, [built, id]);
+  }, [id]);
+
+  // The disc's inner tone follows the thumbnail's core colour.
+  useLayoutEffect(() => {
+    const [cr, cg, cb] = built.data.core;
+    (materials.discMaterial.uniforms.uInner!.value as Color).setRGB(
+      Math.min(1, cr * 0.6 + 0.4),
+      Math.min(1, cg * 0.6 + 0.4),
+      Math.min(1, cb * 0.6 + 0.4),
+    );
+  }, [built, materials]);
 
   const ring = useMemo(() => (running ? ringGeometry() : null), [running]);
   const disc = useMemo(() => new PlaneGeometry(RADIUS * 2.5, RADIUS * 2.5), []);
@@ -276,7 +287,10 @@ export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: Gal
     if (event.delta > 6 || gallery.dragged) return;
     const store = useHome.getState();
     if (store.removing[id]) return;
-    store.fly({ id, href: galaxyStudyHref(id) });
+    const href = galaxyStudyHref(id);
+    // Same as the caption link: reduced motion skips the dive and just navigates.
+    if (store.reducedMotion) navigate(href);
+    else store.fly({ id, href });
   };
 
   return (

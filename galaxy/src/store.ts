@@ -2,10 +2,12 @@
 // Data loading lives here; components only read state and call actions.
 
 import { create } from "zustand";
-import { createPoller, HttpError, type Poller } from "./lib/api";
+import { createPoller, HttpError, isMissingStudy, type Poller } from "./lib/api";
 import type { Snapshot, Step, ViewNode } from "./types/api";
 
 export type LoadState = "loading" | "ready" | "error";
+/** Why the first load failed: the study does not exist (404), or anything else (still retrying). */
+export type LoadErrorKind = "missing" | "retry";
 export type Quality = "auto" | "high" | "low";
 export type QualityTier = "high" | "low";
 
@@ -40,6 +42,8 @@ export interface GalaxyState {
   loadState: LoadState;
   /** Message for loadState "error" (or a failed refresh while a view is shown). */
   error: string | null;
+  /** Set with loadState "error". */
+  errorKind: LoadErrorKind | null;
   selectedId: string | null;
   hoveredId: string | null;
   /** 核验透镜 (verification lens). */
@@ -94,6 +98,7 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
       view: next,
       loadState: "ready",
       error: null,
+      errorKind: null,
       selectedId: selectedId && ids.has(selectedId) ? selectedId : null,
       hoveredId: hoveredId && ids.has(hoveredId) ? hoveredId : null,
     });
@@ -111,6 +116,7 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
     view: null,
     loadState: "loading",
     error: null,
+    errorKind: null,
     selectedId: null,
     hoveredId: null,
     lens: false,
@@ -129,6 +135,7 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
         view: null,
         loadState: "loading",
         error: null,
+        errorKind: null,
         selectedId: null,
         hoveredId: null,
         nodeDetails: {},
@@ -145,7 +152,7 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
             return;
           }
           const message = error instanceof HttpError && error.message ? error.message : FIRST_LOAD_FAILED;
-          set({ loadState: "error", error: message });
+          set({ loadState: "error", error: message, errorKind: isMissingStudy(error) ? "missing" : "retry" });
         },
         onSuccess: () => {
           if (get().view && get().error) set({ error: null });

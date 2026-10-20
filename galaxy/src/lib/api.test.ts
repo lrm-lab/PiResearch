@@ -8,6 +8,7 @@ import {
   fetchReport,
   galaxyStudyHref,
   HttpError,
+  isMissingStudy,
   pollDelay,
   studyIdFromPath,
   type FetchLike,
@@ -104,6 +105,14 @@ describe("fetch helpers", () => {
     const { impl } = fakeFetch({});
     await expect(fetchJson(`${PREFIX}/snapshot`, { fetchImpl: impl })).rejects.toMatchObject({ status: 404, message: "没有这项研究。" });
     await expect(fetchJson(`${PREFIX}/snapshot`, { fetchImpl: impl })).rejects.toBeInstanceOf(HttpError);
+  });
+
+  it("treats only a 404 as a missing study", () => {
+    expect(isMissingStudy(new HttpError(404, "没有这项研究。"))).toBe(true);
+    expect(isMissingStudy(new HttpError(502, "星图服务暂时不可用。"))).toBe(false);
+    expect(isMissingStudy(new HttpError(500, "HTTP 500"))).toBe(false);
+    expect(isMissingStudy(new TypeError("Failed to fetch"))).toBe(false);
+    expect(isMissingStudy(new Error("timeout"))).toBe(false);
   });
 
   it("returns the report text or the 404 message", async () => {

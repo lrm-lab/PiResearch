@@ -24,7 +24,8 @@ const QUALITIES: Quality[] = ["auto", "high", "low"];
 export function TopBar() {
   const view = useGalaxy((state) => state.view);
   const loadState = useGalaxy((state) => state.loadState);
-  const question = view?.ok ? (view.goal?.title ?? "") : loadState === "loading" ? "正在读取" : "这份运行没有星图";
+  const retrying = useGalaxy((state) => !state.view && state.loadState === "error" && state.errorKind === "retry");
+  const question = view?.ok ? (view.goal?.title ?? "") : loadState === "loading" || retrying ? "正在读取" : "这份运行没有星图";
 
   return (
     <header className="topbar glass hud-auto">

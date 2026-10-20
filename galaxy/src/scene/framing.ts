@@ -144,3 +144,22 @@ export function fitOverview(points: FitPoint[], view: FitView): Fit {
   if (!fit) return { distance: far, focalX: 0, focalY: 0 };
   return { distance: far, focalX: (fit.x[0] + fit.x[1]) / 2, focalY: (fit.y[0] + fit.y[1]) / 2 };
 }
+
+/** Growth of the overview fit distance that triggers a refit (the 0.8 fill leaves room up to 1.25). */
+export const REFIT_GROWTH = 1.1;
+
+/** An overview fit: how many bodies it framed and at what camera distance. */
+export interface Fitted {
+  count: number;
+  distance: number;
+}
+
+/**
+ * Whether the overview the camera rests at should be refitted for a new
+ * graph: tasks arrived in a galaxy that was framed empty (nothing, or just
+ * the core), or the bodies now need noticeably more distance than that frame.
+ */
+export function shouldRefit(fitted: Fitted, next: Fitted): boolean {
+  if (fitted.count <= 1 && next.count > 1) return true;
+  return next.distance > fitted.distance * REFIT_GROWTH;
+}

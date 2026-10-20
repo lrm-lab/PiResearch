@@ -21,11 +21,21 @@ export const flags = {
   noWebGL: params.get("nowebgl") === "1",
 };
 
-/** Leave for a study page (or log it when `?navigate=0`). */
+/** Set once the page is leaving, so a flight, a dive and the launch watchdog navigate only once. */
+let leaving = false;
+
+/** Leave for a study page (or log it when `?navigate=0`). Later calls are ignored until `resetNavigation()`. */
 export function navigate(href: string): void {
   if (flags.stay) {
     console.info("[home] navigate", href);
     return;
   }
+  if (leaving) return;
+  leaving = true;
   location.assign(href);
+}
+
+/** Back from a study through the bfcache: allow navigating again. */
+export function resetNavigation(): void {
+  leaving = false;
 }

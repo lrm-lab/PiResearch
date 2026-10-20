@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { HistoryRow, Thumbnail } from "../types/api";
 import {
   captionLine,
@@ -16,6 +16,7 @@ import {
   thumbSignature,
   thumbStats,
 } from "./format";
+import { navigate, resetNavigation } from "./flags";
 import { buildGalaxy, KIND_CORE, KIND_NODE } from "./geometry";
 import { galleryParams, neighbour, rubberBand, scrollBounds, scrollToReveal, slotX } from "./layout";
 
@@ -206,5 +207,24 @@ describe("geometry", () => {
     const lone = buildGalaxy({ ok: true, message: "", edges: [], nodes: [thumb.nodes[0]!] }, "land/1");
     expect(lone.hasGraph).toBe(true);
     expect(Array.from(lone.position).every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe("navigate", () => {
+  it("leaves once until reset (dive, watchdog and repeated flights share one navigation)", () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
+    try {
+      navigate("/galaxy/study/a");
+      navigate("/galaxy/study/a");
+      navigate("/galaxy/study/b");
+      expect(assign.mock.calls).toEqual([["/galaxy/study/a"]]);
+      resetNavigation();
+      navigate("/galaxy/study/b");
+      expect(assign.mock.calls).toEqual([["/galaxy/study/a"], ["/galaxy/study/b"]]);
+    } finally {
+      resetNavigation();
+      vi.unstubAllGlobals();
+    }
   });
 });

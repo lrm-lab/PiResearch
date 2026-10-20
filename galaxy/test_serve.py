@@ -291,6 +291,14 @@ class GalaxyServeTest(unittest.TestCase):
             status, _, body = self.request("GET", path)
             self.assertNotIn(b"secret", body, path)
 
+    def test_null_byte_is_not_a_file(self):
+        status, _, _ = self.request("GET", "/galaxy/assets/%00.js")
+        self.assertEqual(status, 404)
+        status, headers, body = self.request("GET", "/galaxy/study/%00")
+        self.assertEqual((status, body), (200, b"<!doctype html><div id=root></div>"))
+        self.assertEqual(headers["Content-Type"], "text/html; charset=utf-8")
+        self.assertEqual(FakeUpstream.seen, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -119,6 +119,7 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
         href: result.href,
         from: rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : { x: innerWidth / 2, y: innerHeight - 80 },
       });
+      // navigate() is a no-op once the director's dive has already left.
       setTimeout(() => {
         if (useHome.getState().launch?.href === result.href) navigate(result.href);
       }, LAUNCH_WATCHDOG_MS);

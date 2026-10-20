@@ -1,6 +1,6 @@
 import { PerspectiveCamera, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { fitOverview, type FitPoint, type FitView } from "./framing";
+import { fitOverview, REFIT_GROWTH, shouldRefit, type FitPoint, type FitView } from "./framing";
 
 /** Place a camera the way camera-controls does: spherical pose + focal offset. */
 function cameraFor(view: FitView, distance: number, fx: number, fy: number): PerspectiveCamera {
@@ -60,4 +60,18 @@ describe("fitOverview", () => {
       if (name === "portrait") expect(wFill).toBeGreaterThan(0.99);
     });
   }
+});
+
+describe("shouldRefit", () => {
+  it("refits once tasks arrive in a galaxy framed empty", () => {
+    expect(shouldRefit({ count: 0, distance: 20 }, { count: 5, distance: 20 })).toBe(true);
+    expect(shouldRefit({ count: 1, distance: 20 }, { count: 2, distance: 18 })).toBe(true);
+    expect(shouldRefit({ count: 0, distance: 20 }, { count: 1, distance: 20 })).toBe(false);
+  });
+
+  it("refits only when the bounds outgrow the current frame noticeably", () => {
+    expect(shouldRefit({ count: 8, distance: 20 }, { count: 9, distance: 20 * REFIT_GROWTH * 0.99 })).toBe(false);
+    expect(shouldRefit({ count: 8, distance: 20 }, { count: 9, distance: 20 * REFIT_GROWTH * 1.01 })).toBe(true);
+    expect(shouldRefit({ count: 8, distance: 20 }, { count: 8, distance: 12 })).toBe(false);
+  });
 });

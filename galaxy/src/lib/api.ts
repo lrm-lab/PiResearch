@@ -128,6 +128,14 @@ async function failure(response: Response): Promise<HttpError> {
   return new HttpError(response.status, message, body);
 }
 
+/**
+ * True when a study request failed because the study does not exist (404).
+ * Network errors, timeouts and 5xx (e.g. the proxy's 502) are transient.
+ */
+export function isMissingStudy(error: unknown): error is HttpError {
+  return error instanceof HttpError && error.status === 404;
+}
+
 /** GET JSON with optional ETag revalidation. Throws HttpError for non-2xx (except 304). */
 export async function fetchJson<T>(url: string, options: RequestOptions = {}): Promise<Fetched<T>> {
   const headers: Record<string, string> = { Accept: "application/json", ...options.headers };

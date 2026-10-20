@@ -6,7 +6,7 @@ import { CardGrid } from "../home/CardGrid";
 import { Captions } from "../home/Captions";
 import { Composer } from "../home/Composer";
 import { DeleteDialog } from "../home/DeleteDialog";
-import { flags } from "../home/flags";
+import { flags, resetNavigation } from "../home/flags";
 import { Header } from "../home/Header";
 import { startHomePolling } from "../home/polling";
 import { useHome } from "../home/store";
@@ -44,7 +44,9 @@ export function HomePage() {
   // Back from a study through the bfcache: undo the flight / launch.
   useEffect(() => {
     const onShow = (event: PageTransitionEvent) => {
-      if (event.persisted) useHome.getState().resetMotion();
+      if (!event.persisted) return;
+      resetNavigation();
+      useHome.getState().resetMotion();
     };
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);

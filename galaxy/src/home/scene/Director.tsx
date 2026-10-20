@@ -95,20 +95,28 @@ export function Director() {
     [],
   );
 
-  function startFlight(target: Vector3, href: string) {
-    const store = useHome.getState();
-    if (store.reducedMotion) {
-      navigate(href);
-      return;
-    }
+  function arrive(href: string) {
+    navigate(href);
+    // ?navigate=0: come back out after a beat so the run can be repeated.
+    if (flags.stay) setTimeout(() => useHome.getState().resetMotion(), 1400);
+  }
+
+  /**
+   * Start the dive. With reduced motion, or with no galaxy to fly into
+   * (`target` null), the flight is recorded as already done and navigates
+   * once, so the frame loop does not start it again.
+   */
+  function startFlight(target: Vector3 | null, href: string) {
+    const instant = !target || useHome.getState().reducedMotion;
     flight.current = {
       start: shared.uTime.value,
       from: camera.position.clone(),
       fromLook: currentLook.current.clone(),
-      target: target.clone(),
+      target: (target ?? currentLook.current).clone(),
       href,
-      done: false,
+      done: instant,
     };
+    if (instant) arrive(href);
   }
 
   useFrame((_state, delta) => {
@@ -119,8 +127,7 @@ export function Director() {
     // A flight requested from the DOM or a galaxy click.
     if (store.flight && !flight.current) {
       const object = fx.galaxies.get(store.flight.id);
-      if (object) startFlight(object.getWorldPosition(tmp), store.flight.href);
-      else navigate(store.flight.href);
+      startFlight(object ? object.getWorldPosition(tmp) : null, store.flight.href);
     }
     if (fx.dive && !flight.current) {
       startFlight(fx.dive.target, fx.dive.href);
@@ -149,9 +156,7 @@ export function Director() {
       if (fx.flashEl) fx.flashEl.style.opacity = MathUtils.smoothstep(t, 0.6, 1).toFixed(3);
       if (t >= 1) {
         active.done = true;
-        navigate(active.href);
-        // ?navigate=0: come back out after a beat so the run can be repeated.
-        if (flags.stay) setTimeout(() => useHome.getState().resetMotion(), 1400);
+        arrive(active.href);
       }
     } else if (!active) {
       // Rest pose: gentle sway with the pointer, and the intro glide.

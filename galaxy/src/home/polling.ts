@@ -17,6 +17,8 @@ interface Watch {
   live: boolean;
   loaded: boolean;
   busy: boolean;
+  /** Fetch again once the in-flight request settles (the study finished meanwhile). */
+  again: boolean;
   visible: boolean;
   etag: string | null;
   sig: string;
@@ -29,6 +31,8 @@ const onScreen = new Map<string, boolean>();
 let historyTimer: ReturnType<typeof setTimeout> | null = null;
 let historyEtag: string | null = null;
 let historyBusy = false;
+/** A refresh was asked for while one was in flight: run one more right after it. */
+let historyAgain = false;
 let historyFailures = 0;
 let running = false;
 
@@ -59,7 +63,12 @@ async function loadThumb(id: string): Promise<void> {
     /* keep the last geometry; a live study retries on its next tick */
   } finally {
     watch.busy = false;
-    if (watches.get(id) === watch && watch.live && watch.visible && !document.hidden && running) {
+    if (watches.get(id) === watch && watch.again) {
+      // The in-flight response may predate the finish: fetch the final shape now.
+      watch.again = false;
+      watch.loaded = false;
+      void loadThumb(id);
+    } else if (watches.get(id) === watch && watch.live && watch.visible && !document.hidden && running) {
       clearWatchTimer(watch);
       watch.timer = setTimeout(() => void loadThumb(id), THUMB_LIVE_MS);
     }
@@ -81,7 +90,7 @@ function syncWatches(rows: readonly HistoryRow[]) {
     const watch = watches.get(row.id);
     if (!watch) {
       const visible = onScreen.get(row.id) ?? false;
-      watches.set(row.id, { live, loaded: false, busy: false, visible, etag: null, sig: "", timer: null });
+      watches.set(row.id, { live, loaded: false, busy: false, again: false, visible, etag: null, sig: "", timer: null });
       if (visible) void loadThumb(row.id);
       continue;
     }
@@ -93,7 +102,8 @@ function syncWatches(rows: readonly HistoryRow[]) {
       watch.live = false;
       watch.loaded = false;
       clearWatchTimer(watch);
-      void loadThumb(row.id);
+      if (watch.busy) watch.again = true;
+      else void loadThumb(row.id);
     }
   }
 }
@@ -110,6 +120,7 @@ export function setThumbVisible(id: string, visible: boolean): void {
 
 async function refreshHistory(): Promise<void> {
   if (!running || historyBusy || document.hidden) return;
+  historyAgain = false;
   if (historyTimer !== null) clearTimeout(historyTimer);
   historyTimer = null;
   historyBusy = true;
@@ -132,13 +143,15 @@ async function refreshHistory(): Promise<void> {
     if (!useHome.getState().rows?.length) useHome.getState().setLoadError(HISTORY_FAILED);
   } finally {
     historyBusy = false;
-    if (running && !document.hidden) historyTimer = setTimeout(() => void refreshHistory(), historyDelay(historyFailures));
+    if (historyAgain) void refreshHistory();
+    else if (running && !document.hidden) historyTimer = setTimeout(() => void refreshHistory(), historyDelay(historyFailures));
   }
 }
 
-/** Refresh now (after a delete), keeping the ETag. */
+/** Refresh now (after a delete), keeping the ETag; right after the in-flight request if there is one. */
 export function refreshHistoryNow(): void {
-  void refreshHistory();
+  if (historyBusy) historyAgain = true;
+  else void refreshHistory();
 }
 
 function onVisibility() {

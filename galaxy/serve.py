@@ -118,12 +118,12 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         if relative.startswith("..") or relative.startswith("/"):
             return None
         root = self.dist.resolve()
-        candidate = (root / relative).resolve()
         try:
+            candidate = (root / relative).resolve()
             candidate.relative_to(root)
-        except ValueError:
+            return candidate if candidate.is_file() else None
+        except (ValueError, OSError):  # outside dist, or unusable (e.g. %00: embedded null byte)
             return None
-        return candidate if candidate.is_file() else None
 
     def _static(self, path: str, send_body: bool) -> None:
         target = self._resolve(path)
