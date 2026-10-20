@@ -130,6 +130,20 @@ def test_cycles_rejected_even_with_one_parent_each():
     assert updated is None and "cycle" in error
 
 
+def test_adding_an_independent_root_task_does_not_repeat_existing_parent_review():
+    document, descriptions, op = _case()
+    reviewed, error = apply_ops(document, [op], descriptions)
+    assert error is None
+    descriptions["t5"] = "抽样挑战另一项任务"
+    updated, error = apply_ops(reviewed, [
+        {"op": "add_node", "id": "t5"},
+        {"op": "add_edge", "from": "goal", "to": "t5", "relation": "parent"},
+        {"op": "add_edge", "from": "t5", "to": "t2", "relation": "challenge"},
+    ], descriptions)
+    assert error is None
+    assert review_blocked(updated, descriptions) is None
+
+
 def test_ordinary_edge_ops_cannot_bypass_evidence_to_flatten_a_valid_subtree():
     document, descriptions, _ = _case()
     before = deepcopy(document)

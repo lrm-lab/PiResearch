@@ -474,6 +474,22 @@ async def assign_task(tasks: list[AssignmentSpec] | str = "") -> str:
     if not specs:
         return "Error: invalid assignment metadata: " + "; ".join(validation_errors)
 
+    if scope.metadata.get("sampled_challenges_enabled"):
+        from plugins.tools._challenge_sampling import CHALLENGER, assignment_error
+
+        challengers = [spec for spec in specs if spec.agent.strip().lower() == CHALLENGER]
+        if len(challengers) > 1:
+            return "Error: challenge rounds must be sequential; assign only one sampled target."
+        if challengers:
+            import json
+
+            graph = json.loads((Path(graph_directory) / "constellation.json").read_text())
+            session = bus.get_session(f"{bus_task_id}::{CHALLENGER}")
+            spec = challengers[0]
+            error = assignment_error(graph, session, publishing=bool(getattr(spec, "output_paths", None) or getattr(spec, "publish", False)))
+            if error:
+                return error
+
     submitted: list[dict[str, str]] = []
     errors: list[str] = []
     notices: list[str] = []

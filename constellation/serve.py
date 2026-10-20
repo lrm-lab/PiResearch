@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from constellation.home import create_session, delete_study, list_history, resolve_trial
 from constellation.layout import GOAL_RADIUS, HUB_RADIUS, RADIUS, place_constellation
 from constellation.node_size import apply_call_radii
+from constellation.performance import ResponseHandler, SnapshotCache, file_stamp, static_bytes
 
 _TONES = ("green", "cyan", "violet", "amber", "blue", "teal")
 
@@ -287,6 +289,10 @@ def _uniquify_labels(steps: list[dict[str, Any]]) -> None:
     for step in steps:
         label = str(step.get("label") or "")
         full = str(step.pop("_full", "") or "")
+        if label not in used:
+            step["label"] = label
+            used.add(label)
+            continue
         tokens = []
         for token in re.split(r"[\s，,、：:；;]+", full):
             if not token or "/" in token or token in {"cd", "ls", "mkdir", "python3"}:
@@ -575,6 +581,7 @@ def build_view(trial: Path) -> dict[str, Any]:
         if agent and agent not in seen_agents:
             seen_agents.append(agent)
     agent_tone = {agent: _TONES[index % len(_TONES)] for index, agent in enumerate(seen_agents)}
+    steps_by_agent: dict[str, list[dict[str, Any]]] = {}
     hubs: set[str] = set()
     grouped: dict[str, list[str]] = {}
     for node_id in sorted(agents_of, key=lambda item: (int("".join(ch for ch in item if ch.isdigit()) or "0"), item)):
@@ -591,7 +598,9 @@ def build_view(trial: Path) -> dict[str, Any]:
         names = [] if goal else agents_of.get(node_id, [])
         steps: list[dict[str, Any]] = []
         for name in names:
-            steps.extend(agent_steps(trial, name))
+            if name not in steps_by_agent:
+                steps_by_agent[name] = agent_steps(trial, name)
+            steps.extend(steps_by_agent[name])
         if goal:
             radius, tone, weight = GOAL_RADIUS, "origin", "origin"
         elif not names:
@@ -659,7 +668,7 @@ def build_view(trial: Path) -> dict[str, Any]:
     }
 
 
-def _study_view(runs: Path, trial: Path) -> dict[str, Any]:
+def _build_study_view(runs: Path, trial: Path) -> dict[str, Any]:
     payload = build_view(trial)
     session = _session_for(trial) or {}
     if payload.get("ok"):
@@ -675,6 +684,53 @@ def _study_view(runs: Path, trial: Path) -> dict[str, Any]:
     return payload
 
 
+
+_view_cache = SnapshotCache(48)
+
+
+def _view_stamp(trial: Path) -> tuple[Any, ...]:
+    paths = [_graph_path(trial), _board_path(trial), report_path(trial), trial / "result.json", trial.parent.parent.parent / "session.json"]
+    folder = trial / "agent" / "trajectories" / "subagents"
+    paths.extend(sorted(folder.glob("*.jsonl")))
+    now = time.time()
+    stamps = [file_stamp(path) for path in paths]
+    # live_calls intentionally expires abandoned in-flight tools. Invalidate at
+    # that boundary even when no writer touches the trajectory again.
+    stale = tuple(now - stamp[3] / 1e9 > _LIVE_STALE_SECONDS for stamp in stamps[5:] if len(stamp) > 2)
+    return (*stamps, stale)
+
+
+def _cached_entry(trial: Path, *, session: bool = True) -> dict[str, Any]:
+    stamp = _view_stamp(trial)
+
+    def build() -> dict[str, Any]:
+        full = _build_study_view(trial.parent, trial) if session else build_view(trial)
+        full["revision"] = hashlib.sha256(repr(stamp).encode()).hexdigest()[:24]
+        nodes = []
+        details = {}
+        for node in full.get("nodes") or []:
+            steps = node.get("steps") or []
+            revision = hashlib.sha256(json.dumps(steps, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()[:24]
+            detail = {**node, "step_count": len(steps), "steps_revision": revision, "steps_loaded": True}
+            details[str(node["id"])] = detail
+            nodes.append({**detail, "steps": [], "steps_loaded": False})
+        snapshot = {**full, "nodes": nodes, "detail_mode": "on-demand"}
+        thumbnail = {key: full.get(key) for key in ("ok", "message", "version", "revision", "running", "edges")}
+        thumbnail["nodes"] = [{key: node.get(key) for key in ("id", "goal", "x", "y", "radius", "tone", "status")} for node in nodes]
+        return {"view": full, "snapshot": snapshot, "thumbnail": thumbnail, "details": details}
+
+    return _view_cache.get((str(trial.resolve()), session), stamp, build)
+
+
+def _study_view(runs: Path, trial: Path) -> dict[str, Any]:
+    return _cached_entry(trial)["view"]
+
+
+def _node_payload(trial: Path, query: str, *, session: bool = True) -> dict[str, Any] | None:
+    node_id = parse_qs(query).get("id", [""])[0]
+    return _cached_entry(trial, session=session)["details"].get(node_id)
+
+
 def make_home_server(
     runs: Path,
     host: str = "127.0.0.1",
@@ -683,19 +739,12 @@ def make_home_server(
 ) -> ThreadingHTTPServer:
     root = runs.resolve()
 
-    class Handler(BaseHTTPRequestHandler):
+    class Handler(ResponseHandler):
         def log_message(self, fmt: str, *args: Any) -> None:
             return
 
-        def _send(self, status: int, body: bytes, content_type: str) -> None:
-            self.send_response(status)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
         def _json(self, status: int, payload: Any) -> None:
-            self._send(status, json.dumps(payload, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+            self._send(status, json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), "application/json; charset=utf-8")
 
         def _study(self, path: str, suffix: str) -> Path | None:
             marker = "/api/studies/"
@@ -707,13 +756,26 @@ def make_home_server(
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             if path in ("/", "/index.html"):
-                self._send(200, _HOME.read_bytes(), "text/html; charset=utf-8")
+                self._send(200, static_bytes(_HOME), "text/html; charset=utf-8")
                 return
             if path.startswith("/study/"):
-                self._send(200, _INDEX.read_bytes(), "text/html; charset=utf-8")
+                self._send(200, static_bytes(_INDEX), "text/html; charset=utf-8")
                 return
             if path == "/api/history":
-                self._json(200, list_history(root))
+                rows = list_history(root)
+                if parse_qs(urlparse(self.path).query).get("compact") == ["1"]:
+                    rows = [{key: value for key, value in row.items() if key != "question"} for row in rows]
+                self._json(200, rows)
+                return
+            for variant in ("snapshot", "thumbnail", "node"):
+                trial = self._study(path, "/" + variant)
+                if trial is None:
+                    continue
+                if not trial.is_dir():
+                    self._json(404, {"ok": False, "message": "没有这项研究。"})
+                    return
+                payload = _node_payload(trial, urlparse(self.path).query) if variant == "node" else _cached_entry(trial)[variant]
+                self._json(200 if payload is not None else 404, payload if payload is not None else {"error": "没有这个节点。"})
                 return
             trial = self._study(path, "/view")
             if trial is not None:
@@ -777,24 +839,23 @@ def make_home_server(
 def make_server(trial: Path, host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
     root = trial.resolve()
 
-    class Handler(BaseHTTPRequestHandler):
+    class Handler(ResponseHandler):
         def log_message(self, fmt: str, *args: Any) -> None:
             return
-
-        def _send(self, status: int, body: bytes, content_type: str) -> None:
-            self.send_response(status)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
 
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             if path in ("/", "/index.html"):
-                self._send(200, _INDEX.read_bytes(), "text/html; charset=utf-8")
+                self._send(200, static_bytes(_INDEX), "text/html; charset=utf-8")
+                return
+            if path in ("/api/snapshot", "/api/thumbnail", "/api/node"):
+                variant = path.rsplit("/", 1)[-1]
+                payload = _node_payload(root, urlparse(self.path).query, session=False) if variant == "node" else _cached_entry(root, session=False)[variant]
+                status = 200 if payload is not None else 404
+                self._send(status, json.dumps(payload if payload is not None else {"error": "没有这个节点。"}, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), "application/json; charset=utf-8")
                 return
             if path == "/api/view":
-                payload = json.dumps(build_view(root), ensure_ascii=False).encode("utf-8")
+                payload = json.dumps(_cached_entry(root, session=False)["view"], ensure_ascii=False, separators=(",", ":")).encode("utf-8")
                 self._send(200, payload, "application/json; charset=utf-8")
                 return
             if path == "/api/report":

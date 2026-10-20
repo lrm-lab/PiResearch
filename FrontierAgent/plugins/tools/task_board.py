@@ -333,6 +333,9 @@ async def add_task(tasks: list[Any]) -> str:
             - owner (OPTIONAL, multi-agent runs only): if a teammate sub-agent is
               already assigned to this item, name it here (a name, comma-string,
               or list — a task may have many). In a solo run, just OMIT it.
+            - task_kind (OPTIONAL): research | verification | writing | challenge.
+              Label research, verification and writing explicitly. Sampled
+              challenge tasks are created by next_challenge, not pre-planned.
 
     Returns:
         The assigned ids plus the rendered board.
@@ -345,6 +348,14 @@ async def add_task(tasks: list[Any]) -> str:
         return "Error: add_task requires at least one {description} item."
     b = _board(scope.task_id)
     existing = {t["description"].strip(): tid for tid, t in b["tasks"].items()}
+    proposed_challenges = {
+        str(item.get("description") or "").strip()
+        for raw in items if (item := coerce_json_object(raw)) is not None
+        and item.get("task_kind") == "challenge" and item.get("description")
+        and str(item["description"]).strip() not in existing
+    }
+    if sum(task.get("task_kind") == "challenge" for task in b["tasks"].values()) + len(proposed_challenges) > 5:
+        return "Error: at most five challenge tasks per study; do not reset or bypass the sampling budget."
     new_ids: list[str] = []
     skipped = 0  # items that weren't usable {description} objects
     for raw in items:
@@ -354,6 +365,10 @@ async def add_task(tasks: list[Any]) -> str:
             continue
         desc = str(it.get("description", "")).strip()
         if not desc:
+            skipped += 1
+            continue
+        task_kind = it.get("task_kind")
+        if task_kind is not None and task_kind not in ("research", "verification", "writing", "challenge"):
             skipped += 1
             continue
         if desc in existing:  # dedup re-decomposition
@@ -368,6 +383,8 @@ async def add_task(tasks: list[Any]) -> str:
             "group": str(it.get("group", "")).strip(),
             "notes": "",
         }
+        if task_kind:
+            b["tasks"][tid]["task_kind"] = task_kind
         existing[desc] = tid
         new_ids.append(tid)
     logger.info(
@@ -443,6 +460,9 @@ async def update_task(updates: list[Any]) -> str:
             errors.append(f"{tid}: bad resolution {res!r} (use {VALID_RESOLUTION})")
             continue
         t = b["tasks"][tid]
+        if t.get("task_kind") == "challenge" and res in ("resolved", "cancelled"):
+            errors.append(f"{tid}: record sampled challenges with update_constellation(record_challenge), not update_task")
+            continue
         t.setdefault("owners", [])
         if res:
             t["resolution"] = res

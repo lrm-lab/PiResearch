@@ -78,6 +78,8 @@ def persist_task_board(directory: Path, tasks: dict[str, dict[str, Any]]) -> Non
             "owners": list(task.get("owners") or []),
             "notes": task.get("notes") or "",
         }
+        if task.get("task_kind"):
+            snapshot["tasks"][task_id]["task_kind"] = task["task_kind"]
     _atomic_write(directory / _BOARD_NAME, snapshot)
 
 
@@ -196,6 +198,8 @@ def apply_ops(
 
     doc["nodes"] = list(nodes.values())
     doc["edges"] = edges
+    if len({edge["from"] for edge in edges if edge.get("relation") == "challenge"}) > 5:
+        return None, "at most five challenge nodes per study"
     error = parent_error(doc)
     if error:
         return None, error
@@ -300,6 +304,19 @@ async def update_constellation(ops: list[Any]) -> str:
             Preserve valid decomposition and uncertain relations. Only high
             confidence prerequisite/parallel findings move children to goal.
             All decisions and original parents are recorded in the graph.
+            ``{"op": "next_challenge"}`` randomly allocates ONE completed,
+            untested research task and creates its challenge node (max five).
+            ``{"op": "record_challenge", "challenge_id": "tN"}`` records
+            the fresh sample_challenger report, not a coordinator verdict.
+            Sampling ops must be alone. A pass or inconclusive stops; only
+            confirmed errors continue. Repair reopened targets first.
+            ``{"op": "record_review", "reviewer": "tN", "agent": "fact_verifier"}``
+            Must be the ONLY op. Read an independent verification task owner's
+            completed report with a <review_result> JSON block. Records audit
+            edges for inspected targets, support only for confirmed findings,
+            and error edges plus reopened targets for demonstrated errors.
+            Saves claim-level evidence and report provenance. Does not invent
+            judgments from task names, statuses or visual layout.
 
     Returns:
         The updated graph, or an error naming the rejected op.
@@ -318,6 +335,24 @@ async def update_constellation(ops: list[Any]) -> str:
     if document is None:
         return "Error: constellation.json is missing"
     parsed = coerce_json_list(ops) or []
+    parsed_items = [coerce_json_object(item) for item in parsed]
+    if any(item and item.get("op") == "record_review" for item in parsed_items):
+        if len(parsed_items) != 1:
+            return "Error: record_review must be the only op in its call."
+        from plugins.tools._evidence_reviews import record_review
+
+        return record_review(directory, document, parsed_items[0], scope, tasks)
+    if scope.metadata.get("evidence_reviews_enabled") and any(
+        item and item.get("op") == "add_edge" and item.get("relation") in ("audit", "support", "fusion")
+        for item in parsed_items
+    ):
+        return "Error: record actual audit/support findings with record_review, not raw edges."
+    if any(item and item.get("op") in ("next_challenge", "record_challenge") for item in parsed_items):
+        if len(parsed_items) != 1:
+            return "Error: sampling must be the only op in its call."
+        from plugins.tools._challenge_sampling import sampling_op
+
+        return await sampling_op(directory, document, parsed_items[0], scope, tasks)
     updated, error = apply_ops(document, parsed, descriptions)
     if error or updated is None:
         return f"Error: {error}"

@@ -41,12 +41,13 @@ def _nested(document: dict[str, Any]) -> dict[str, str]:
 
 
 def _fingerprint(document: dict[str, Any], descriptions: dict[str, str]) -> str:
+    nested = _nested(document)
+    related = set(nested) | set(nested.values())
     data = {
         "goal": document.get("goal"),
         "tasks": sorted((node["id"], descriptions.get(node["id"], ""))
-                        for node in document.get("nodes") or []),
-        "parents": sorted((edge["from"], edge["to"]) for edge in document.get("edges") or []
-                          if edge.get("relation") == "parent"),
+                        for node in document.get("nodes") or [] if node["id"] in related),
+        "parents": sorted(nested.items()),
     }
     return hashlib.sha256(json.dumps(data, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
 

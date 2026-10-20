@@ -83,6 +83,31 @@ def finalize_gate(
             "question into the task board, then call finish_planning to start "
             "the team — you cannot submit an answer during planning."
         )
+    scope = get_current_execution_scope()
+    if scope is not None and scope.task_id == task_id and scope.metadata.get("evidence_reviews_enabled"):
+        import json
+        from pathlib import Path
+
+        from plugins.tools._evidence_reviews import review_recording_blocked
+        from plugins.tools.task_board import board_tasks
+
+        path = Path(str(scope.metadata.get("constellation_dir") or "")) / "constellation.json"
+        if path.is_file():
+            blocked = review_recording_blocked(json.loads(path.read_text()), board_tasks(task_id))
+            if blocked:
+                return blocked
+    if scope is not None and scope.task_id == task_id and scope.metadata.get("sampled_challenges_enabled"):
+        import json
+        from pathlib import Path
+
+        from plugins.tools._challenge_sampling import sampling_blocked
+        from plugins.tools.task_board import board_tasks
+
+        path = Path(str(scope.metadata.get("constellation_dir") or "")) / "constellation.json"
+        if path.is_file():
+            blocked = sampling_blocked(json.loads(path.read_text()), board_tasks(task_id))
+            if blocked:
+                return blocked
     if planning_enabled(task_id):
         bus = registry.get_optional(AgentBus)
         sessions = bus.list_sessions_for_task(agent_bus_task_id) if bus else []

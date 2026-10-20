@@ -1434,6 +1434,8 @@ async def main_agent_node(
         # Host path of the trial worktree. Graph tools write here even when
         # the model sees that directory as /workspace.
         "constellation_dir": str(worktree_root),
+        "sampled_challenges_enabled": True,
+        "evidence_reviews_enabled": True,
     }
 
     async def _run_main_loop(

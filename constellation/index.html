@@ -5,10 +5,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PiResearch</title>
 <script>
+let thumbEntry = null;
+const entryPreview = /(?:^|[?&])entry-preview=1(?:&|$)/.test(location.search || "") && window.parent !== window;
+if(entryPreview) document.documentElement.classList.add("entry-preview");
+function readThumbEntry(raw, path, now){
+  try{
+    const entry = JSON.parse(raw);
+    if(!entry || entry.href !== path || now - entry.at < 0 || now - entry.at > 10000) return null;
+    if(!Number.isFinite(entry.at)) return null;
+    const snapshot = entry.view;
+    if(!snapshot || !Number.isFinite(snapshot.at) || now - snapshot.at < 0 || now - snapshot.at > 30000) return null;
+    if(!snapshot.payload || typeof snapshot.payload.ok !== "boolean") return null;
+    if(snapshot.payload.ok && (!Array.isArray(snapshot.payload.nodes) || !Array.isArray(snapshot.payload.edges))) return null;
+    return entry;
+  }catch(err){ return null; }
+}
 try{
-  if(sessionStorage.getItem("piresearch-zoom") === "1"){
-    sessionStorage.removeItem("piresearch-zoom");
-    document.documentElement.classList.add("from-thumb");
+  const raw = sessionStorage.getItem("piresearch-zoom");
+  sessionStorage.removeItem("piresearch-zoom");
+  if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+    thumbEntry = readThumbEntry(raw, location.pathname, Date.now());
   }
 }catch(err){}
 </script>
@@ -16,20 +32,19 @@ try{
 :root{--bg:#000;--text:#f4f4f5;--muted:#8a8a8a;--cyan:#48d3e4;--blue:#6d9cff;--green:#58d69a;--amber:#f4c56a;--violet:#aa8cff;--line:#242424;--sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#000;color:var(--text);font-family:var(--sans)}
 button{font:inherit;cursor:pointer}
-.app{height:100vh;display:grid;grid-template-rows:68px 1fr}
-html.from-thumb .app{animation:become-real .62s cubic-bezier(.16,1,.3,1)}
-@keyframes become-real{from{opacity:.84;filter:blur(16px);transform:scale(1.012)}to{opacity:1;filter:blur(0);transform:none}}
+.app{height:100vh;height:100dvh;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:68px minmax(0,1fr)}
+html.entry-preview *{animation-play-state:paused!important}
 ::selection{background:#2c2c2c;color:#fff}
-.top{display:flex;align-items:center;gap:0;height:68px;padding:0 22px;border-bottom:1px solid #141414;background:#000}
+.top{display:flex;align-items:center;gap:0;min-width:0;height:68px;padding:0 22px;border-bottom:1px solid #141414;background:#000}
 a.brand{flex:none;display:flex;align-items:center;height:68px;color:#f4f4f5;text-decoration:none;font-family:"Savoye LET","Snell Roundhand","Segoe Script","Bradley Hand",cursive;font-size:32px;font-weight:400;line-height:1;transform:translateY(6px)}
 a.brand:hover{color:#fff}
-#open-report{margin-left:auto;border:0;border-radius:999px;background:#f4f4f5;color:#111;padding:7px 16px;font-size:13px;font-weight:560;letter-spacing:.04em;box-shadow:0 10px 24px rgba(0,0,0,.4)}
+#open-report{flex:none;margin-left:auto;border:0;border-radius:999px;background:#f4f4f5;color:#111;padding:7px 16px;font-size:13px;font-weight:560;letter-spacing:.04em;box-shadow:0 10px 24px rgba(0,0,0,.4)}
 #open-report:hover{background:#fff;color:#000}
 #open-report:focus-visible{outline:2px solid #fff;outline-offset:3px}
 #goal-text{flex:1;min-width:0;margin:0 0 0 48px;font-family:"Kaiti SC","STKaiti","Songti SC","STSong",serif;font-size:18px;font-weight:500;letter-spacing:.03em;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.workspace{position:relative;display:grid;grid-template-columns:1fr;min-height:0}
-.app.has-selection .workspace{grid-template-columns:1fr 360px}
-.canvas{position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#121212 0%,#050505 54%,#000 100%);cursor:grab;touch-action:none}
+.workspace{position:relative;display:grid;grid-template-columns:minmax(0,1fr);min-height:0;min-width:0}
+.app.has-selection .workspace{grid-template-columns:minmax(0,1fr) 360px}
+.canvas{position:relative;min-width:0;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#121212 0%,#050505 54%,#000 100%);cursor:grab;touch-action:none}
 .canvas.panning{cursor:grabbing}
 .sky{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
 .sky::before,.sky::after{content:"";position:absolute;border-radius:50%;filter:blur(28px)}
@@ -74,9 +89,14 @@ button.node{appearance:none;color:#e8edf1}
 .node.weight-origin{border-color:color-mix(in srgb,var(--ring) 76%,#24434a);background:linear-gradient(145deg,color-mix(in srgb,var(--ring) 22%,#0c2027),#0a1c24);box-shadow:0 12px 30px #0005}
 .node.weight-origin::before{inset:12px;opacity:1;border-color:color-mix(in srgb,var(--ring) 36%,transparent)}
 .node.weight-origin::after{inset:-12px;mask-image:none;-webkit-mask-image:none;border-color:color-mix(in srgb,var(--ring) 20%,transparent);opacity:1;box-shadow:0 0 0 10px color-mix(in srgb,var(--ring) 4%,transparent)}
-.node.weight-origin .node-content{width:73%;gap:12px}
-.node.weight-origin .node-title{font-weight:650;line-height:1.4;color:#f1f5f7}
-.node.weight-origin .node-tab{right:3%;top:13%}
+.node.weight-origin .node-content{width:70%;gap:7px}
+.node.weight-origin .node-title{font-weight:650;line-height:1.35;color:#f1f5f7}
+.node.weight-origin .node-kicker{font-size:8.5px;line-height:1.2;letter-spacing:.08em}
+.node.weight-origin .node-summary{font-size:9.5px;line-height:1.45}
+.node.weight-origin .node-meta{font-size:9px;line-height:1.35}
+.node.weight-origin.working .node-meta{display:none}
+.node.weight-origin .node-tab{left:50%;right:auto;top:auto;bottom:calc(100% + 34px);transform:translateX(-50%);padding:6px 11px;border-radius:999px;white-space:nowrap;font-size:10px;line-height:1.25;letter-spacing:.03em}
+.node.weight-origin .node-id{right:-4px;bottom:16%}
 .node:hover{color:#fff;border-color:var(--ring);box-shadow:0 12px 28px #0007}
 .node:hover::after{opacity:.9}
 .node:focus-visible{outline:2px solid #dcebf2;outline-offset:5px}
@@ -109,6 +129,20 @@ button.node{appearance:none;color:#e8edf1}
 @keyframes halo-breathe{50%{opacity:1;filter:drop-shadow(0 0 4px var(--glow,#48d3e4))}}
 .node.pending .halo{transform-origin:center;animation:halo-spin 2.6s linear infinite}
 @keyframes halo-spin{to{transform:rotate(360deg)}}
+.goal-work-orbit{position:absolute;inset:-28px;width:calc(100% + 56px);height:calc(100% + 56px);overflow:visible;pointer-events:none;z-index:2;color:var(--ring,#48d3e4)}
+.goal-work-orbit circle{fill:none;stroke:currentColor;vector-effect:non-scaling-stroke}
+.goal-work-track{stroke-width:1;opacity:.16}
+.goal-work-sweep{transform-box:view-box;transform-origin:50% 50%;animation:goal-work-orbit 6.4s linear infinite}
+.goal-work-sweep circle{stroke-width:2.5;stroke-linecap:round;stroke-dasharray:19 81}
+.goal-work-sweep .echo{opacity:.42;stroke-width:1.5;stroke-dasharray:9 91}
+.goal-work-orbit .goal-work-spark{fill:#e2fdff;stroke:var(--ring);stroke-width:1}
+.node.weight-origin.working::before{animation:goal-work-breathe 3.2s ease-in-out infinite}
+.node.finalizing .node-meta{color:#a0edf3}
+.node.weight-origin.working .node-tab{border-color:#48d3e4aa;color:#b8f5f8;background:#09232c}
+@keyframes goal-work-orbit{to{transform:rotate(360deg)}}
+@keyframes goal-work-breathe{0%,100%{opacity:.35}50%{opacity:1}}
+html.page-hidden .goal-work-sweep,html.page-hidden .node.weight-origin.working::before,.node.work-offscreen .goal-work-sweep,.node.weight-origin.working.work-offscreen::before{animation-play-state:paused}
+@media(prefers-reduced-motion:reduce){.goal-work-sweep,.node.weight-origin.working::before{animation:none}.node.weight-origin.working::before{opacity:.8}}
 .tone-origin{--ring:#48d3e4;--glow:#48d3e444}.tone-green{--ring:#58d69a;--glow:#58d69a44}.tone-cyan{--ring:#48d3e4;--glow:#48d3e444}.tone-violet{--ring:#aa8cff;--glow:#aa8cff44}.tone-amber{--ring:#f4c56a;--glow:#f4c56a44}.tone-blue{--ring:#6d9cff;--glow:#6d9cff44}.tone-teal{--ring:#7ddec8;--glow:#7ddec844}.tone-pending{--ring:#9eb0c2;--glow:#9eb0c244}
 button.satellite{appearance:none;position:absolute;z-index:5;display:flex;align-items:center;justify-content:flex-start;color:#e8f0f5;background:#0b1b26;border:1px solid color-mix(in srgb,var(--mark,#9ec9d6) 48%,#203847);font-weight:500;letter-spacing:0;line-height:1;white-space:nowrap;overflow:hidden}
 button.satellite span{overflow:hidden;text-overflow:ellipsis}
@@ -181,7 +215,7 @@ button.satellite.retreat{animation:chip-back .34s cubic-bezier(.16,.8,.28,1) for
 .empty{position:absolute;inset:0;display:grid;place-items:center;padding:40px;text-align:center;color:#8a8a8a}
 .empty[hidden]{display:none !important}
 .empty b{display:block;margin-bottom:8px;font-size:16px}
-.drawer{position:relative;display:none;border-left:1px solid #161616;background:#070707;grid-template-rows:auto 1fr;min-height:0}
+.drawer{position:relative;display:none;border-left:1px solid #161616;background:#070707;grid-template-rows:auto minmax(0,1fr);min-height:0;min-width:0;overflow:hidden}
 .app.has-selection .drawer{display:grid}
 .drawer.focus-in{animation:drawer-focus-in .38s cubic-bezier(.16,1,.3,1) both}
 .drawer.focus-in::before{content:"";position:absolute;z-index:2;left:0;top:var(--focus-y,50%);width:2px;height:68px;transform:translateY(-50%);pointer-events:none;background:linear-gradient(transparent,#6d9cff,transparent);box-shadow:0 0 14px #6d9cff66;animation:drawer-beacon .5s ease-out both}
@@ -190,19 +224,35 @@ button.satellite.retreat{animation:chip-back .34s cubic-bezier(.16,.8,.28,1) for
 @keyframes drawer-beacon{0%{opacity:0;transform:translateY(-50%) scaleY(.25)}35%{opacity:1}100%{opacity:0;transform:translateY(-50%) scaleY(1)}}
 @keyframes drawer-content-in{from{opacity:.35;transform:translateY(7px)}to{opacity:1;transform:none}}
 .drawer-head{padding:22px 22px 18px;border-bottom:1px solid #161616}
-#back-goal{display:flex;align-items:center;gap:6px;width:fit-content;margin:0 0 14px;padding:0;border:0;background:transparent;color:#5ce1ff;font-size:13px;font-weight:650;line-height:1}
+.drawer-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:28px;margin-bottom:10px}
+#close-drawer{display:grid;place-items:center;flex:none;width:28px;height:28px;margin-left:auto;padding:0;border:0;border-radius:7px;background:transparent;color:#a3adb5}
+#close-drawer svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+#close-drawer:hover{color:#f4f4f5;background:#ffffff0d}
+#close-drawer:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+#back-goal{display:flex;align-items:center;gap:6px;width:fit-content;margin:0;padding:0;border:0;background:transparent;color:#5ce1ff;font-size:13px;font-weight:650;line-height:1.4}
 #back-goal svg{display:block;width:14px;height:14px}
 #back-goal:hover{color:#d8f7ff}
 #back-goal:focus-visible{outline:2px solid #5ce1ff;outline-offset:3px;border-radius:4px}
 #back-goal[hidden]{display:none}
 .drawer-head .kind{display:block;margin:0 0 8px;font-size:13px;font-weight:650;letter-spacing:.04em}
 .drawer-head .kind[hidden]{display:none}
-.drawer-head h2{margin:0;font-family:"Kaiti SC","STKaiti","Songti SC","STSong",serif;font-size:22px;font-weight:500;letter-spacing:.03em;line-height:1.35}
+.drawer-head h2{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;text-wrap:balance;margin:0;font-family:"Kaiti SC","STKaiti","Songti SC","STSong",serif;font-size:22px;font-weight:500;letter-spacing:.03em;line-height:1.4}
 .drawer-head p{margin:8px 0 0;color:#9a9a9a;font-size:12px;line-height:1.4}
 #agents[hidden]{display:none}
-.drawer-body{overflow:auto;padding:18px 22px 32px;scrollbar-color:#3a3a3a transparent}
+.drawer-body{min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;padding:18px 22px 32px;scrollbar-color:#3a3a3a transparent}
 .drawer-body::-webkit-scrollbar{width:8px}
 .drawer-body::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:99px}
+.question-details{margin:0 0 22px;padding-bottom:16px;border-bottom:1px solid #1a1a1a}
+.question-details[hidden]{display:none}
+.question-details summary{display:flex;align-items:center;gap:8px;min-height:32px;color:#b9c4cc;font-size:13px;font-weight:550;list-style:none;cursor:pointer}
+.question-details summary::-webkit-details-marker{display:none}
+.question-details summary:hover{color:#edf3f7}
+.question-details summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:4px}
+.question-details summary small{margin-left:auto;color:#8e9ba5;font-size:11px;font-weight:400}
+.question-details summary svg{flex:none;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s ease}
+.question-details[open] summary svg{transform:rotate(180deg)}
+.question-content{max-height:min(30dvh,260px);margin-top:10px;padding-right:8px;overflow:auto;overscroll-behavior:contain;scrollbar-color:#3a3a3a transparent;white-space:pre-wrap;overflow-wrap:anywhere;color:#c2cbd2;font-size:14px;line-height:1.8;user-select:text}
+.question-content:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 .section{margin:0 0 22px}
 .section h3{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;font-weight:650;letter-spacing:.06em}
 .section h3::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
@@ -239,20 +289,21 @@ button.child{position:relative;isolation:isolate;display:flex;align-items:flex-s
 button.child:hover{background:#141416;border-color:color-mix(in srgb,var(--ring,#8ea0b3) 58%,#1a1a1a)}
 button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){button.child{transition:none}.child.state-working::before,.child.state-working .child-icon::after{animation:none}}
+.detail-retry{padding:8px 0;border:0;background:transparent;color:var(--cyan);font-size:13px;text-align:left}.detail-retry:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 .step b{display:block;margin:4px 0 2px;color:#f4f4f5;font-size:12px}
 .step.on{margin:0 -8px;padding:10px 8px;border-radius:8px;background:#1a1a1a}
-.modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;padding:32px;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.modal{position:fixed;inset:0;z-index:30;display:none;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);place-items:center;padding:32px;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .modal.open{display:grid;animation:report-veil .2s ease-out}
-.report{width:min(1040px,calc(100vw - 64px));height:min(1120px,calc(100dvh - 64px));display:grid;grid-template-rows:auto minmax(0,1fr);border:0;border-radius:16px;background:#fdfdfb;overflow:hidden;box-shadow:0 32px 100px #0007}
-.report header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:17px 28px;border-bottom:1px solid #e6e9e7;background:#fdfdfb}
-.report-heading{display:flex;align-items:center;gap:11px;min-width:0}
+.report{width:min(1040px,calc(100vw - 64px));max-width:100%;min-width:0;min-height:0;height:min(1120px,calc(100dvh - 64px));display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);border:0;border-radius:16px;background:#fdfdfb;overflow:hidden;box-shadow:0 32px 100px #0007}
+.report header{display:flex;align-items:center;justify-content:space-between;gap:24px;min-width:0;padding:17px 28px;border-bottom:1px solid #e6e9e7;background:#fdfdfb}
+.report-heading{display:flex;align-items:center;gap:11px;flex:1;min-width:0}
 .report-heading>svg{flex:none;width:18px;height:18px;fill:none;stroke:#537078;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.report header b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:14px;font-weight:600;line-height:1.5;color:#34434a}
+.report header b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-width:0;overflow:hidden;overflow-wrap:anywhere;font-size:14px;font-weight:600;line-height:1.5;color:#34434a}
 .report header button{display:grid;place-items:center;flex:none;width:32px;height:32px;padding:0;border:0;border-radius:8px;background:transparent;color:#69757b;transition:background .16s ease,color .16s ease}
 .report header button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
 .report header button:hover{color:#26383e;background:#edf0ee}
 .report header button:focus-visible{outline:2px solid #246477;outline-offset:2px}
-.prose{width:100%;min-width:0;min-height:0;margin:0;padding:48px 64px 88px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;color:#394249;font-size:16px;line-height:1.85;scrollbar-color:#c6ceca transparent}
+.prose{width:100%;min-width:0;min-height:0;margin:0;padding:48px 64px 88px;overflow:auto;overflow-wrap:anywhere;overscroll-behavior:contain;scrollbar-gutter:stable;color:#394249;font-size:16px;line-height:1.85;scrollbar-color:#c6ceca transparent}
 .prose>:not(.table-wrap){max-width:74ch;margin-left:auto;margin-right:auto}
 .prose>:first-child{margin-top:0}
 .prose>:last-child{margin-bottom:0}
@@ -300,8 +351,14 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
 @keyframes report-in{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}
 @keyframes report-veil{from{opacity:0}to{opacity:1}}
 @media(max-width:900px){
-  .workspace,.app.has-selection .workspace{grid-template-columns:1fr}
-  .app.has-selection .drawer{position:absolute;right:0;top:0;bottom:0;width:min(360px,100%);z-index:6}
+  .workspace,.app.has-selection .workspace{grid-template-columns:minmax(0,1fr)}
+  .app.has-selection .workspace{grid-template-rows:minmax(120px,1fr) minmax(0,min(56dvh,480px))}
+  .app.has-selection .drawer{border-left:0;border-top:1px solid #202020}
+  .drawer-head{padding:12px 18px}
+  .drawer-tools{margin-bottom:6px}
+  .drawer-head h2{font-size:18px;-webkit-line-clamp:2}
+  .drawer-body{padding:12px 18px 24px}
+  .question-content{max-height:min(24dvh,180px)}
   .modal{padding:12px}
   .report{width:100%;height:calc(100dvh - 24px);border-radius:12px}
   .report header{padding:14px 20px;gap:14px}
@@ -310,8 +367,9 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
   .prose h2{font-size:21px;margin-top:40px}
   .prose .table-wrap{overflow-x:auto}
 }
-@media(max-width:480px){.prose{padding:26px 18px 48px;font-size:15px}.prose h1{font-size:24px}.prose h2{font-size:20px}.report header{padding:12px 16px}.report-heading{gap:8px}.report header b{font-size:13px}}
+@media(max-width:480px){.top{padding:0 16px}.top a.brand{font-size:28px}#goal-text{margin-left:20px;margin-right:12px;font-size:16px}.app.has-selection .legend{bottom:64px}.prose{padding:26px 18px 48px;font-size:15px}.prose h1{font-size:24px}.prose h2{font-size:20px}.report header{padding:12px 16px}.report-heading{gap:8px}.report header b{font-size:13px}}
 @media(prefers-reduced-motion:reduce){.modal.open,.modal.open .report{animation:none}.report header button{transition:none}}
+@media(prefers-reduced-motion:reduce){.question-details summary svg{transition:none}}
 @media(prefers-reduced-motion:reduce){.edge.focus-trace,.node.selected.focus-in,.node.dim.focus-away,.drawer.focus-in,.drawer.focus-in::before,.drawer.focus-in .drawer-head,.drawer.focus-in .drawer-body{animation:none}}
 </style>
 </head>
@@ -346,9 +404,10 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
       </div>
       <div id="chip-tip" class="chip-tip" role="tooltip"></div>
     </main>
-    <aside class="drawer">
-      <header class="drawer-head"><button type="button" id="back-goal" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>回到主节点</button><span class="kind" id="kind">节点</span><h2 id="title">点选一个节点</h2><p id="agents"></p></header>
+    <aside class="drawer" aria-label="节点详情">
+      <header class="drawer-head"><div class="drawer-tools"><button type="button" id="back-goal" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>回到主节点</button><button type="button" id="close-drawer" aria-label="收起节点详情" title="收起详情"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8"/></svg></button></div><span class="kind" id="kind">节点</span><h2 id="title">点选一个节点</h2><p id="agents"></p></header>
       <div class="drawer-body">
+        <details class="question-details" id="question-details" hidden><summary><span id="question-label">完整问题</span><small id="question-length"></small><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="question-content" id="question-content" role="region" aria-label="完整问题内容" tabindex="0"></div></details>
         <section class="section" id="status-section"><h3>状态</h3><div id="status">—</div></section>
         <section class="section" id="notes-section"><h3>备注</h3><div class="notes" id="notes">—</div></section>
         <section class="section" id="children-section"><h3>子任务</h3><div id="children">—</div></section>
@@ -386,6 +445,12 @@ const REL = {parent:"子节点", audit:"审核", support:"支持", challenge:"�
 const TOOL = {web_search:"搜索", web_fetch:"打开", bash:"命令", read_file:"读取", create_file:"写入", submit_report:"提交", download_file:"下载", "压缩":"压缩", "思考":"思考"};
 const TITLE_COLOR = {web_search:"#60a5fa", web_fetch:"#2dd4bf", bash:"#fb923c", read_file:"#a3e635", create_file:"#f472b6", submit_report:"#e879f9", download_file:"#818cf8", "压缩":"#f9a8d4", "思考":"#fdba74"};
 const MARK = {web_search:"#48d3e4", web_fetch:"#6d9cff", bash:"#8ea0b3", read_file:"#aa8cff", create_file:"#58d69a", submit_report:"#f4c56a", "压缩":"#7ddec8", "思考":"#48d3e4"};
+const responseTags = new Map();
+const nodeDetails = new Map();
+const detailRequests = new Map();
+let refreshTimer = 0;
+let refreshBusy = false;
+let refreshFailures = 0;
 let view = null;
 let scale = 1;
 let selected = null;
@@ -403,7 +468,9 @@ let burstAt = 0;
 let glideToken = 0;
 const haloSeen = new Map();
 const toneSeen = new Map();
-let goalWorkStart = 0;
+const goalWorkObserver = new IntersectionObserver(entries => {
+  entries.forEach(entry => entry.target.classList.toggle("work-offscreen", !entry.isIntersecting));
+}, {root:document.querySelector("#canvas")});
 const BURST_STEP = 18;
 const BURST_MS = 340;
 
@@ -438,10 +505,10 @@ function fit(){
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   view.nodes.forEach(node => {
     const radius = node.radius || view.radius || 58;
-    minX = Math.min(minX, node.x - radius);
-    minY = Math.min(minY, node.y - radius);
-    maxX = Math.max(maxX, node.x + radius);
-    maxY = Math.max(maxY, node.y + radius);
+    minX = Math.min(minX, node.x - radius - (node.goal ? 28 : 0));
+    minY = Math.min(minY, node.y - radius - (node.goal ? 72 : 0));
+    maxX = Math.max(maxX, node.x + radius + (node.goal ? 28 : 0));
+    maxY = Math.max(maxY, node.y + radius + (node.goal ? 28 : 0));
   });
   const padX = 40;
   const padTop = 28;
@@ -458,11 +525,15 @@ function fit(){
 function nodeById(id){return (view.nodes || []).find(node => node.id === id)}
 
 function liveKey(source){
-  return (source && source.nodes || []).map(node => `${node.id}:${(node.live || []).map(step => step.label).join("/")}`).join("|");
+  return `${source && source.running}:` + (source && source.nodes || []).map(node => `${node.id}:${node.status || ""}:${node.steps_revision || ""}:${node.step_count ?? ""}:${(node.live || []).map(step => step.label).join("/")}`).join("|");
 }
 
 function sizeKey(source){
   return (source && source.nodes || []).map(node => `${node.id}:${node.radius}`).join("|");
+}
+
+function structureKey(source){
+  return JSON.stringify([source?.ok,source?.message,source?.goal,source?.edges,(source?.nodes || []).map(node => [node.id,node.title,node.x,node.y,node.tone,node.weight,node.status,node.notes,node.agents,node.children])]);
 }
 
 function linkedIds(id){
@@ -709,7 +780,7 @@ function revealChips(node, spots){
 }
 
 function toolCount(node){
-  const done = (node.steps || []).length;
+  const done = node.step_count ?? (node.steps || []).length;
   const live = (node.live || []).filter(step => step.tool && step.tool !== "思考").length;
   return done + live;
 }
@@ -718,43 +789,27 @@ function awaitingAgent(node){
   return !node.goal && node.status !== "cancelled" && node.status !== "resolved" && !(node.agents && node.agents.length) && toolCount(node) === 0;
 }
 
+function goalActivity(source){
+  if(!source || !source.ok || source.running !== true) return null;
+  const tasks = (source.nodes || []).filter(node => !node.goal);
+  if(!tasks.length) return {phase:"planning",label:"拆解问题中"};
+  if(tasks.some(node => (node.live || []).length)) return null;
+  if(!tasks.every(node => node.status === "resolved" || node.status === "cancelled")) return null;
+  return {phase:"finalizing",label:tasks.every(node => node.status === "resolved") ? "整理报告中" : "汇总结果中"};
+}
+
 function goalIsWorking(node){
-  if(!node.goal || !view || !view.running) return false;
-  return !(view.nodes || []).some(item => !item.goal);
+  return Boolean(node.goal && goalActivity(view));
 }
 
 function ringAmount(node, calls){
   if(node.status === "cancelled") return 0;
-  if(node.goal){
-    if(!goalIsWorking(node)) return 0;
-    if(!goalWorkStart) goalWorkStart = performance.now();
-    const elapsed = (performance.now() - goalWorkStart) / 45000;
-    return Math.min(0.78, 0.18 + elapsed * 0.6);
-  }
-  if(!goalIsWorking({goal:true}) ) goalWorkStart = 0;
+  if(node.goal) return 0;
   if(node.status === "resolved") return 1;
   if(awaitingAgent(node)) return 0.28;
   if(node.status !== "in_progress" && calls <= 0) return 0;
   const grown = Math.min(0.88, 1 - 1 / (1 + calls / 7));
   return node.status === "in_progress" ? Math.max(0.1, grown) : grown;
-}
-
-let goalTicker = 0;
-function ensureGoalTicker(){
-  if(goalTicker) return;
-  const step = () => {
-    const arc = document.querySelector(".node.working .halo .arc");
-    if(!arc || !arc.dataset.circ){
-      goalTicker = 0;
-      return;
-    }
-    const elapsed = (performance.now() - goalWorkStart) / 45000;
-    const amount = Math.min(0.78, 0.18 + elapsed * 0.6);
-    const circ = Number(arc.dataset.circ);
-    arc.style.strokeDasharray = `${(amount * circ).toFixed(2)} ${circ.toFixed(2)}`;
-    goalTicker = requestAnimationFrame(step);
-  };
-  goalTicker = requestAnimationFrame(step);
 }
 
 function burstDelay(id, index){
@@ -908,7 +963,22 @@ function syncLive(items, radiusOf){
 
 function draw(){
   hideChipTip();
-  document.querySelector(".app").classList.toggle("has-selection", Boolean(selected));
+  goalWorkObserver.disconnect();
+  const app = document.querySelector(".app");
+  const selectionChanged = app.classList.contains("has-selection") !== Boolean(selected);
+  const canvas = document.querySelector("#canvas");
+  const previousWidth = canvas.clientWidth, previousHeight = canvas.clientHeight;
+  app.classList.toggle("has-selection", Boolean(selected));
+  if(selectionChanged && view?.ok){
+    if(!userMoved && !holdScale){
+      fit();
+      fittedKey = boundsKey();
+    } else {
+      // Preserve the user's camera centre when the detail pane changes size.
+      panX += (canvas.clientWidth - previousWidth) / 2;
+      panY += (canvas.clientHeight - previousHeight) / 2;
+    }
+  }
   const animateSelection = selectionTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   selectionTransition = false;
   const drawer = document.querySelector(".drawer");
@@ -925,10 +995,12 @@ function draw(){
     drawer.classList.remove("focus-in");
   }
   const world = document.querySelector("#world");
-  world.innerHTML = "";
+  const previousNodes = new Map([...world.querySelectorAll("button.node")].map(node => [node.dataset.id,node]));
+  const oldEdges = world.querySelector("svg.graph-edges");
   applyTransform();
   if(!view || !view.ok){
     clearLive();
+    world.replaceChildren();
     document.querySelector("#empty").hidden = false;
     document.querySelector("#empty-text").textContent = view ? view.message : "";
     document.querySelector("#goal-text").textContent = "这份运行没有星图";
@@ -944,7 +1016,7 @@ function draw(){
     maxY = Math.max(maxY, node.y + radius);
   });
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "edges");
+  svg.setAttribute("class", "edges graph-edges");
   svg.setAttribute("width", String(maxX + 140));
   svg.setAttribute("height", String(maxY + 140));
   const bends = {parent: 36, audit: -78, support: 58, challenge: -64, error: -96};
@@ -970,18 +1042,24 @@ function draw(){
     const my = (y1 + y2) / 2 + ux * bend;
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     const hot = !selected || edge.from === selected || edge.to === selected;
+    path.dataset.from = edge.from;
+    path.dataset.to = edge.to;
     path.setAttribute("class", `edge ${relation}${hot ? "" : " dim"}`);
     path.setAttribute("d", `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`);
     svg.appendChild(path);
     if(animateSelection && hot){
       const trace = path.cloneNode();
       trace.setAttribute("class", `edge ${relation} focus-trace`);
+      trace.removeAttribute("data-from");
+      trace.removeAttribute("data-to");
       trace.setAttribute("pathLength", "1");
       svg.appendChild(trace);
     }
     const crowded = (relation === "parent" && parentCount[edge.from] > 3) || sameTarget[`${relation}:${edge.to}`] > 4;
     if(crowded) return;
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.dataset.from = edge.from;
+    label.dataset.to = edge.to;
     label.setAttribute("class", `edge-label${hot ? "" : " dim"}`);
     label.setAttribute("x", mx.toFixed(1));
     label.setAttribute("y", (my - 6).toFixed(1));
@@ -1006,7 +1084,15 @@ function draw(){
     node,
     spots: node.live.map(step => placeOne(node, step, occupied)),
   }));
-  if(spots.length){
+  const chipKey = JSON.stringify([focus?.id,focus?.steps_revision || focus?.steps,activeStep,scale,spots]);
+  const chipsChanged = world.dataset.chipKey !== chipKey;
+  world.dataset.chipKey = chipKey;
+  if(chipsChanged) world.querySelectorAll("button.satellite,svg.focus-spokes").forEach(el => el.remove());
+  const focusSpokes = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  focusSpokes.setAttribute("class", "edges focus-spokes");
+  focusSpokes.setAttribute("width", String(maxX + 140));
+  focusSpokes.setAttribute("height", String(maxY + 140));
+  if(chipsChanged && spots.length){
     const gridLeft = Math.min(...spots.map(spot => spot.x));
     const gridRight = Math.max(...spots.map(spot => spot.x + spot.w));
     const gridTop = Math.min(...spots.map(spot => spot.y));
@@ -1030,39 +1116,73 @@ function draw(){
       line.setAttribute("y1", (focus.y + dy / len * radiusOf(focus)).toFixed(1));
       line.setAttribute("x2", x2.toFixed(1));
       line.setAttribute("y2", y2.toFixed(1));
-      svg.appendChild(line);
+      focusSpokes.appendChild(line);
     });
   }
-  world.appendChild(svg);
+  const edgeKey = JSON.stringify([view.edges,view.nodes.map(node => [node.id,node.x,node.y,radiusOf(node)])]);
+  if(oldEdges && oldEdges.dataset.geometry === edgeKey){
+    oldEdges.querySelectorAll(".focus-trace").forEach(el => el.remove());
+    oldEdges.querySelectorAll("[data-from]").forEach(el => {
+      const hot = !selected || el.dataset.from === selected || el.dataset.to === selected;
+      el.classList.toggle("dim",!hot);
+      if(animateSelection && hot && el.classList.contains("edge")){
+        const trace = el.cloneNode();
+        trace.classList.add("focus-trace");
+        trace.setAttribute("pathLength","1");
+        trace.removeAttribute("data-from");
+        trace.removeAttribute("data-to");
+        oldEdges.appendChild(trace);
+      }
+    });
+  } else {
+    svg.dataset.geometry = edgeKey;
+    if(oldEdges) oldEdges.replaceWith(svg);
+    else world.prepend(svg);
+  }
+  if(chipsChanged && spots.length) world.appendChild(focusSpokes);
   const linked = selected ? linkedIds(selected) : null;
   const taskNodes = view.nodes.filter(node => !node.goal);
   const resolvedCount = taskNodes.filter(node => node.status === "resolved").length;
   const agentCount = new Set(taskNodes.flatMap(node => node.agents || [])).size;
+  const mainActivity = goalActivity(view);
   view.nodes.forEach(node => {
     const el = document.createElement("button");
     const nodeRadius = radiusOf(node);
-    const dim = linked && !linked.has(node.id);
+    const dim = linked && !linked.has(node.id) && !(node.goal && mainActivity);
     el.type = "button";
-    const fresh = !toneSeen.has(node.id);
-    const previousTone = toneSeen.get(node.id);
+    const fresh = !thumbEntry && !entryPreview && !toneSeen.has(node.id);
+    const previousTone = entryPreview ? null : toneSeen.get(node.id);
     const tone = node.tone || "blue";
     toneSeen.set(node.id, tone);
     const pending = awaitingAgent(node);
     const working = goalIsWorking(node);
+    const finalizing = node.goal && mainActivity && mainActivity.phase === "finalizing";
     const erroneous = (view.edges || []).some(edge => edge.relation === "error" && edge.to === node.id);
-    el.className = `node tone-${tone} weight-${node.weight || "node"}${nodeRadius < 72 && !node.goal ? " compact" : ""}${node.status === "in_progress" ? " in_progress" : ""}${pending ? " pending" : ""}${working ? " working" : ""}${erroneous ? " erroneous" : ""}${fresh ? " arrive" : ""}${previousTone && previousTone !== tone ? " tone-arrive" : ""}${node.status === "cancelled" ? " cancelled" : ""}${selected === node.id ? " selected" : ""}${dim ? " dim" : ""}${animateSelection && selected === node.id ? " focus-in" : ""}${animateSelection && dim ? " focus-away" : ""}`;
+    el.className = `node tone-${tone} weight-${node.weight || "node"}${nodeRadius < 72 && !node.goal ? " compact" : ""}${node.status === "in_progress" ? " in_progress" : ""}${pending ? " pending" : ""}${working ? " working" : ""}${finalizing ? " finalizing" : ""}${erroneous ? " erroneous" : ""}${fresh ? " arrive" : ""}${previousTone && previousTone !== tone ? " tone-arrive" : ""}${node.status === "cancelled" ? " cancelled" : ""}${selected === node.id ? " selected" : ""}${dim ? " dim" : ""}${animateSelection && selected === node.id ? " focus-in" : ""}${animateSelection && dim ? " focus-away" : ""}`;
     el.style.left = `${node.x - nodeRadius}px`;
     el.style.top = `${node.y - nodeRadius}px`;
     el.style.width = `${nodeRadius * 2}px`;
     el.style.height = `${nodeRadius * 2}px`;
-    el.style.setProperty("--node-font", `${node.goal ? Math.min(17,Math.max(14,nodeRadius * .13)) : Math.min(14,Math.max(12,nodeRadius * .14))}px`);
+    el.style.setProperty("--node-font", `${node.goal ? Math.min(16,Math.max(12.5,nodeRadius * .12)) : Math.min(14,Math.max(12,nodeRadius * .14))}px`);
     el.dataset.id = node.id;
     el.dataset.status = node.status || "";
     el.dataset.tip = node.title || "";
     el.dataset.tipAction = "";
     el.removeAttribute("title");
     const calls = toolCount(node);
-    const stateText = node.goal ? (view.running ? "调研中" : "已结束") : erroneous ? "存在错误" : pending ? "待分配" : (STATUS[node.status] || "研究任务");
+    const stateText = node.goal ? (mainActivity ? mainActivity.label : view.running ? "调研中" : "已结束") : erroneous ? "存在错误" : pending ? "待分配" : (STATUS[node.status] || "研究任务");
+    const signature = JSON.stringify([node.id,node.x,node.y,nodeRadius,node.tone,node.weight,node.title,node.status,calls,stateText,working,erroneous,(node.children || []).length,node.goal ? [resolvedCount,taskNodes.length,agentCount,mainActivity] : null]);
+    const previousNode = previousNodes.get(node.id);
+    previousNodes.delete(node.id);
+    if(previousNode && previousNode.dataset.signature === signature){
+      previousNode.classList.toggle("selected",selected === node.id);
+      previousNode.classList.toggle("dim",Boolean(dim));
+      previousNode.classList.toggle("focus-in",Boolean(animateSelection && selected === node.id));
+      previousNode.classList.toggle("focus-away",Boolean(animateSelection && dim));
+      if(working) goalWorkObserver.observe(previousNode);
+      return;
+    }
+    el.dataset.signature = signature;
     const content = document.createElement("span");
     content.className = "node-content";
     const category = document.createElement("span");
@@ -1080,7 +1200,7 @@ function draw(){
     }
     const meta = document.createElement("small");
     meta.className = "node-meta";
-    meta.textContent = node.goal ? (agentCount ? `${agentCount} 个研究智能体` : "等待任务分配") : `${calls} 次工具调用${node.children && node.children.length ? ` · ${node.children.length} 项子任务` : ""}`;
+    meta.textContent = node.goal ? (finalizing ? mainActivity.label : agentCount ? `${agentCount} 个研究智能体` : "等待任务分配") : `${calls} 次工具调用${node.children && node.children.length ? ` · ${node.children.length} 项子任务` : ""}`;
     content.appendChild(meta);
     const tab = document.createElement("span");
     tab.className = "node-tab";
@@ -1091,6 +1211,14 @@ function draw(){
     identifier.textContent = node.goal ? "Q" : String(node.id).toUpperCase();
     identifier.setAttribute("aria-hidden", "true");
     el.append(content,tab,identifier);
+    if(working){
+      const orbit = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      orbit.setAttribute("class", "goal-work-orbit");
+      orbit.setAttribute("viewBox", "0 0 100 100");
+      orbit.setAttribute("aria-hidden", "true");
+      orbit.innerHTML = '<circle class="goal-work-track" cx="50" cy="50" r="47"/><g class="goal-work-sweep"><circle cx="50" cy="50" r="47" pathLength="100" transform="rotate(-90 50 50)"/><circle class="echo" cx="50" cy="50" r="47" pathLength="100" transform="rotate(90 50 50)"/><circle class="goal-work-spark" cx="94" cy="33" r="1.65"/></g>';
+      el.appendChild(orbit);
+    }
     el.setAttribute("aria-label", `${node.title}，${stateText}，${node.goal ? `${resolvedCount} 项任务已完成，共 ${taskNodes.length} 项` : `${calls} 次工具调用`}`);
     const amount = ringAmount(node, calls);
     if(amount > 0){
@@ -1100,7 +1228,7 @@ function draw(){
       const radius = nodeRadius + pad - stroke;
       const center = size / 2;
       const circ = 2 * Math.PI * radius;
-      const previous = haloSeen.has(node.id) ? haloSeen.get(node.id) : amount;
+      const previous = !entryPreview && haloSeen.has(node.id) ? haloSeen.get(node.id) : amount;
       haloSeen.set(node.id, amount);
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("class", "halo");
@@ -1149,9 +1277,12 @@ function draw(){
       event.stopPropagation();
       select(node.id, null);
     });
-    world.appendChild(el);
+    if(previousNode) previousNode.replaceWith(el);
+    else world.appendChild(el);
+    if(working) goalWorkObserver.observe(el);
   });
-  spots.forEach((spot, index) => {
+  previousNodes.forEach(el => el.remove());
+  (chipsChanged ? spots : []).forEach((spot, index) => {
     const step = focus.steps[index];
     const el = document.createElement("button");
     el.type = "button";
@@ -1191,7 +1322,6 @@ function draw(){
     world.appendChild(el);
   });
   syncLive(livePlaced, radiusOf);
-  ensureGoalTicker();
   resumeChipTip();
 }
 
@@ -1257,6 +1387,9 @@ function clearSelection(){
   document.querySelector("#kind").hidden = true;
   document.querySelector("#kind").textContent = "";
   document.querySelector("#title").textContent = "点选一个节点";
+  document.querySelector("#question-details").hidden = true;
+  document.querySelector("#question-details").open = false;
+  delete document.querySelector("#question-details").dataset.owner;
   document.querySelector("#agents").hidden = true;
   document.querySelector("#agents").textContent = "";
   document.querySelector("#status").textContent = "—";
@@ -1265,6 +1398,74 @@ function clearSelection(){
   delete document.querySelector("#children").dataset.signature;
   document.querySelector("#steps").textContent = "—";
   draw();
+}
+
+function selectionHeading(text, goal){
+  const full = String(text || "").trim();
+  if(!goal) return full;
+  const clean = full.replace(/^#\s*Task\s*/i, "").replace(/^#+\s*/, "").trim();
+  const sentence = clean.split(/[。！？\n]|[.!?](?=\s|$)/)[0].trim() || clean;
+  const chars = Array.from(sentence);
+  return chars.length > 100 ? chars.slice(0,100).join("") + "…" : sentence;
+}
+
+function renderSelectionHeading(node, step){
+  const full = String(step ? (step.label || step.tool) : (node.title || ""));
+  const goal = Boolean(node.goal && !step);
+  document.querySelector("#title").textContent = selectionHeading(full,goal);
+  const details = document.querySelector("#question-details");
+  const content = document.querySelector("#question-content");
+  const owner = JSON.stringify([node.id,activeStep]);
+  if(details.dataset.owner !== owner){
+    details.open = false;
+    content.scrollTop = 0;
+    document.querySelector(".drawer-body").scrollTop = 0;
+    details.dataset.owner = owner;
+  }
+  details.hidden = !(goal || full.length > 90 || /\n/.test(full));
+  document.querySelector("#question-label").textContent = goal ? "完整问题" : "完整内容";
+  document.querySelector("#question-length").textContent = `${Array.from(full).length.toLocaleString()} 字符`;
+  content.setAttribute("aria-label", goal ? "完整问题内容" : "完整节点内容");
+  // Keep the same text node across polling updates so reading position and
+  // text selection survive graph/status refreshes.
+  if(content.textContent !== full) content.textContent = full;
+}
+
+async function loadNodeDetails(id){
+  const node = nodeById(id);
+  if(!node || node.goal || node.steps_loaded !== false || !node.step_count) return;
+  const key = `${id}:${node.steps_revision}`;
+  if(detailRequests.has(key)) return detailRequests.get(key);
+  const request = (async () => {
+    try{
+      const response = await fetch(endpoint("node") + "?id=" + encodeURIComponent(id),{signal:AbortSignal.timeout(15000)});
+      if(!response.ok) throw new Error("node details unavailable");
+      const detail = await response.json();
+      const current = nodeById(id);
+      if(!current) return;
+      if(current.steps_revision !== detail.steps_revision){
+        responseTags.delete(endpoint("snapshot"));
+        void refresh();
+        return;
+      }
+      nodeDetails.set(id,{revision:detail.steps_revision,steps:detail.steps || []});
+      current.steps = detail.steps || [];
+      current.steps_loaded = true;
+      if(selected === id) select(id);
+    }catch(error){
+      if(selected !== id) return;
+      const host = document.querySelector("#steps");
+      host.textContent = "";
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "detail-retry";
+      retry.textContent = "工具详情暂未读出，点击重试";
+      retry.addEventListener("click", () => loadNodeDetails(id));
+      host.appendChild(retry);
+    }
+  })();
+  detailRequests.set(key,request);
+  try{await request;}finally{detailRequests.delete(key);}
 }
 
 function select(id, stepIndex){
@@ -1287,14 +1488,17 @@ function select(id, stepIndex){
   document.querySelector("#steps-section").hidden = goal;
   document.querySelector("#kind").textContent = step ? (TOOL[step.tool] || "步骤") : "";
   document.querySelector("#kind").style.color = step ? (TITLE_COLOR[step.tool] || "#e5e5e5") : "";
-  document.querySelector("#title").textContent = step ? (step.label || step.tool) : (node.title || "");
+  renderSelectionHeading(node,step);
   document.querySelector("#agents").textContent = "";
   document.querySelector("#status").textContent = goal ? "" : (STATUS[node.status] || node.status || "—");
   document.querySelector("#notes").textContent = node.notes || (goal ? "" : "还没有备注");
   renderChildren(node);
   const steps = document.querySelector("#steps");
   steps.innerHTML = "";
-  if(!node.steps || !node.steps.length) steps.textContent = "没有工具步骤";
+  if(node.steps_loaded === false && node.step_count > 0){
+    steps.textContent = "正在读取工具步骤…";
+    void loadNodeDetails(id);
+  } else if(!node.steps || !node.steps.length) steps.textContent = "没有工具步骤";
   else node.steps.forEach((item, index) => {
     const row = document.createElement("div");
     row.className = `step${activeStep === index ? " on" : ""}`;
@@ -1725,11 +1929,14 @@ function closeReport(){
 async function openReport(){
   const body = document.querySelector("#report-body");
   const researchTitle = (view && view.goal && view.goal.title) || document.querySelector("#goal-text").textContent;
-  document.querySelector("#report-title").textContent = researchTitle && !["正在读取","这份运行没有星图"].includes(researchTitle) ? researchTitle : "研究报告";
+  const reportTitle = researchTitle && !["正在读取","这份运行没有星图"].includes(researchTitle) ? selectionHeading(researchTitle,true) : "研究报告";
+  document.querySelector("#report-title").textContent = reportTitle;
   body.innerHTML = '<p class="report-status">正在读取报告</p>';
   body.scrollTop = 0;
+  body.scrollLeft = 0;
   document.querySelector("#modal").classList.add("open");
-  document.querySelector("#close-report").focus();
+  document.querySelector(".report").scrollLeft = 0;
+  document.querySelector("#close-report").focus({preventScroll:true});
   try {
     const response = await fetch(endpoint("report"));
     const text = await response.text();
@@ -1737,7 +1944,7 @@ async function openReport(){
       body.innerHTML = '<p class="report-status">' + escapeHtml(text || "这份运行还没有报告。") + "</p>";
       return;
     }
-    body.innerHTML = renderMarkdown(prepareUserReport(text,researchTitle));
+    body.innerHTML = renderMarkdown(prepareUserReport(text,reportTitle));
     body.scrollTop = 0;
   } catch (error) {
     body.innerHTML = '<p class="report-status">报告没有读出来。刷新后再打开一次。</p>';
@@ -1832,6 +2039,12 @@ function backToGoal(){
   resetView();
 }
 document.querySelector("#back-goal").addEventListener("click", backToGoal);
+document.querySelector("#close-drawer").addEventListener("click", () => {
+  const id = selected;
+  clearSelection();
+  const node = [...document.querySelectorAll("button.node")].find(item => item.dataset.id === id);
+  if(node) node.focus({preventScroll:true});
+});
 document.querySelector("#open-report").addEventListener("click", openReport);
 document.querySelector("#close-report").addEventListener("click", closeReport);
 document.querySelector("#modal").addEventListener("click", event => { if(event.target.id === "modal") closeReport(); });
@@ -1937,36 +2150,113 @@ canvasEl.addEventListener("click", event => {
   if(selected) clearSelection();
 });
 
-async function refresh(){
-  try {
-    const payload = await fetch(endpoint("view")).then(response => response.json());
-    const structural = !view || payload.version !== view.version || payload.ok !== view.ok || payload.message !== view.message;
-    const activity = liveKey(payload) !== liveKey(view) || sizeKey(payload) !== sizeKey(view);
-    view = payload;
-    if(selected){
-      const parent = nodeById(selected);
-      if(parent) renderChildren(parent);
+function applyView(payload){
+  if(view?.revision && payload.revision === view.revision) return;
+  (payload.nodes || []).forEach(node => {
+    const cached = nodeDetails.get(node.id);
+    if(cached && cached.revision === node.steps_revision){
+      node.steps = cached.steps;
+      node.steps_loaded = true;
     }
-    const key = view.ok ? boundsKey() : "";
-    const refit = Boolean(key && key !== fittedKey);
-    if(refit){
-      if(!userMoved) fit();
-      fittedKey = key;
-    }
-    if(structural || refit){
-      if(selected && !(view.nodes || []).some(node => node.id === selected)) selected = null;
-      if(selected) select(selected);
-      else draw();
-    } else if(activity){
-      draw();
-    }
-  } catch (error) {
-    view = {ok:false, message:"星图服务没有返回数据。"};
-    draw();
+  });
+  const structural = !view || payload.version !== view.version || structureKey(payload) !== structureKey(view);
+  const activity = liveKey(payload) !== liveKey(view) || sizeKey(payload) !== sizeKey(view);
+  view = payload;
+  if(selected){
+    const parent = nodeById(selected);
+    if(parent) renderChildren(parent);
+  }
+  const key = view.ok ? boundsKey() : "";
+  const refit = Boolean(key && key !== fittedKey);
+  if(refit){
+    if(!userMoved) fit();
+    fittedKey = key;
+  }
+  if(structural || refit || activity){
+    if(selected && !(view.nodes || []).some(node => node.id === selected)) selected = null;
+    if(selected) select(selected);
+    else draw();
   }
 }
-refresh();
-setInterval(refresh, 1000);
+let entryLocked = false;
+function scheduleRefresh(){
+  clearTimeout(refreshTimer);
+  if(entryLocked || document.hidden || view?.running === false) return;
+  refreshTimer = setTimeout(refresh, Math.min(15000,1000 * 2 ** refreshFailures));
+}
+async function refresh(){
+  if(entryLocked || refreshBusy || document.hidden) return;
+  clearTimeout(refreshTimer);
+  refreshBusy = true;
+  try {
+    const url = endpoint("snapshot");
+    const tag = responseTags.get(url);
+    const response = await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(15000),headers:tag ? {"If-None-Match":tag} : {}});
+    if(response.status !== 304){
+      if(!response.ok) throw new Error("view request failed");
+      const payload = await response.json();
+      const etag = response.headers.get("ETag");
+      if(etag) responseTags.set(url,etag);
+      if(!entryLocked) applyView(payload);
+    }
+    refreshFailures = 0;
+  } catch (error) {
+    refreshFailures = Math.min(4,refreshFailures + 1);
+    if(!entryLocked && !view?.ok){
+      view = {ok:false, message:"星图服务没有返回数据，正在重试。"};
+      draw();
+    }
+  } finally {
+    refreshBusy = false;
+    scheduleRefresh();
+  }
+}
+function syncPageVisibility(){
+  document.documentElement.classList.toggle("page-hidden", document.hidden);
+  if(document.hidden) clearTimeout(refreshTimer);
+  else void refresh();
+}
+document.addEventListener("visibilitychange", syncPageVisibility);
+window.addEventListener("pageshow", event => {if(event.persisted) void refresh();});
+document.documentElement.classList.toggle("page-hidden", document.hidden);
+if(thumbEntry?.view){
+  try{
+    applyView(thumbEntry.view.payload);
+    const camera = thumbEntry.camera;
+    if(camera && camera.width === canvasEl.clientWidth && camera.height === canvasEl.clientHeight
+        && [camera.scale,camera.panX,camera.panY].every(Number.isFinite) && camera.scale >= .12 && camera.scale <= 2){
+      scale = camera.scale;
+      panX = camera.panX;
+      panY = camera.panY;
+      applyTransform();
+    }
+  }catch(err){ /* A stale/malformed snapshot falls back to the normal view request. */ }
+}
+thumbEntry = null;
+// Seeded entry already has its final geometry. Let that frame paint before
+// live updates can change the running study's node positions or statuses.
+const firstView = view
+  ? new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(refresh()))))
+  : refresh();
+if(entryPreview){
+  window.studyEntry = {
+    async prepare(cached){
+      if(cached?.payload?.ok && Date.now() - cached.at >= 0 && Date.now() - cached.at < 30000){
+        entryLocked = true;
+        applyView(cached.payload);
+      } else {
+        await firstView;
+        entryLocked = true;
+      }
+      if(!view?.ok) throw new Error("study view unavailable");
+      if(document.fonts) await document.fonts.ready;
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const rect = canvasEl.getBoundingClientRect();
+      return {payload:view,camera:{scale,panX,panY,left:rect.left,top:rect.top,width:canvasEl.clientWidth,height:canvasEl.clientHeight}};
+    },
+  };
+}
+
 </script>
 </body>
 </html>

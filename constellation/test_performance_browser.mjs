@@ -1,0 +1,85 @@
+// PIRESEARCH_PUPPETEER_MODULE=/path/to/puppeteer.js node --test constellation/test_performance_browser.mjs
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp, mkdir, writeFile, appendFile, rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {pathToFileURL, fileURLToPath} from 'node:url';
+import {spawn} from 'node:child_process';
+
+const modulePath=process.env.PIRESEARCH_PUPPETEER_MODULE;
+test('light thumbnails, lazy tools, persistent graph DOM and live cache invalidation',{
+  skip:modulePath ? false : 'Set PIRESEARCH_PUPPETEER_MODULE for the browser integration test',timeout:60000,
+},async t=>{
+  const root=await mkdtemp(join(tmpdir(),'piresearch-perf-test-'));
+  const session=join(root,'sessions/demo'),trial=join(session,'generation/trials/1');
+  const save=async(path,data)=>{await mkdir(join(path,'..'),{recursive:true});await writeFile(path,JSON.stringify(data));};
+  const question='研究主题。\n'+('详细调研要求与来源核验。'.repeat(100));
+  const sessionFile=join(session,'session.json');
+  await save(sessionFile,{id:'demo',question,status:'finished',created_at:'2026-10-19T00:00:00Z'});
+  await save(join(trial,'sandbox/worktree/constellation.json'),{version:1,goal:{id:'goal',title:question},nodes:[{id:'t1',title:'研究数据',agents:['research']},{id:'t2',title:'独立核验',agents:['review']}],edges:[{from:'goal',to:'t1',relation:'parent'},{from:'goal',to:'t2',relation:'parent'}]});
+  await save(join(trial,'sandbox/worktree/task_board.json'),{tasks:{t1:{resolution:'resolved'},t2:{resolution:'resolved'}}});
+  await mkdir(join(trial,'agent/trajectories/subagents'),{recursive:true});
+  const log=join(trial,'agent/trajectories/subagents/research.jsonl');
+  const events=[];
+  for(let i=0;i<25;i++)events.push({t:'llm',tool_calls:[{name:'web_search',args:{q:[`研究数据 ${i}`]}}]},{t:'result',name:'web_search',result:'查证结果'});
+  events.push({t:'end'});
+  await writeFile(log,events.map(e=>JSON.stringify(e)).join('\n')+'\n');
+  await save(join(trial,'sandbox/outputs/report.md'),'研究报告');
+  const child=spawn(process.env.PIRESEARCH_PYTHON || 'python3',['-u','-m','constellation.serve','--home',root,'--port','0'],{cwd:fileURLToPath(new URL('..',import.meta.url)),stdio:['ignore','pipe','pipe']});
+  let output='';child.stderr.on('data',data=>output+=data);
+  const origin=await new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(Error('server startup timed out: '+output)),10000);
+    child.once('exit',code=>{clearTimeout(timer);reject(Error('server exited: '+code+' '+output));});
+    child.stdout.on('data',data=>{output+=data;const match=output.match(/http:\/\/127\.0\.0\.1:\d+/);if(match){clearTimeout(timer);resolve(match[0]);}});
+  });
+  t.after(async()=>{child.kill('SIGTERM');await rm(root,{recursive:true,force:true});});
+  const {default:puppeteer}=await import(pathToFileURL(modulePath).href);
+  const browser=await puppeteer.launch({headless:true,args:['--no-sandbox']});
+  t.after(()=>browser.close());
+  const page=await browser.newPage();await page.setViewport({width:1440,height:900});
+  const requests=[],responses=[],errors=[];
+  page.on('request',r=>requests.push(r.url()));page.on('response',r=>responses.push({url:r.url(),status:r.status()}));page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(origin,{waitUntil:'domcontentloaded'});
+  await page.waitForSelector('.thumb circle');
+  assert.ok(requests.some(url=>url.endsWith('/thumbnail')));
+  assert.equal(requests.filter(url=>url.endsWith('/view')).length,0);
+  assert.equal(requests.filter(url=>url.endsWith('/snapshot')).length,0);
+  await page.evaluate(()=>{window.testCard=document.querySelector('.card');});
+  await page.evaluate(()=>refresh());
+  assert.equal(await page.evaluate(()=>window.testCard===document.querySelector('.card')),true);
+  await page.hover('a.card-link');
+  await page.waitForFunction(()=>[...watches.values()].some(w=>w.view));
+  await page.click('a.card-link');
+  await page.waitForFunction(()=>location.pathname.startsWith('/study/'));
+  await page.waitForSelector('button.node[data-id="t1"]');
+  await page.waitForFunction(()=>!refreshBusy);
+  const snapshots=requests.filter(url=>url.endsWith('/snapshot')).length;
+  await new Promise(resolve=>setTimeout(resolve,1300));
+  assert.equal(requests.filter(url=>url.endsWith('/snapshot')).length,snapshots,'finished study kept polling');
+  assert.equal(requests.filter(url=>url.includes('/node?')).length,0);
+  await page.evaluate(()=>{
+    window.testGoal=document.querySelector('.node[data-id="goal"]');
+    window.testOther=document.querySelector('.node[data-id="t2"]');
+    window.testEdges=document.querySelector('.graph-edges');
+    select('t1',null);
+  });
+  await page.waitForSelector('#steps .step');
+  assert.equal(await page.$$eval('#steps .step',els=>els.length),25);
+  assert.equal(requests.filter(url=>url.includes('/node?')).length,1);
+  await page.click('#zoom-in');
+  assert.equal(await page.evaluate(()=>window.testGoal===document.querySelector('.node[data-id="goal"]')&&window.testOther===document.querySelector('.node[data-id="t2"]')&&window.testEdges===document.querySelector('.graph-edges')),true,'unchanged graph elements were recreated');
+  await page.evaluate(()=>select('t1',null));
+  assert.equal(requests.filter(url=>url.includes('/node?')).length,1,'cached tool details fetched again');
+  await save(sessionFile,{id:'demo',question,status:'running',created_at:'2026-10-19T00:00:00Z'});
+  await page.evaluate(()=>refresh());
+  await page.waitForFunction(()=>view.running===true);
+  await page.waitForFunction(()=>Boolean(document.querySelector('.node[data-id="goal"] .goal-work-orbit')));
+  await new Promise(resolve=>setTimeout(resolve,1200));
+  assert.ok(responses.some(r=>r.url.endsWith('/snapshot')&&r.status===304),'unchanged snapshot was not conditionally revalidated');
+  await appendFile(log,JSON.stringify({t:'compaction',tokens_before:1000,tokens_after:200})+'\n');
+  await page.waitForFunction(()=>view.nodes.find(n=>n.id==='t1').step_count===26,{timeout:6000});
+  await page.waitForFunction(()=>view.nodes.find(n=>n.id==='t1').steps_loaded===true,{timeout:6000});
+  assert.equal(await page.$$eval('#steps .step',els=>els.length),26);
+  assert.deepEqual(errors,[]);
+});

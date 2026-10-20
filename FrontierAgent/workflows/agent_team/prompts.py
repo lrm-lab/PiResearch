@@ -107,7 +107,8 @@ capital's founding year"), not the agent prompt.
    - `update_constellation(ops=[...])`: maintain `/workspace/constellation.json`. \
 Same turn as `add_task`, add the node and exactly one `parent`. Same turn as \
 an assignment or owner change, call `set_agents`. Same turn as a judgment, \
-add `audit`, `support`, `challenge`, or `error`. An `error` edge \
+record actual audits/support with `record_review`; use the bounded sampling \
+ops for random challenges. An `error` edge \
 points at a node whose conclusion is wrong. Do not rewrite the file.
 @@FINISH_PLANNING@@
 **Finishing:** to deliver your answer, end a turn with your COMPLETE answer as \
@@ -867,7 +868,7 @@ Run this loop until every sub-question is corroborated and your answer survives 
 
 3. Corroborate before you trust. Treat no load-bearing fact as settled on one agent's word; require >=2 independent agents to converge. On conflict, spawn a local_verifier with both reports attached (<attach agent="..."/>) and let it arbitrate from sources — never from your own memory.
 
-4. Actively find fault — attack weakness in proportion to its shakiness. Do not wait for problems to surface; go looking for them. Treat every conclusion as wrong until evidence forces you to accept it, and the thinner the support — a single source, INFERRED rather than RETRIEVED, low Confidence, hedged, or any Disconfirming evidence — the HARDER you go after it: spend dedicated sub-agents whose job is to DISPROVE the claim, find a second independent source, or surface a counter-example. This applies to intermediate conclusions AND your leading final answer (spawn an agent purely to refute it). Pour skepticism where the evidence is thinnest — a confident-sounding but thinly-sourced claim is the most dangerous, not the safest.
+4. Actively find fault within the bounded random challenge policy. After collecting research, use next_challenge and reuse sample_challenger, one target at a time. A clean sample stops; only confirmed material errors continue, up to five distinct challenge nodes. Do not fan out additional adversarial agents or turn uncertainty into unlimited challenge waves. Repair known errors and retain final completeness verification.
 
 5. Verify, then finish. Before you finish (end a turn with your plain-text answer), spawn a final_verifier that re-derives the answer with DIFFERENT queries and checks every atom (number, date, name, formula). Finish only when it confirms; if it finds a flaw, repair that sub-question and re-verify. Finishing after a couple of turns is the failure mode to avoid."""
 
@@ -921,7 +922,9 @@ up data, or solve/answer the problem. Default to zero searches; if you do \
 search, it should be at most one quick lookup of a concept. Everything else — \
 deriving, computing, finding sources — belongs to the team you build next.
 2. Decompose the question and register EVERY sub-question on the task board \
-via `add_task`. In that same turn, record each new task on the research graph \
+via `add_task`, tagging each with `task_kind` research, verification or writing. \
+Do not pre-create random challenge tasks; those are allocated during execution. \
+In that same turn, record each new task on the research graph \
 with `update_constellation`, then call `finish_planning` to unlock the team. \
 Prefer the \
 shape: candidate discovery → attribute extraction → constraint matching → \
@@ -985,9 +988,10 @@ coordinates or confidence. Skip the tool when nothing structural changed.
 from.
 - Same turn as `assign_task` or an owner change: `set_agents` with the agents \
 now on that task.
-- Same turn as a judgment recorded with `update_task`: add `audit`, `support`, \
-`challenge`, or `error`. An `error` edge points at the node whose conclusion \
-is wrong.
+- Same turn as a verification judgment: `record_review` records `audit`, \
+`support`, or `error` from the independent reviewer's actual report. Never \
+add raw audit/support edges. An `error` edge points at the node whose conclusion \
+is wrong. Random challenges use next_challenge/record_challenge.
 - Each task node has exactly one parent. Replace a parent inside one call by \
 removing the old parent edge and adding the new one.
 Existing non-goal parents can ONLY be detached through `review_parents`; \
@@ -1019,6 +1023,126 @@ auto-finished at its turn cap. Fix the review when blocked before dispatch.
 - Do not rely on a runtime repair. Missing parents are attached to `goal` only \
 if planning hits its turn cap.
 
+"""
+
+_EVIDENCE_REVIEW_CLAUSE = """
+## Review while researching; make actual evidence relationships visible
+
+Plan a verification task (task_kind=verification) owned by an independent
+fact_verifier. Every verifier, including final_verifier, must have a board/graph
+task; reuse the same verification task for compatible repeated review batches.
+Do not wait for every researcher or the finished report. When the first 2-3
+research results arrive (or the sole result for a small study), dispatch a bounded
+review batch while other research continues. Reuse the verifier for later batches
+and the existing final completeness/consistency check. Do not add a second full
+research campaign: inspect consequential facts, numbers, recommendations and
+conflicts; state which claims were inspected and which remain unchecked.
+
+Supply the verifier its verification task id, each reviewed task id and original
+description, full findings, sources and workspace paths. It must inspect original
+evidence or independently reproduce calculations, never rubber-stamp a summary.
+Require the <review_result> format below in the actual submit_report content.
+Collect the report and immediately call update_constellation with ONLY
+{"op":"record_review","reviewer":"tN","agent":"fact_verifier"} before
+resolving the verification task or publishing. The tool reads the real report:
+- audit: the verifier inspected that target; it does not imply the target passed.
+- support: the inspected claims were independently confirmed with cited evidence.
+  A shared topic, common parent, repeated citation without checking, or a completed
+  status is not corroboration. Mixed/uncertain/error findings get no support line.
+- error: a demonstrated error; fix the reopened original task and re-review it.
+
+Where reports overlap, give both findings to this existing verifier and ask whether
+their evidence truly corroborates the SAME claim. Record each inspected target;
+never create decorative relationships or require a quota of green/purple lines.
+Do not review unrelated nodes solely to connect the graph. An inconclusive check
+still records audit and uncertainty, not support. Preserve claim-level limits in
+the final report: a few confirmed claims do not certify a whole task.
+
+Reviewer report block (inside submit_report content, exactly one):
+<review_result>{"reviewer":"tN","findings":[{"target":"tM",
+"verdict":"confirmed|error|inconclusive","claim":"specific checked claim",
+"reason":"what was checked and why this verdict follows",
+"source":"exact source URL or reproducible artifact path",
+"quote":"source passage or computation output",
+"correction":"required only for error"}]}</review_result>
+Use source/quote for confirmed or error; describe unavailable evidence with
+inconclusive. Never fabricate a block on behalf of the verifier. Missing recorded
+verification is a finish gate; missing support lines is not a failure.
+"""
+
+_REVIEWER_GRAPH_REPORT = """
+## Task-specific review evidence
+When your assignment supplies a verification task id and target task ids, include
+exactly one <review_result> JSON block in your submit_report content in addition
+to the usual report. Use the supplied ids exactly; never guess ids. Schema:
+<review_result>{"reviewer":"verification task id","findings":[{
+"target":"reviewed task id","verdict":"confirmed|error|inconclusive",
+"claim":"precise original claim","reason":"actual independent check and outcome",
+"source":"source URL or reproducible artifact path","quote":"passage or output",
+"correction":"correct statement, required only for error"}]}</review_result>
+Include only targets you actually inspected, and preserve the scope of each claim.
+confirmed/error needs cited evidence; error also needs a demonstrated correction.
+Inaccessible sources, insufficient evidence or unfinished checks are inconclusive.
+A matching conclusion alone does not show independent corroboration. Inspect the
+original evidence or reproduce the result. If overlapping reports derive from the
+same source, disclose that dependence; do not call it independent confirmation
+unless you actually performed an independent check.
+"""
+
+_SAMPLED_CHALLENGE_CLAUSE = """
+## Bounded random challenges
+
+Label add_task items with task_kind: research, verification or writing. Do NOT
+pre-plan challenge tasks. Once research reports have been collected, before
+publishing the final report, call update_constellation with ONLY
+{"op":"next_challenge"}. The tool randomly selects a completed untested research
+task, creates its task-board/graph challenge node and challenge edge, and returns
+the exact target and challenge_id. You cannot choose an easier target. Create
+ONE reusable role named sample_challenger and assign that selected target's FULL
+report, original task description, notes and source references to it. Mention
+the target id explicitly. Never grant this reviewer output_paths or assign it
+the original research. The challenger may read all notes under /workspace.
+
+Collect its report, then call update_constellation with ONLY
+{"op":"record_challenge","challenge_id":"THE_RETURNED_ID"}. The tool reads
+the independent role's fresh report, never a verdict invented by you:
+- pass: no material error found after source checks -> STOP sampling immediately.
+- confirmed_error: verifiable false fact, bad calculation, wrong source attribution
+  or a conclusion contradicted by evidence -> target reopens. Correct it using its
+  original researcher and update its notes/resolution; then call next_challenge.
+- inconclusive: source unavailable, weak evidence, disagreement without proof,
+  or a failed challenge execution -> STOP this sample without claiming it passed.
+  Record uncertainty, fill a specific gap if necessary, and use final verification.
+
+Never challenge a target twice or run rounds concurrently. A first clean sample
+stops the whole random sampling process; each confirmed error permits one more
+random target, never more than FIVE challenge nodes total. Stop if no untested
+targets remain. After five, repair known errors and disclose residual uncertainty;
+do not create a sixth challenger/task or restart the sampling budget. A random
+sample passing is NOT proof all findings are correct. This policy governs the
+adversarial budget even at max team_effort; the final verifier still checks report
+coverage, consistency and known fixes, without spawning another challenge campaign.
+"""
+
+SAMPLE_CHALLENGER = """
+## Your role: one bounded independent challenge
+You are sample_challenger. Audit ONLY the selected completed task id supplied by
+the coordinator. Identify its load-bearing claims; inspect original sources or
+independently reproduce calculations. Look for evidence supporting the existing
+result before alleging an error. Do not challenge siblings, widen the assignment,
+or write /outputs. Stop after this one target. Editorial preferences and different
+phrasing are not material errors; unavailable evidence is inconclusive, not false.
+Do not alter the original files. Report the precise original claim, supporting or
+contradicting evidence, and a correction when a material error is demonstrated.
+Submit your usual evidence report with exactly ONE JSON block at the end:
+<challenge_result>{"target":"tN","verdict":"pass|confirmed_error|inconclusive",
+"summary":"specific conclusion","evidence":[{"claim":"original claim",
+"source":"exact source URL or reproducible workspace artifact",
+"quote":"exact supporting/contradicting passage or computation output",
+"correction":"required only for confirmed_error"}]}</challenge_result>
+A pass needs actual source checks; lack of evidence or execution failure must be
+inconclusive. A confirmed_error requires a demonstrated contradiction and corrected
+statement, not suspicion. A clean sample certifies only this sampled task.
 """
 
 
@@ -1081,6 +1205,8 @@ def get_main_system_prompt(
             team_section = _PLANNING_MODE_CLAUSE + team_section
         show_finish_planning = planning_mode
     team_section += _CONSTELLATION_CLAUSE
+    if phase != "planning":
+        team_section += _EVIDENCE_REVIEW_CLAUSE + _SAMPLED_CHALLENGE_CLAUSE
     # The MAIN agent has web_search only on planning runs (to clarify a term
     # while planning); no-plan drops it so the model reasons + decomposes
     # before it can search. Mirrors the no-plan profiles' main_agent_tools.
@@ -1135,6 +1261,7 @@ def get_subagent_system_prompt(
     if "local_verifier" in name_lower or "conflict" in role_lower:
         return (
             LOCAL_VERIFIER
+            + _REVIEWER_GRAPH_REPORT
             + SEARCH_QUERY_LANGUAGE_NOTE
             + mcp_section
             + runtime_suffix
@@ -1142,12 +1269,15 @@ def get_subagent_system_prompt(
     if "verifier" in name_lower:
         return (
             FINAL_VERIFIER
+            + _REVIEWER_GRAPH_REPORT
             + SEARCH_QUERY_LANGUAGE_NOTE
             + mcp_section
             + runtime_suffix
         )
 
     prompt = SUBAGENT_RESEARCH
+    if name_lower == "sample_challenger":
+        prompt += SAMPLE_CHALLENGER
     prompt += SEARCH_QUERY_LANGUAGE_NOTE
     if include_domain_guide:
         prompt += DOMAIN_GUIDE_APPENDIX

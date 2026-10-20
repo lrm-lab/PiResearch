@@ -63,17 +63,14 @@ textarea:focus{outline:none}
 @keyframes pulse{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .card b{display:block;margin:0;overflow:hidden;color:#fff;font-size:15px;font-weight:620;line-height:1.35;white-space:nowrap;text-overflow:ellipsis}
 .card small{display:block;margin:0 0 4px;color:rgba(255,255,255,.68);font-size:12px;font-weight:500;line-height:1.3}
-@property --frost{syntax:"<length>";inherits:false;initial-value:0px}
-.zoom-shade{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,0);--frost:0px;backdrop-filter:blur(var(--frost)) saturate(1.2);-webkit-backdrop-filter:blur(var(--frost)) saturate(1.2);pointer-events:auto;transition:--frost .68s ease,background .68s ease}
-.zoom-shade.on{--frost:22px;background:rgba(0,0,0,.16)}
-.zoom-ghost{position:fixed;z-index:41;display:block;margin:0;overflow:hidden;pointer-events:none;transform-origin:center center;transition:transform .68s cubic-bezier(.22,.85,.28,1),border-radius .68s cubic-bezier(.22,.85,.28,1),background .68s ease,border-color .68s ease,box-shadow .68s ease}
-.zoom-ghost svg{position:absolute;left:0;right:0;top:0;width:100%;height:calc(100% - 64px);transition:opacity .68s ease,height .68s ease}
-.zoom-frost{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;--frost:0px;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.05) 46%,rgba(255,255,255,.1));backdrop-filter:blur(var(--frost)) saturate(1.35);-webkit-backdrop-filter:blur(var(--frost)) saturate(1.35);transition:opacity .68s ease,--frost .68s ease}
-.zoom-ghost.glass{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.34),0 28px 70px rgba(0,0,0,.22)}
-.zoom-ghost.glass svg{height:100%;opacity:.46}
-.zoom-ghost.glass .zoom-frost{opacity:1;--frost:14px}
-.zoom-ghost.glass .live-dot{opacity:.4}
+/* The destination is rendered at its final viewport size before shared-node motion. */
+.zoom-shade{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.12);pointer-events:auto}
+.zoom-ghost{position:fixed;z-index:41;margin:0;overflow:hidden;border:0;outline:0;border-radius:16px;box-shadow:none;background:rgba(18,18,20,.28);pointer-events:none}
+.zoom-ghost svg{display:block;width:100%}
+.zoom-frost{position:absolute;inset:0;pointer-events:none;opacity:1;background:rgba(242,244,248,.09);backdrop-filter:blur(10px) saturate(1.15);-webkit-backdrop-filter:blur(10px) saturate(1.15)}
+.study-scene{position:fixed;inset:0;z-index:42;width:100%;height:100%;border:0;background:#000;opacity:0;pointer-events:none}
 body.is-zooming{overflow:hidden}
+body.is-zooming *{animation-play-state:paused!important}
 #running .card:hover .thumb{border-color:#3a3a3a}
 #running .card:hover .thumb-frame.live .thumb{border-color:transparent}
 #done .thumb-frame{position:relative}
@@ -163,6 +160,21 @@ const EDGE = {parent:"#6d9cff", audit:"#aa8cff", support:"#58d69a", challenge:"#
 const NS = "http://www.w3.org/2000/svg";
 const cards = new Map();
 const watches = new Map();
+const historyTags = new Map();
+let historyTimer = 0;
+let historyBusy = false;
+let historyFailures = 0;
+const thumbnailObserver = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    const id = entry.target.dataset.id;
+    entry.target.dataset.visible = String(entry.isIntersecting);
+    const watch = watches.get(id);
+    if(!watch) return;
+    if(entry.isIntersecting && (watch.live || !watch.loaded)) void loadThumb(id);
+    else clearTimeout(watch.timer);
+  });
+},{rootMargin:"200px"});
+
 
 function when(value){
   if(!value) return "";
@@ -173,7 +185,7 @@ function when(value){
 }
 
 function viewUrl(row){
-  return "/api/studies/" + String(row.href || "").replace(/^\/study\//, "") + "/view";
+  return "/api/studies/" + String(row.href || "").replace(/^\/study\//, "") + "/snapshot";
 }
 
 function paint(svg, view){
@@ -209,6 +221,7 @@ function paint(svg, view){
   });
   nodes.forEach(node => {
     const circle = document.createElementNS(NS, "circle");
+    circle.dataset.id = node.id;
     circle.setAttribute("cx", node.x);
     circle.setAttribute("cy", node.y);
     circle.setAttribute("r", node.radius || 48);
@@ -227,15 +240,29 @@ function signature(view){
 async function loadThumb(id){
   const card = cards.get(id);
   const watch = watches.get(id);
-  if(!card || !watch) return;
+  if(!card || !watch || watch.busy || document.hidden || card.dataset.visible !== "true") return;
+  clearTimeout(watch.timer);
+  watch.busy = true;
   try {
-    const view = await fetch(watch.url).then(response => response.json());
+    const response = await fetch(watch.thumbUrl,{cache:"no-store",signal:AbortSignal.timeout(15000),headers:watch.etag ? {"If-None-Match":watch.etag} : {}});
+    if(response.status === 304) return;
+    if(!response.ok) throw new Error("thumbnail unavailable");
+    const view = await response.json();
+    if(watches.get(id) !== watch) return;
+    watch.etag = response.headers.get("ETag") || "";
     const next = signature(view);
+    watch.loaded = true;
+    if(view.running === false) watch.live = false;
     if(next === watch.sig) return;
     watch.sig = next;
     paint(card.querySelector("svg"), view);
   } catch (error) {
     watch.sig = "error";
+  } finally {
+    watch.busy = false;
+    if(watches.get(id) === watch && watch.live && !document.hidden && card.dataset.visible === "true"){
+      watch.timer = setTimeout(() => loadThumb(id),2000);
+    }
   }
 }
 
@@ -243,11 +270,24 @@ function watchThumb(row){
   const live = row.status === "running";
   const previous = watches.get(row.id);
   if(previous && previous.live === live) return;
-  if(previous) clearInterval(previous.timer);
-  const state = {url: viewUrl(row), live, sig: "", timer: 0};
-  watches.set(row.id, state);
-  loadThumb(row.id);
-  if(live) state.timer = setInterval(() => loadThumb(row.id), 2000);
+  if(previous) clearTimeout(previous.timer);
+  const url = viewUrl(row);
+  const state = {url,thumbUrl:url.replace(/\/snapshot$/,"/thumbnail"),live,sig:previous?.sig || "",timer:0,view:previous?.view || null};
+  watches.set(row.id,state);
+  void loadThumb(row.id);
+}
+
+async function prefetchStudy(id){
+  const watch = watches.get(id);
+  if(!watch || watch.prefetching || document.hidden || (watch.view && Date.now() - watch.view.at < 10000)) return;
+  watch.prefetching = true;
+  try{
+    const response = await fetch(watch.url,{signal:AbortSignal.timeout(15000)});
+    if(!response.ok) return;
+    const payload = await response.json();
+    if(watches.get(id) === watch) watch.view = {payload,at:Date.now()};
+  }catch(error){ /* A click can still load the destination normally. */ }
+  finally{watch.prefetching = false;}
 }
 
 function caption(row){
@@ -261,10 +301,14 @@ function caption(row){
 function buildCard(row){
   const card = document.createElement("div");
   card.className = "card";
+  card.dataset.id = row.id;
+  thumbnailObserver.observe(card);
   const link = document.createElement("a");
   link.className = "card-link";
   link.href = row.href;
   link.dataset.id = row.id;
+  link.addEventListener("pointerenter", () => prefetchStudy(row.id));
+  link.addEventListener("focusin", () => prefetchStudy(row.id));
   const frame = document.createElement("div");
   frame.className = row.status === "running" ? "thumb-frame live" : "thumb-frame";
   const thumb = document.createElement("div");
@@ -297,7 +341,7 @@ function buildCard(row){
     const deleted = await askForget(row, forget);
     if(!deleted) return;
     const watch = watches.get(row.id);
-    if(watch) clearInterval(watch.timer);
+    if(watch) clearTimeout(watch.timer);
     watches.delete(row.id);
     cards.delete(row.id);
     card.remove();
@@ -311,8 +355,9 @@ function buildCard(row){
 
 function place(host, rows){
   const group = host.parentElement;
-  host.replaceChildren();
   if(!rows.length){
+    if(host.querySelector(".empty-note")) return;
+    host.replaceChildren();
     group.classList.add("is-empty");
     const note = document.createElement("p");
     note.className = "empty-note";
@@ -321,7 +366,8 @@ function place(host, rows){
     return;
   }
   group.classList.remove("is-empty");
-  rows.forEach(row => {
+  host.querySelectorAll(".empty-note").forEach(el => el.remove());
+  rows.forEach((row,index) => {
     let card = cards.get(row.id);
     if(!card){
       card = buildCard(row);
@@ -341,7 +387,7 @@ function place(host, rows){
       }
       watchThumb(row);
     }
-    host.appendChild(card);
+    if(host.children[index] !== card) host.insertBefore(card,host.children[index] || null);
   });
 }
 
@@ -350,8 +396,10 @@ function renderHistory(rows){
   for(const id of [...cards.keys()]){
     if(alive.has(id)) continue;
     const watch = watches.get(id);
-    if(watch) clearInterval(watch.timer);
+    if(watch) clearTimeout(watch.timer);
     watches.delete(id);
+    const card = cards.get(id);
+    if(card){thumbnailObserver.unobserve(card);card.remove();}
     cards.delete(id);
   }
   place(document.querySelector("#running"), rows.filter(row => row.status === "running"));
@@ -359,17 +407,34 @@ function renderHistory(rows){
 }
 
 async function refresh(){
+  if(historyBusy || document.hidden) return;
+  clearTimeout(historyTimer);
+  historyBusy = true;
   try {
-    const rows = await fetch("/api/history").then(response => response.json());
-    renderHistory(rows);
+    const url = "/api/history?compact=1";
+    const tag = historyTags.get(url);
+    const response = await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(15000),headers:tag ? {"If-None-Match":tag} : {}});
+    if(response.status !== 304){
+      if(!response.ok) throw new Error("history unavailable");
+      const rows = await response.json();
+      const etag = response.headers.get("ETag");
+      if(etag) historyTags.set(url,etag);
+      renderHistory(rows);
+    }
+    historyFailures = 0;
   } catch (error) {
-    document.querySelector("#running").replaceChildren();
-    const host = document.querySelector("#done");
-    host.replaceChildren();
-    const note = document.createElement("p");
-    note.className = "empty-note";
-    note.textContent = "历史没有读出来。刷新页面再试一次。";
-    host.appendChild(note);
+    historyFailures = Math.min(4,historyFailures + 1);
+    if(!cards.size){
+      const host = document.querySelector("#done");
+      host.replaceChildren();
+      const note = document.createElement("p");
+      note.className = "empty-note";
+      note.textContent = "历史暂未读出，正在重试。";
+      host.appendChild(note);
+    }
+  } finally {
+    historyBusy = false;
+    if(!document.hidden) historyTimer = setTimeout(refresh,Math.min(30000,3000 * 2 ** historyFailures));
   }
 }
 
@@ -523,59 +588,170 @@ function askForget(row, opener){
 }
 
 refresh();
-setInterval(refresh, 3000);
+document.addEventListener("visibilitychange", () => {
+  if(document.hidden){
+    clearTimeout(historyTimer);
+    watches.forEach(watch => clearTimeout(watch.timer));
+  }else{
+    void refresh();
+    watches.forEach((watch,id) => {if(watch.live || !watch.loaded) void loadThumb(id);});
+  }
+});
 
 let zooming = false;
-document.addEventListener("click", event => {
+let zoomCleanup = null;
+
+function sharedNodeTransform(source, target, worldScale){
+  const dx = (source.left + source.width / 2 - target.left - target.width / 2) / worldScale;
+  const dy = (source.top + source.height / 2 - target.top - target.height / 2) / worldScale;
+  return `translate(${dx}px, ${dy}px) scale(${source.width / target.width})`;
+}
+function sharedEdgeTransform(matrix, camera){
+  return `translate(${(matrix.e - camera.left - camera.panX) / camera.scale}px, ${(matrix.f - camera.top - camera.panY) / camera.scale}px) scale(${matrix.a / camera.scale})`;
+}
+function resetThumbFlight(){
+  if(zoomCleanup) zoomCleanup();
+  zoomCleanup = null;
+  zooming = false;
+  document.body.classList.remove("is-zooming");
+}
+window.addEventListener("pageshow", event => {
+  if(event.persisted) resetThumbFlight();
+});
+document.addEventListener("click", async event => {
   if(event.target.closest(".forget")) return;
   const link = event.target.closest("a.card-link");
-  if(!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  if(!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   if(window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const thumb = link.querySelector(".thumb");
-  if(!thumb) return;
-  if(zooming){
-    event.preventDefault();
-    return;
-  }
+  const svg = thumb?.querySelector("svg");
+  if(!thumb || !svg) return;
   event.preventDefault();
+  if(zooming) return;
   zooming = true;
-  document.body.classList.add("is-zooming");
+
+  // Read the source before locking scroll can change the homepage's width.
   const rect = thumb.getBoundingClientRect();
+  const svgRect = svg.getBoundingClientRect();
+  const matrix = svg.getScreenCTM();
+  const sources = new Map([...svg.querySelectorAll("circle[data-id]")].map(node => [node.dataset.id, node.getBoundingClientRect()]));
+  const destination = new URL(link.href);
+  const watch = [...watches.values()].find(item => item.url === "/api/studies/" + destination.pathname.replace(/^\/study\//, "") + "/snapshot");
+  const cached = watch?.view;
+  document.body.classList.add("is-zooming");
+
   const shade = document.createElement("div");
   shade.className = "zoom-shade";
-  const ghost = thumb.cloneNode(true);
-  ghost.querySelector(".caption")?.remove();
-  ghost.className = "thumb zoom-ghost";
-  ghost.style.left = `${rect.left}px`;
-  ghost.style.top = `${rect.top}px`;
-  ghost.style.width = `${rect.width}px`;
-  ghost.style.height = `${rect.height}px`;
-  ghost.style.borderRadius = "14px";
+  const ghost = document.createElement("div");
+  ghost.className = "zoom-ghost";
+  ghost.setAttribute("aria-hidden", "true");
+  Object.assign(ghost.style, {left:`${rect.left}px`, top:`${rect.top}px`, width:`${rect.width}px`, height:`${rect.height}px`});
+  const copy = svg.cloneNode(true);
+  copy.style.height = `${svgRect.height}px`;
   const frost = document.createElement("div");
   frost.className = "zoom-frost";
-  ghost.append(frost);
-  document.body.append(shade, ghost);
-  thumb.style.visibility = "hidden";
-  const scale = Math.max(window.innerWidth / rect.width, window.innerHeight / rect.height) * 0.832;
-  const dx = window.innerWidth / 2 - (rect.left + rect.width / 2);
-  const dy = window.innerHeight / 2 - (rect.top + rect.height / 2);
-  requestAnimationFrame(() => {
-    shade.classList.add("on");
-    ghost.classList.add("glass");
-    ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
-    ghost.style.borderRadius = "0px";
+  ghost.append(copy, frost);
+
+  const scene = document.createElement("iframe");
+  scene.className = "study-scene";
+  scene.title = "研究星图预览";
+  scene.tabIndex = -1;
+  scene.setAttribute("aria-hidden", "true");
+  const preview = new URL(destination.href);
+  preview.searchParams.set("entry-preview", "1");
+  let done = false;
+  let transferred = null;
+  let watchdog;
+  const animations = [];
+  let cancelled;
+  const cancellation = new Promise(resolve => { cancelled = resolve; });
+  const loaded = new Promise((resolve, reject) => {
+    scene.addEventListener("load", resolve, {once:true});
+    scene.addEventListener("error", () => reject(new Error("preview failed")), {once:true});
   });
-  let gone = false;
-  const go = () => {
-    if(gone) return;
-    gone = true;
-    try{ sessionStorage.setItem("piresearch-zoom", "1"); }catch(err){}
-    location.href = link.href;
+  const onResize = () => {
+    animations.forEach(animation => animation.cancel());
+    go();
   };
-  ghost.addEventListener("transitionend", transition => {
-    if(transition.propertyName === "transform") go();
-  });
-  setTimeout(go, 820);
+  zoomCleanup = () => {
+    done = true;
+    cancelled();
+    clearTimeout(watchdog);
+    window.removeEventListener("resize", onResize);
+    animations.forEach(animation => animation.cancel());
+    scene.remove();
+    ghost.remove();
+    shade.remove();
+    thumb.style.visibility = "";
+    try{ sessionStorage.removeItem("piresearch-zoom"); }catch(err){}
+  };
+  const go = () => {
+    if(done) return;
+    done = true;
+    clearTimeout(watchdog);
+    window.removeEventListener("resize", onResize);
+    try{
+      sessionStorage.setItem("piresearch-zoom", JSON.stringify({
+        href:destination.pathname, at:Date.now(),
+        view:transferred ? {payload:transferred.payload, at:Date.now()} : cached || null,
+        camera:transferred?.camera || null,
+      }));
+    }catch(err){}
+    location.assign(destination.href);
+  };
+  window.addEventListener("resize", onResize);
+  watchdog = setTimeout(go, 2500);
+  scene.src = preview.href;
+  document.body.append(shade, ghost, scene);
+
+  const animate = (node, frames, timing) => {
+    const animation = node.animate(frames, {...timing,fill:"both"});
+    animations.push(animation);
+    return animation.finished;
+  };
+  try{
+    await Promise.race([loaded,cancellation]);
+    if(done) return;
+    const bridge = scene.contentWindow?.studyEntry;
+    if(!bridge) throw new Error("preview bridge unavailable");
+    transferred = await Promise.race([bridge.prepare(cached),cancellation]);
+    if(done) return;
+    if(!transferred?.payload?.ok) throw new Error("preview graph unavailable");
+    const targetDocument = scene.contentDocument;
+    const timing = {duration:520,easing:"cubic-bezier(.22,1,.36,1)"};
+    const jobs = [];
+    // Animate the real target nodes inside their real page, never enlarged dots.
+    for(const node of targetDocument.querySelectorAll(".node")){
+      const target = node.getBoundingClientRect();
+      const source = sources.get(node.dataset.id);
+      if(source && target.width > 0){
+        node.style.transformOrigin = "center center";
+        jobs.push(animate(node, [{transform:sharedNodeTransform(source,target,transferred.camera.scale)}, {transform:"translate(0px, 0px) scale(1)"}], timing));
+      } else {
+        jobs.push(animate(node, [{opacity:0},{opacity:1}], {...timing,duration:240,delay:180}));
+      }
+      for(const label of node.querySelectorAll(".node-content,.node-tab,.node-id")){
+        jobs.push(animate(label,[{opacity:0},{opacity:1}],{...timing,duration:220,delay:220}));
+      }
+    }
+    const edges = targetDocument.querySelector("svg.edges");
+    if(edges && matrix){
+      edges.style.transformOrigin = "0 0";
+      jobs.push(animate(edges,[{transform:sharedEdgeTransform(matrix,transferred.camera)},{transform:"translate(0px, 0px) scale(1)"}],timing));
+    }
+    for(const chrome of targetDocument.querySelectorAll(".top,.legend,.zoom")){
+      jobs.push(animate(chrome,[{opacity:0},{opacity:1}],{...timing,duration:220,delay:250}));
+    }
+    thumb.style.visibility = "hidden";
+    // Only this initial reveal changes scene opacity. The source glass is
+    // unchanged beneath it, and the final graph is already the target page.
+    jobs.push(animate(scene,[{opacity:0},{opacity:1}],{duration:100,easing:"linear"}));
+    await Promise.race([Promise.all(jobs),cancellation]);
+    if(done) return;
+    // Hold the identical final frame for a paint before address navigation.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }catch(err){ /* Preview failure falls back to ordinary same-origin navigation. */ }
+  go();
 });
 </script>
 </body>
