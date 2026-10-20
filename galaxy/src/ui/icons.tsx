@@ -1,0 +1,151 @@
+// Inline stroke icons (24-unit grid, currentColor). Decorative: aria-hidden.
+
+import type { ReactNode, SVGProps } from "react";
+
+function Icon({ children, ...props }: SVGProps<SVGSVGElement> & { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      {...props}
+    >
+      {children}
+    </svg>
+  );
+}
+
+type P = SVGProps<SVGSVGElement>;
+
+export const IconReport = (p: P) => (
+  <Icon {...p}>
+    <path d="M6 3.5h8.5L19 8v12.5H6z" />
+    <path d="M14 3.5V8h5M9 12h7M9 15.5h7M9 9h3" />
+  </Icon>
+);
+export const IconLens = (p: P) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m16 16 4.5 4.5M8.3 11.2l1.9 1.9 3.6-3.8" />
+  </Icon>
+);
+export const IconQuality = (p: P) => (
+  <Icon {...p}>
+    <path d="M12 3.5 14 9l5.5 2-5.5 2-2 5.5-2-5.5L4.5 11 10 9z" />
+    <path d="M19 3.5v3M17.5 5h3" />
+  </Icon>
+);
+export const IconCore = (p: P) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="3" />
+    <circle cx="12" cy="12" r="8" strokeDasharray="2.5 3" />
+    <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" />
+  </Icon>
+);
+export const IconReset = (p: P) => (
+  <Icon {...p}>
+    <path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4" />
+    <path d="M4.5 4v4h4" />
+  </Icon>
+);
+export const IconHelp = (p: P) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7M12 16.8v.2" />
+  </Icon>
+);
+export const IconMore = (p: P) => (
+  <Icon {...p}>
+    <path d="M4.5 7h15M4.5 12h15M4.5 17h15" />
+  </Icon>
+);
+export const IconClose = (p: P) => (
+  <Icon {...p}>
+    <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" />
+  </Icon>
+);
+export const IconChevron = (p: P) => (
+  <Icon {...p}>
+    <path d="m9 6 6 6-6 6" />
+  </Icon>
+);
+export const IconChevronDown = (p: P) => (
+  <Icon {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </Icon>
+);
+export const IconCheck = (p: P) => (
+  <Icon {...p}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Icon>
+);
+export const IconRetry = (p: P) => (
+  <Icon {...p}>
+    <path d="M19.5 12a7.5 7.5 0 1 1-2.3-5.4" />
+    <path d="M19.5 4v4h-4" />
+  </Icon>
+);
+export const IconOffline = (p: P) => (
+  <Icon {...p}>
+    <path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.5 16a5 5 0 0 1 7 0" />
+    <path d="M12 19.5v.1M3 3l18 18" />
+  </Icon>
+);
+export const IconExternal = (p: P) => (
+  <Icon {...p}>
+    <path d="M14 4.5h5.5V10M19.5 4.5 11 13M17 14v5.5H4.5V7H10" />
+  </Icon>
+);
+export const IconLegend = (p: P) => (
+  <Icon {...p}>
+    <circle cx="6" cy="7" r="2" />
+    <circle cx="18" cy="17" r="2" />
+    <path d="M8 7.5c5 0 3.5 9 8 9" />
+  </Icon>
+);
+
+/** Small glyphs for the tool-step trace (13px, stroke via CSS). */
+export function ToolGlyph({ tool }: { tool: string }) {
+  const paths: Record<string, ReactNode> = {
+    web_search: (
+      <>
+        <circle cx="10.5" cy="10.5" r="5.5" />
+        <path d="m15 15 4.5 4.5" />
+      </>
+    ),
+    web_fetch: (
+      <>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M4 12h16M12 4c2.5 2.6 2.5 13.4 0 16M12 4c-2.5 2.6-2.5 13.4 0 16" />
+      </>
+    ),
+    bash: <path d="m5 7 5 5-5 5M12.5 17.5H19" />,
+    read_file: (
+      <>
+        <path d="M6.5 3.5h8l3 3v14h-11z" />
+        <path d="M9.5 11h5M9.5 14.5h5" />
+      </>
+    ),
+    create_file: <path d="m14.5 5.5 4 4L9 19H5v-4zM12.5 7.5l4 4" />,
+    submit_report: <path d="M4 12 20 4l-4 16-4.5-6.5zM11.5 13.5 20 4" />,
+    download_file: <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" />,
+    压缩: <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />,
+    思考: (
+      <>
+        <circle cx="12" cy="12" r="1.2" />
+        <circle cx="6.5" cy="12" r="1.2" />
+        <circle cx="17.5" cy="12" r="1.2" />
+      </>
+    ),
+  };
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {paths[tool] ?? <circle cx="12" cy="12" r="4" />}
+    </svg>
+  );
+}

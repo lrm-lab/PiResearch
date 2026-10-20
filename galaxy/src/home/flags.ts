@@ -1,0 +1,31 @@
+// URL flags for the home page. The mock flags only exist in the dev server
+// (`import.meta.env.DEV`), so a production build can never fake a submit.
+//
+//   ?mockSubmit=1        POST /api/questions is faked: success, href of the newest running study
+//   ?mockSubmit=error    fake 400 {"error":"问题太短了。"}
+//   ?mockSubmit=network  fake network failure
+//   ?mockDelete=1        DELETE is faked: success after 700 ms
+//   ?mockDelete=error    fake 500 {"error":"删除失败，请重试。"}
+//   ?mockEmpty=1         history is faked as [] (first-run state)
+//   ?navigate=0          launch / flight animations play but never leave the page
+//   ?nowebgl=1           force the 2D card grid (works in production too)
+
+const params = typeof location === "undefined" ? new URLSearchParams() : new URLSearchParams(location.search);
+const dev = import.meta.env.DEV;
+
+export const flags = {
+  mockSubmit: dev ? params.get("mockSubmit") : null,
+  mockDelete: dev ? params.get("mockDelete") : null,
+  mockEmpty: dev && params.get("mockEmpty") === "1",
+  stay: dev && params.get("navigate") === "0",
+  noWebGL: params.get("nowebgl") === "1",
+};
+
+/** Leave for a study page (or log it when `?navigate=0`). */
+export function navigate(href: string): void {
+  if (flags.stay) {
+    console.info("[home] navigate", href);
+    return;
+  }
+  location.assign(href);
+}
