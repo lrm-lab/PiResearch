@@ -4,8 +4,9 @@
 
 import { memo, useEffect, useId, useMemo, useRef } from "react";
 import { galaxyStudyHref } from "../lib/api";
-import { RELATION_COLOR, toneColor } from "../lib/palette";
+import { RELATION_COLOR, TONE_COLOR, toneColor } from "../lib/palette";
 import type { HistoryRow, Thumbnail } from "../types/api";
+import { IconTrash } from "../ui/icons";
 import { captionLine, rowTitle, splitRows, thumbFrame } from "./format";
 import { setThumbVisible } from "./polling";
 import { useHome } from "./store";
@@ -96,15 +97,7 @@ const Card = memo(function Card({ row, observer }: { row: HistoryRow; observer: 
         title="删除研究"
         onClick={(event) => useHome.getState().openDelete(row, event.currentTarget)}
       >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M4.5 6.5h15M9 6.5V4.7c0-.7.6-1.2 1.3-1.2h3.4c.7 0 1.3.5 1.3 1.2v1.8m-8.9 0 .8 12.1c.1 1 .8 1.7 1.8 1.7h6.6c1 0 1.7-.7 1.8-1.7l.8-12.1"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <IconTrash />
       </button>
     </div>
   );
@@ -118,7 +111,7 @@ function ThumbSvg({ thumb }: { thumb: Thumbnail | undefined }) {
   if (!nodes.length) {
     return (
       <svg viewBox="0 0 300 200" aria-hidden="true">
-        <circle cx="150" cy="100" r="10" fill="#9eb0c2" opacity=".5" />
+        <circle cx="150" cy="100" r="10" fill={TONE_COLOR.pending} opacity=".5" />
       </svg>
     );
   }

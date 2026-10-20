@@ -3,19 +3,20 @@
 // can be unit tested. Node positions come from lib/space liftLayout, scaled
 // to fit the gallery disc; the dust and spiral arms are decoration only.
 
+import { gauss, rng } from "../lib/math";
 import { hash01, liftLayout } from "../lib/space";
-import { RELATION_COLOR, toneColor } from "../lib/palette";
+import { RELATION_COLOR, TONE_COLOR, toneColor } from "../lib/palette";
 import type { NodeStatus, Thumbnail } from "../types/api";
 
 export const KIND_DUST = 0;
 export const KIND_NODE = 1;
 export const KIND_CORE = 2;
 
-export const STATE_NONE = 0;
-export const STATE_OPEN = 1;
-export const STATE_ACTIVE = 2;
-export const STATE_RESOLVED = 3;
-export const STATE_CANCELLED = 4;
+const STATE_NONE = 0;
+const STATE_OPEN = 1;
+const STATE_ACTIVE = 2;
+const STATE_RESOLVED = 3;
+const STATE_CANCELLED = 4;
 
 export interface GalaxyGeometry {
   /** Number of points. */
@@ -50,23 +51,7 @@ export function hexToRgb(hex: string): RGB {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
 
-/** Small seeded PRNG (mulberry32). */
-export function rng(seed: number): () => number {
-  let a = seed >>> 0 || 0x9e3779b9;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function gauss(next: () => number): number {
-  const u = Math.max(1e-6, next());
-  const v = next();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
+const GAUSS_MIN = 1e-6;
 
 function stateOf(status: NodeStatus): number {
   switch (status) {
@@ -150,7 +135,7 @@ export function buildGalaxy(thumb: Thumbnail | null | undefined, seed: string, o
     for (let i = 0; i < cloud; i += 1) {
       const spread = 0.07 + 0.06 * grow;
       points.push({
-        p: [at[0] + gauss(next) * spread, at[1] + gauss(next) * spread * 0.5, at[2] + gauss(next) * spread],
+        p: [at[0] + gauss(next, GAUSS_MIN) * spread, at[1] + gauss(next, GAUSS_MIN) * spread * 0.5, at[2] + gauss(next, GAUSS_MIN) * spread],
         c: mix(rgb, WHITE, next() * 0.25),
         s: 0.025 + next() * 0.04,
         k: KIND_DUST,
@@ -158,7 +143,7 @@ export function buildGalaxy(thumb: Thumbnail | null | undefined, seed: string, o
       });
     }
   }
-  if (!palette.length) palette.push(PROTO, hexToRgb("#48d3e4"), hexToRgb("#aa8cff"));
+  if (!palette.length) palette.push(PROTO, hexToRgb(TONE_COLOR.cyan), hexToRgb(TONE_COLOR.violet));
 
   // Two (sometimes three) logarithmic spiral arms plus a diffuse halo.
   const arms = next() < 0.3 ? 3 : 2;
@@ -169,11 +154,11 @@ export function buildGalaxy(thumb: Thumbnail | null | undefined, seed: string, o
     const t = Math.pow(next(), halo ? 0.6 : 0.85);
     const r = 0.08 + t * radius * (halo ? 1.15 : 1.05);
     const arm = Math.floor(next() * arms);
-    const theta = tilt + (arm / arms) * Math.PI * 2 + Math.log(1 + t * 6) * twist + gauss(next) * (halo ? 1.2 : 0.22);
+    const theta = tilt + (arm / arms) * Math.PI * 2 + Math.log(1 + t * 6) * twist + gauss(next, GAUSS_MIN) * (halo ? 1.2 : 0.22);
     const thick = (1 - t) * 0.12 + 0.025;
     const c = mix(palette[Math.floor(next() * palette.length)]!, WHITE, Math.max(0, 0.65 - t) * 0.9);
     points.push({
-      p: [Math.cos(theta) * r, gauss(next) * thick, Math.sin(theta) * r],
+      p: [Math.cos(theta) * r, gauss(next, GAUSS_MIN) * thick, Math.sin(theta) * r],
       c: halo ? mix(c, PROTO, 0.4) : c,
       s: (halo ? 0.026 : 0.034) + next() * (halo ? 0.034 : 0.06) * (1 - t * 0.5),
       k: KIND_DUST,

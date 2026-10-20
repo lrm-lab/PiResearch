@@ -10,24 +10,6 @@ export function drawnRelation(relation: Relation): Exclude<Relation, "fusion"> {
   return relation === "fusion" ? "audit" : relation;
 }
 
-export function edgesByRelation(edges: readonly Edge[], relation: Relation | readonly Relation[]): Edge[] {
-  const wanted = typeof relation === "string" ? [relation] : relation;
-  return edges.filter((edge) => wanted.includes(edge.relation));
-}
-
-/** Group edges by their drawn relation, keeping edge order inside each group. */
-export function groupByRelation(edges: readonly Edge[]): Record<Exclude<Relation, "fusion">, Edge[]> {
-  const groups: Record<Exclude<Relation, "fusion">, Edge[]> = {
-    parent: [],
-    audit: [],
-    support: [],
-    challenge: [],
-    error: [],
-  };
-  for (const edge of edges) groups[drawnRelation(edge.relation)].push(edge);
-  return groups;
-}
-
 /** Ids of nodes targeted by at least one `error` edge. */
 export function errorTargets(edges: readonly Edge[]): Set<string> {
   const ids = new Set<string>();

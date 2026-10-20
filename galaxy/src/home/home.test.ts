@@ -18,7 +18,7 @@ import {
 } from "./format";
 import { navigate, resetNavigation } from "./flags";
 import { buildGalaxy, KIND_CORE, KIND_NODE } from "./geometry";
-import { galleryParams, neighbour, rubberBand, scrollBounds, scrollToReveal, slotX } from "./layout";
+import { galleryParams, neighbour, scrollBounds, scrollToReveal, slotX } from "./layout";
 
 function row(id: string, patch: Partial<HistoryRow> = {}): HistoryRow {
   return {
@@ -147,12 +147,6 @@ describe("layout", () => {
     expect(scrollToReveal(14, 0, params, bounds)).toBe(6);
     expect(scrollToReveal(6, 8, params, bounds)).toBe(6);
     expect(scrollToReveal(6, 20, params, bounds)).toBe(14);
-  });
-
-  it("resists past the bounds", () => {
-    expect(rubberBand(3, 0, 10)).toBe(3);
-    expect(rubberBand(-5, 0, 10)).toBeGreaterThan(-1.4);
-    expect(rubberBand(15, 0, 10)).toBeLessThan(11.4);
   });
 
   it("moves keyboard focus within and across rows", () => {

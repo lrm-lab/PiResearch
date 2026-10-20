@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Edge } from "../types/api";
-import { drawnRelation, edgeKey, edgesByRelation, errorTargets, groupByRelation, linkedIds, verificationIds } from "./edges";
-import { sortNodes } from "./order";
+import { drawnRelation, edgeKey, errorTargets, linkedIds, verificationIds } from "./edges";
 
 const edges: Edge[] = [
   { from: "goal", to: "t1", relation: "parent" },
@@ -15,17 +14,8 @@ const edges: Edge[] = [
 ];
 
 describe("edges", () => {
-  it("filters by one or several relations", () => {
-    expect(edgesByRelation(edges, "parent")).toHaveLength(3);
-    expect(edgesByRelation(edges, ["audit", "support"])).toHaveLength(2);
-  });
-
-  it("groups fusion with audit", () => {
+  it("draws fusion as audit", () => {
     expect(drawnRelation("fusion")).toBe("audit");
-    const groups = groupByRelation(edges);
-    expect(groups.audit.map((edge) => edge.from)).toEqual(["t4", "t6"]);
-    expect(groups.parent).toHaveLength(3);
-    expect(groups.error).toHaveLength(1);
   });
 
   it("finds error targets", () => {
@@ -44,12 +34,5 @@ describe("edges", () => {
   it("builds stable keys", () => {
     expect(edgeKey(edges[0]!)).toBe("goal>t1:parent");
     expect(edgeKey(edges[0]!, 3)).toBe("goal>t1:parent#3");
-  });
-});
-
-describe("sortNodes", () => {
-  it("puts the goal first and orders tasks numerically", () => {
-    const ids = sortNodes([{ id: "t10" }, { id: "t2" }, { id: "goal", goal: true }, { id: "t1" }, { id: "x" }]).map((n) => n.id);
-    expect(ids).toEqual(["goal", "t1", "t2", "t10", "x"]);
   });
 });

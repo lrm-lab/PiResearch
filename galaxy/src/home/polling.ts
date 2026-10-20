@@ -36,6 +36,11 @@ let historyAgain = false;
 let historyFailures = 0;
 let running = false;
 
+function clearHistoryTimer() {
+  if (historyTimer !== null) clearTimeout(historyTimer);
+  historyTimer = null;
+}
+
 function clearWatchTimer(watch: Watch) {
   if (watch.timer !== null) clearTimeout(watch.timer);
   watch.timer = null;
@@ -121,8 +126,7 @@ export function setThumbVisible(id: string, visible: boolean): void {
 async function refreshHistory(): Promise<void> {
   if (!running || historyBusy || document.hidden) return;
   historyAgain = false;
-  if (historyTimer !== null) clearTimeout(historyTimer);
-  historyTimer = null;
+  clearHistoryTimer();
   historyBusy = true;
   const store = useHome.getState();
   try {
@@ -156,8 +160,7 @@ export function refreshHistoryNow(): void {
 
 function onVisibility() {
   if (document.hidden) {
-    if (historyTimer !== null) clearTimeout(historyTimer);
-    historyTimer = null;
+    clearHistoryTimer();
     for (const watch of watches.values()) clearWatchTimer(watch);
     return;
   }
@@ -179,8 +182,7 @@ export function startHomePolling(): () => void {
     running = false;
     document.removeEventListener("visibilitychange", onVisibility);
     window.removeEventListener("pageshow", onPageShow);
-    if (historyTimer !== null) clearTimeout(historyTimer);
-    historyTimer = null;
+    clearHistoryTimer();
     for (const watch of watches.values()) clearWatchTimer(watch);
   };
 }

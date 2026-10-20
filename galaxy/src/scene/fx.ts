@@ -6,7 +6,7 @@ import { DataTexture, FloatType, NearestFilter, RGBAFormat, Vector2 } from "thre
 import type { SceneGraph, SceneNode } from "./graph";
 import { MAX_SATELLITES } from "./orbits";
 
-export type FxEventKind = "born" | "status" | "steps";
+type FxEventKind = "born" | "status" | "steps";
 
 export interface FxEvent {
   kind: FxEventKind;
@@ -17,9 +17,7 @@ export interface FxEvent {
 
 interface NodeState {
   emph: number;
-  target: number;
   hover: number;
-  hoverTarget: number;
   bornAt: number;
   /** Births after the first snapshot flash; first-load nodes only grow in. */
   bornFlash: boolean;
@@ -27,6 +25,13 @@ interface NodeState {
   burstFrom: number;
   burstTo: number;
   burstAt: number;
+}
+
+/** One state texture and its CPU-side data. */
+interface StateTexture {
+  cap: number;
+  data: Float32Array;
+  tex: DataTexture | null;
 }
 
 interface Known {
@@ -37,6 +42,8 @@ interface Known {
 const NODE_ROWS = 2;
 const BIRTH = 0.9;
 const LONG_AGO = -1e4;
+/** Status / birth flashes last this long (s). */
+const FLASH_SPAN = 2.5;
 
 function easeOutBack(x: number): number {
   const c1 = 1.70158;
@@ -48,6 +55,12 @@ function capacity(n: number): number {
   let cap = 64;
   while (cap < n) cap *= 2;
   return cap;
+}
+
+/** Decaying flash of an event at scene time `at`. */
+function pulse(time: number, at: number): number {
+  const age = time - at;
+  return age < 0 || age > FLASH_SPAN ? 0 : Math.exp(-age * 3.2);
 }
 
 function makeTexture(width: number, height: number): { data: Float32Array; tex: DataTexture } {
@@ -85,12 +98,8 @@ export class SceneFx {
     uEdgeTex: { value: null as unknown as DataTexture },
   };
 
-  private nodeCap = 0;
-  private nodeData: Float32Array = new Float32Array(0);
-  private nodeTex: DataTexture | null = null;
-  private edgeCap = 0;
-  private edgeData: Float32Array = new Float32Array(0);
-  private edgeTex: DataTexture | null = null;
+  private nodes: StateTexture = { cap: 0, data: new Float32Array(0), tex: null };
+  private edges: StateTexture = { cap: 0, data: new Float32Array(0), tex: null };
 
   private graph: SceneGraph | null = null;
   private states = new Map<string, NodeState>();
@@ -102,8 +111,8 @@ export class SceneFx {
   private listeners = new Set<(event: FxEvent) => void>();
 
   constructor() {
-    this.ensureNodes(1);
-    this.ensureEdges(1);
+    this.ensure(this.nodes, 1, NODE_ROWS, this.uniforms.uNodeTex);
+    this.ensure(this.edges, 1, 1, this.uniforms.uEdgeTex);
   }
 
   on(listener: (event: FxEvent) => void): () => void {
@@ -126,9 +135,7 @@ export class SceneFx {
         const delay = first ? 0.25 + 1.1 * Math.min(1, Math.hypot(node.p.x, node.p.z) / graph.extent) : 0;
         state = {
           emph: 1,
-          target: 1,
           hover: 0,
-          hoverTarget: 0,
           bornAt: this.reduced ? LONG_AGO : this.time + delay,
           bornFlash: !first,
           flashAt: LONG_AGO,
@@ -160,8 +167,8 @@ export class SceneFx {
     this.graph = graph;
     if (this.nodeTarget.length !== graph.nodes.length) this.nodeTarget = new Float32Array(graph.nodes.length).fill(1);
     if (this.edgeTarget.length !== graph.edges.length) this.edgeTarget = new Float32Array(graph.edges.length).fill(1);
-    this.ensureNodes(graph.nodes.length);
-    this.ensureEdges(graph.edges.length);
+    this.ensure(this.nodes, graph.nodes.length, NODE_ROWS, this.uniforms.uNodeTex);
+    this.ensure(this.edges, graph.edges.length, 1, this.uniforms.uEdgeTex);
     for (const event of events) for (const listener of this.listeners) listener(event);
   }
 
@@ -193,15 +200,15 @@ export class SceneFx {
 
     const graph = this.graph;
     if (!graph) return;
-    const data = this.nodeData;
-    const row = this.nodeCap * 4;
+    const data = this.nodes.data;
+    const row = this.nodes.cap * 4;
     for (const node of graph.nodes) {
       const state = this.states.get(node.id);
       if (!state) continue;
-      state.target = this.nodeTarget[node.i] ?? 1;
-      state.hoverTarget = node.id === this.hoveredId ? 1 : 0;
-      state.emph += (state.target - state.emph) * k;
-      state.hover += (state.hoverTarget - state.hover) * k;
+      const target = this.nodeTarget[node.i] ?? 1;
+      const hoverTarget = node.id === this.hoveredId ? 1 : 0;
+      state.emph += (target - state.emph) * k;
+      state.hover += (hoverTarget - state.hover) * k;
       const o = node.i * 4;
       data[o] = state.emph;
       data[o + 1] = this.birthScale(state);
@@ -212,9 +219,9 @@ export class SceneFx {
       data[row + o + 2] = state.burstAt;
       data[row + o + 3] = 0;
     }
-    if (this.nodeTex) this.nodeTex.needsUpdate = true;
+    if (this.nodes.tex) this.nodes.tex.needsUpdate = true;
 
-    const edges = this.edgeData;
+    const edges = this.edges.data;
     for (const edge of graph.edges) {
       const target = this.edgeTarget[edge.i] ?? 1;
       const cur = this.edgeCur.get(edge.key) ?? target;
@@ -222,12 +229,12 @@ export class SceneFx {
       this.edgeCur.set(edge.key, value);
       edges[edge.i * 4] = value;
     }
-    if (this.edgeTex) this.edgeTex.needsUpdate = true;
+    if (this.edges.tex) this.edges.tex.needsUpdate = true;
   }
 
   dispose(): void {
-    this.nodeTex?.dispose();
-    this.edgeTex?.dispose();
+    this.nodes.tex?.dispose();
+    this.edges.tex?.dispose();
     this.listeners.clear();
   }
 
@@ -239,32 +246,18 @@ export class SceneFx {
   }
 
   private flash(state: NodeState): number {
-    const pulse = (at: number) => {
-      const age = this.time - at;
-      return age < 0 || age > 2.5 ? 0 : Math.exp(-age * 3.2);
-    };
-    return Math.max(state.bornFlash ? pulse(state.bornAt) : 0, pulse(state.flashAt));
+    return Math.max(state.bornFlash ? pulse(this.time, state.bornAt) : 0, pulse(this.time, state.flashAt));
   }
 
-  private ensureNodes(n: number): void {
+  /** Grow a state texture (and its uniform) to hold `n` rows of texels. */
+  private ensure(store: StateTexture, n: number, rows: number, uniform: { value: DataTexture }): void {
     const cap = capacity(n);
-    if (cap <= this.nodeCap) return;
-    this.nodeTex?.dispose();
-    const { data, tex } = makeTexture(cap, NODE_ROWS);
-    this.nodeCap = cap;
-    this.nodeData = data;
-    this.nodeTex = tex;
-    this.uniforms.uNodeTex.value = tex;
-  }
-
-  private ensureEdges(n: number): void {
-    const cap = capacity(n);
-    if (cap <= this.edgeCap) return;
-    this.edgeTex?.dispose();
-    const { data, tex } = makeTexture(cap, 1);
-    this.edgeCap = cap;
-    this.edgeData = data;
-    this.edgeTex = tex;
-    this.uniforms.uEdgeTex.value = tex;
+    if (cap <= store.cap) return;
+    store.tex?.dispose();
+    const { data, tex } = makeTexture(cap, rows);
+    store.cap = cap;
+    store.data = data;
+    store.tex = tex;
+    uniform.value = tex;
   }
 }

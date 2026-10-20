@@ -17,7 +17,7 @@ import {
   SphereGeometry,
   type BufferGeometry,
 } from "three";
-import { ERROR_RED } from "../lib/palette";
+import { CANCELLED_GREY, ERROR_RED } from "../lib/palette";
 import { useGalaxy } from "../store";
 import type { SceneFx } from "./fx";
 import { KIND_CANCELLED, type SceneGraph, type SceneNode } from "./graph";
@@ -274,7 +274,7 @@ function bodyGeometry(base: BufferGeometry, tasks: SceneNode[], spans: boolean):
     offset.set([task.p.x, task.p.y, task.p.z], j * 3);
     radius[j] = task.p.r * (BODY_SCALE[task.kind] ?? 1);
     span[j] = GLOW_SPAN[task.kind] ?? 3;
-    color.set(task.kind === KIND_CANCELLED ? "#8a8f98" : task.tone);
+    color.set(task.kind === KIND_CANCELLED ? CANCELLED_GREY : task.tone);
     tone.set([color.r, color.g, color.b], j * 3);
     kind[j] = task.kind;
     seed[j] = task.seed;

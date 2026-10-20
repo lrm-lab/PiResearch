@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { TOOL } from "../lib/activity";
+import { ERROR_RED } from "../lib/palette";
 import type { LoadState } from "../store";
 import type { LiveCall, Step } from "../types/api";
 import { IconRetry, ToolGlyph } from "./icons";
@@ -81,7 +82,7 @@ export function SignalTrace({
 function TraceRow({ step, live }: { step: Step | LiveCall; live: boolean }) {
   const [open, setOpen] = useState(false);
   const thinking = step.tool === "思考";
-  const color = step.error ? "#ff5a6a" : toolColor(step.tool);
+  const color = step.error ? ERROR_RED : toolColor(step.tool);
   const detail = "detail" in step ? step.detail : undefined;
   const count = step.count ?? 1;
   const long = Boolean(detail && Array.from(detail).length > 70);

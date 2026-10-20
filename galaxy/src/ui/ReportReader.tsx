@@ -2,19 +2,20 @@
 // washes to warm white and a paper sheet rises in. Closing reverses it.
 
 import { AnimatePresence, motion, useScroll } from "motion/react";
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type MouseEvent, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type MouseEvent, type RefObject } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { fetchReport } from "../lib/api";
+import { fetchReport, studyApiPrefix } from "../lib/api";
 import { selectionHeading } from "../lib/heading";
-import { prepareUserReport } from "../lib/report";
+import { useFocusTrap } from "../lib/hooks";
+import { isUsableTitle, prepareUserReport } from "../lib/report";
 import { useGalaxy } from "../store";
-import { useFocusTrap } from "./hooks";
 import { IconClose, IconExternal } from "./icons";
 import { alignNumericColumns, stripLeadingTitle } from "./reportTables";
 import { useUi } from "./uiStore";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
+const REMARK_PLUGINS = [remarkGfm];
 
 type Loaded = { kind: "loading" } | { kind: "ready"; markdown: string } | { kind: "message"; text: string };
 
@@ -45,7 +46,7 @@ export function ReportReader() {
 
 function reportTitle(goalTitle: string | undefined): string {
   const title = String(goalTitle || "").trim();
-  return title && title !== "正在读取" && title !== "这份运行没有星图" ? selectionHeading(title, true) : "研究报告";
+  return isUsableTitle(title) ? selectionHeading(title, true) : "研究报告";
 }
 
 /** "3 章 · 约 4 分钟" (about 450 characters a minute). */
@@ -57,7 +58,8 @@ function readingMeta(markdown: string): string {
 }
 
 function Dialog() {
-  const prefix = useGalaxy((state) => state.prefix);
+  const studyId = useGalaxy((state) => state.studyId);
+  const prefix = studyId ? studyApiPrefix(studyId) : null;
   const goalTitle = useGalaxy((state) => (state.view?.ok ? state.view.goal?.title : undefined));
   const endReport = useUi((state) => state.endReport);
   const [title] = useState(() => reportTitle(goalTitle));
@@ -78,7 +80,7 @@ function Dialog() {
     fetchReport(prefix, { signal: controller.signal })
       .then((result) => {
         if (controller.signal.aborted) return;
-        if (result.kind === "missing") return setLoaded({ kind: "message", text: result.message || "这份运行还没有报告。" });
+        if (result.kind === "missing") return setLoaded({ kind: "message", text: result.message });
         const markdown = alignNumericColumns(stripLeadingTitle(prepareUserReport(result.markdown, title), title));
         setLoaded(markdown.trim() ? { kind: "ready", markdown } : { kind: "message", text: "这份运行还没有报告。" });
       })
@@ -159,30 +161,35 @@ function Dialog() {
 interface OutlineItem {
   id: string;
   text: string;
-  level: 2 | 3;
 }
 
 function Article({ markdown, scrollRef }: { markdown: string; scrollRef: RefObject<HTMLDivElement | null> }) {
   const articleRef = useRef<HTMLElement>(null);
   const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [active, setActive] = useState<string | null>(null);
+  // Parse the Markdown once per report, not on every scroll-spy update.
+  const content = useMemo(
+    () => (
+      <Markdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTS}>
+        {markdown}
+      </Markdown>
+    ),
+    [markdown],
+  );
 
   // Number chapters and collect the outline from the rendered headings.
   useLayoutEffect(() => {
     const article = articleRef.current;
     if (!article) return;
-    const items: OutlineItem[] = [];
-    let chapter = 0;
+    const chapters: OutlineItem[] = [];
     article.querySelectorAll<HTMLHeadingElement>("h2, h3").forEach((heading, index) => {
-      const level = heading.tagName === "H2" ? 2 : 3;
       heading.id = `report-section-${index}`;
-      if (level === 2) {
-        chapter += 1;
-        heading.dataset.index = String(chapter).padStart(2, "0");
-      }
-      items.push({ id: heading.id, text: heading.textContent?.trim() ?? "", level });
+      if (heading.tagName !== "H2") return;
+      heading.dataset.index = String(chapters.length + 1).padStart(2, "0");
+      chapters.push({ id: heading.id, text: heading.textContent?.trim() ?? "" });
     });
-    setOutline(items.filter((item) => item.level === 2).length >= 2 ? items.filter((item) => item.level === 2) : []);
+    // The outline lists chapters (h2) only, and only when there are at least two.
+    setOutline(chapters.length >= 2 ? chapters : []);
   }, [markdown]);
 
   // Scroll spy for the outline.
@@ -235,9 +242,7 @@ function Article({ markdown, scrollRef }: { markdown: string; scrollRef: RefObje
         </nav>
       )}
       <article ref={articleRef} className="prose-paper">
-        <Markdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
-          {markdown}
-        </Markdown>
+        {content}
       </article>
     </div>
   );

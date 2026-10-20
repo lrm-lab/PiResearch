@@ -43,7 +43,7 @@ export function bodyRadius(radius: number, goal: boolean): number {
 }
 
 /** The node's cluster: its first agent, or its own id when it has none. */
-export function clusterKey(node: SpaceInputNode): string {
+function clusterKey(node: SpaceInputNode): string {
   const agent = node.agents && node.agents[0];
   return agent ? agent : node.id;
 }

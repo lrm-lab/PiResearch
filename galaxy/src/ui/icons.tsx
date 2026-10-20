@@ -101,13 +101,23 @@ export const IconExternal = (p: P) => (
     <path d="M14 4.5h5.5V10M19.5 4.5 11 13M17 14v5.5H4.5V7H10" />
   </Icon>
 );
-export const IconLegend = (p: P) => (
-  <Icon {...p}>
-    <circle cx="6" cy="7" r="2" />
-    <circle cx="18" cy="17" r="2" />
-    <path d="M8 7.5c5 0 3.5 9 8 9" />
-  </Icon>
-);
+
+const TRASH = "M4.5 6.5h15M9 6.5V4.7c0-.7.6-1.2 1.3-1.2h3.4c.7 0 1.3.5 1.3 1.2v1.8m-8.9 0 .8 12.1c.1 1 .8 1.7 1.8 1.7h6.6c1 0 1.7-.7 1.8-1.7l.8-12.1";
+
+/** Home delete control (its own stroke on the path, 1.6). `lines` adds the two inner strokes. */
+export function IconTrash({ lines = false }: { lines?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d={lines ? `${TRASH}M10 10v6.5m4-6.5v6.5` : TRASH}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 /** Small glyphs for the tool-step trace (13px, stroke via CSS). */
 export function ToolGlyph({ tool }: { tool: string }) {

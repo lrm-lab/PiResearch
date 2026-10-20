@@ -96,13 +96,6 @@ export function scrollToReveal(scroll: number, x: number, params: Pick<GalleryPa
   return Math.min(bounds.max, Math.max(bounds.min, next));
 }
 
-/** Rubber-band clamp: inside the bounds unchanged, outside it resists. */
-export function rubberBand(value: number, min: number, max: number, give = 1.4): number {
-  if (value < min) return min - give * (1 - Math.exp((value - min) / give));
-  if (value > max) return max + give * (1 - Math.exp((max - value) / give));
-  return value;
-}
-
 export type ArrowKey = "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End";
 
 /**

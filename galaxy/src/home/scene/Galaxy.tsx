@@ -20,6 +20,7 @@ import {
   type Group,
 } from "three";
 import { galaxyStudyHref } from "../../lib/api";
+import { TONE_COLOR } from "../../lib/palette";
 import { hash01 } from "../../lib/space";
 import type { HistoryRow } from "../../types/api";
 import { navigate } from "../flags";
@@ -102,7 +103,7 @@ export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: Gal
 
   // Created once per galaxy; data-dependent uniforms are updated in place below.
   const materials = useMemo(() => {
-    const outerTone = hexToRgb(hash01(`${id}#hue`) < 0.5 ? "#6d9cff" : "#aa8cff");
+    const outerTone = hexToRgb(hash01(`${id}#hue`) < 0.5 ? TONE_COLOR.blue : TONE_COLOR.violet);
     const pointsMaterial = new ShaderMaterial({
       vertexShader: galaxyVertex,
       fragmentShader: galaxyFragment,
@@ -279,7 +280,7 @@ export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: Gal
     document.body.style.cursor = "pointer";
   };
   const onOut = () => {
-    if (useHome.getState().hovered === id) useHome.getState().hover(null);
+    useHome.getState().unhover(id);
     document.body.style.cursor = "";
   };
   const onClick = (event: ThreeEvent<MouseEvent>) => {

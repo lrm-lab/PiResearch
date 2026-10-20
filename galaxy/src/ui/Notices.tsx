@@ -1,8 +1,9 @@
 // Loading, connection and empty-graph notices.
 
 import { AnimatePresence, motion } from "motion/react";
+import { useOnline } from "../lib/hooks";
+import { TONE_COLOR } from "../lib/palette";
 import { FIRST_LOAD_FAILED, useGalaxy } from "../store";
-import { useOnline } from "./hooks";
 import { IconOffline } from "./icons";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -42,9 +43,9 @@ export function Notices() {
               transition={{ duration: 0.3, ease: EASE }}
             >
               {toast.spin ? (
-                <span className="spinner" aria-hidden="true" style={{ color: "#f4c56a" }} />
+                <span className="spinner" aria-hidden="true" style={{ color: TONE_COLOR.amber }} />
               ) : (
-                <IconOffline width={16} height={16} style={{ color: "#f4c56a", flex: "none" }} />
+                <IconOffline width={16} height={16} style={{ color: TONE_COLOR.amber, flex: "none" }} />
               )}
               {toast.text}
             </motion.div>

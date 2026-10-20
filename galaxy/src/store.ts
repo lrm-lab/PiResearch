@@ -2,7 +2,8 @@
 // Data loading lives here; components only read state and call actions.
 
 import { create } from "zustand";
-import { createPoller, HttpError, isMissingStudy, type Poller } from "./lib/api";
+import { createPoller, HttpError, isMissingStudy, studyApiPrefix, type Poller } from "./lib/api";
+import { REDUCED_MOTION_QUERY } from "./lib/media";
 import type { Snapshot, Step, ViewNode } from "./types/api";
 
 export type LoadState = "loading" | "ready" | "error";
@@ -32,11 +33,12 @@ export type CameraCommand = CameraIntent & { nonce: number };
 export const FIRST_LOAD_FAILED = "星图服务没有返回数据，正在重试。";
 export const REFRESH_FAILED = "连接中断";
 
+/** The camera's flight into the core (key F and the report dive); the report opens when it lands. */
+export const CORE_DIVE_MS = 900;
+
 export interface GalaxyState {
   /** Study id from the URL, e.g. "sessions/20261020-101500/1". */
   studyId: string | null;
-  /** "/api/studies/<id>". */
-  prefix: string | null;
   /** Last applied snapshot. */
   view: Snapshot | null;
   loadState: LoadState;
@@ -55,31 +57,26 @@ export interface GalaxyState {
   reducedMotion: boolean;
   /** Lazily loaded steps by node id. */
   nodeDetails: Record<string, NodeDetailEntry>;
-  reportOpen: boolean;
   cameraCommand: CameraCommand | null;
 
   /** Start polling a study. Returns the cleanup (stops the poller). */
-  startStudy(studyId: string, prefix: string): () => void;
+  startStudy(studyId: string): () => void;
   /** Select a node (flies the camera to it and loads its steps) or clear with null. */
   select(id: string | null): void;
   hover(id: string | null): void;
+  /** Clear the hover only if `id` still holds it (another label or body may already have taken it). */
+  unhover(id: string): void;
   toggleLens(): void;
   setQuality(quality: Quality): void;
   /** Used by the scene's frame-time monitor; ignored unless quality is "auto". */
   setAutoTier(tier: QualityTier): void;
-  openReport(): void;
-  closeReport(): void;
   /** Fetch a node's steps if they are not cached for its current steps_revision. */
   loadNode(id: string): Promise<void>;
   /** Drop a failed entry and load again. */
   retryNode(id: string): Promise<void>;
   /** Emit a camera command (adds the nonce). */
   emitCamera(intent: CameraIntent): void;
-  /** Force a snapshot refresh now. */
-  refresh(): Promise<void>;
 }
-
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 function initialReducedMotion(): boolean {
   return typeof window !== "undefined" && typeof window.matchMedia === "function"
@@ -93,14 +90,14 @@ let nonce = 0;
 export const useGalaxy = create<GalaxyState>()((set, get) => {
   function applySnapshot(next: Snapshot) {
     const { selectedId, hoveredId } = get();
-    const ids = new Set(next.nodes.map((node) => node.id));
+    const { byId } = nodeIndex(next);
     set({
       view: next,
       loadState: "ready",
       error: null,
       errorKind: null,
-      selectedId: selectedId && ids.has(selectedId) ? selectedId : null,
-      hoveredId: hoveredId && ids.has(hoveredId) ? hoveredId : null,
+      selectedId: selectedId && byId.has(selectedId) ? selectedId : null,
+      hoveredId: hoveredId && byId.has(hoveredId) ? hoveredId : null,
     });
     const selected = get().selectedId;
     if (selected) void get().loadNode(selected);
@@ -112,7 +109,6 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
 
   return {
     studyId: null,
-    prefix: null,
     view: null,
     loadState: "loading",
     error: null,
@@ -124,14 +120,12 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
     effectiveQuality: "high",
     reducedMotion: initialReducedMotion(),
     nodeDetails: {},
-    reportOpen: false,
     cameraCommand: null,
 
-    startStudy(studyId, prefix) {
+    startStudy(studyId) {
       poller?.stop();
       set({
         studyId,
-        prefix,
         view: null,
         loadState: "loading",
         error: null,
@@ -139,11 +133,10 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
         selectedId: null,
         hoveredId: null,
         nodeDetails: {},
-        reportOpen: false,
         cameraCommand: null,
       });
       const own = createPoller({
-        prefix,
+        prefix: studyApiPrefix(studyId),
         onSnapshot: applySnapshot,
         onError: (error) => {
           if (get().view) {
@@ -180,6 +173,10 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
       if (get().hoveredId !== id) set({ hoveredId: id });
     },
 
+    unhover(id) {
+      if (get().hoveredId === id) set({ hoveredId: null });
+    },
+
     toggleLens() {
       set((state) => ({ lens: !state.lens }));
     },
@@ -190,14 +187,6 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
 
     setAutoTier(tier) {
       if (get().quality === "auto" && get().effectiveQuality !== tier) set({ effectiveQuality: tier });
-    },
-
-    openReport() {
-      set({ reportOpen: true });
-    },
-
-    closeReport() {
-      set({ reportOpen: false });
     },
 
     async loadNode(id) {
@@ -239,10 +228,6 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
       nonce += 1;
       set({ cameraCommand: { ...intent, nonce } });
     },
-
-    async refresh() {
-      await poller?.refresh({ force: true });
-    },
   };
 });
 
@@ -254,9 +239,35 @@ if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
 // ---------------------------------------------------------------------------
 // Selectors
 
+interface NodeIndex {
+  byId: Map<string, ViewNode>;
+  /** The first node flagged `goal`. */
+  goal: ViewNode | null;
+}
+
+/** Built once per snapshot object (snapshots are replaced, never mutated). */
+const indexes = new WeakMap<Snapshot, NodeIndex>();
+
+function nodeIndex(view: Snapshot): NodeIndex {
+  let index = indexes.get(view);
+  if (!index) {
+    const byId = new Map<string, ViewNode>();
+    // First occurrence wins, like Array.find.
+    for (const node of view.nodes) if (!byId.has(node.id)) byId.set(node.id, node);
+    index = { byId, goal: view.nodes.find((node) => node.goal) ?? null };
+    indexes.set(view, index);
+  }
+  return index;
+}
+
 export function findNode(view: Snapshot | null, id: string | null): ViewNode | null {
   if (!view || id === null) return null;
-  return view.nodes.find((node) => node.id === id) ?? null;
+  return nodeIndex(view).byId.get(id) ?? null;
+}
+
+/** The goal node of a snapshot, or null. */
+export function findGoal(view: Snapshot | null): ViewNode | null {
+  return view ? nodeIndex(view).goal : null;
 }
 
 export function useSelectedNode(): ViewNode | null {

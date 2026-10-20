@@ -1,10 +1,5 @@
-/* PiResearch Galaxy home (observatory). Scoped with the home- prefix. */
-
-@property --home-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
+/* PiResearch Galaxy home (observatory). Scoped with the home- prefix.
+   Shared tokens and keyframes (--g-accent, --g-angle, g-spin, g-spin-angle) come from index.css. */
 
 html.home-doc,
 html.home-doc body {
@@ -22,7 +17,6 @@ html.home-doc {
   --home-ink: #e8ebf3;
   --home-muted: #8e97ad;
   --home-faint: #5d667c;
-  --home-cyan: #48d3e4;
   --home-glass: rgba(12, 14, 24, 0.58);
   --home-hairline: rgba(255, 255, 255, 0.09);
   --home-ui: Inter, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -157,8 +151,8 @@ html.home-doc {
 }
 
 .home-row-dot.is-live {
-  background: var(--home-cyan);
-  box-shadow: 0 0 12px var(--home-cyan);
+  background: var(--g-accent);
+  box-shadow: 0 0 12px var(--g-accent);
   animation: home-pulse 1.6s ease-in-out infinite;
 }
 
@@ -287,8 +281,8 @@ html.home-doc {
 }
 
 .is-running .home-cap-dot {
-  background: var(--home-cyan);
-  box-shadow: 0 0 10px var(--home-cyan);
+  background: var(--g-accent);
+  box-shadow: 0 0 10px var(--g-accent);
   animation: home-pulse 1.6s ease-in-out infinite;
 }
 
@@ -463,7 +457,7 @@ html.home-doc {
 .home-brand-mark svg {
   width: 30px;
   height: 30px;
-  animation: home-spin 24s linear infinite;
+  animation: g-spin 24s linear infinite;
 }
 
 .home-brand-word {
@@ -564,12 +558,12 @@ html.home-doc {
 .home-composer-aurora {
   z-index: -1;
   padding: 1.5px;
-  background: conic-gradient(from var(--home-angle), #48d3e4, #6d9cff, #aa8cff, #ff6eb4, #f4c56a, #58d69a, #48d3e4);
+  background: conic-gradient(from var(--g-angle), #48d3e4, #6d9cff, #aa8cff, #ff6eb4, #f4c56a, #58d69a, #48d3e4);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   opacity: 0.32;
-  animation: home-aurora 2.8s linear infinite;
+  animation: g-spin-angle 2.8s linear infinite;
   transition: opacity 0.4s ease;
 }
 
@@ -579,10 +573,10 @@ html.home-doc {
   inset: -2px;
   z-index: -2;
   border-radius: inherit;
-  background: conic-gradient(from var(--home-angle), #48d3e4, #6d9cff, #aa8cff, #ff6eb4, #f4c56a, #58d69a, #48d3e4);
+  background: conic-gradient(from var(--g-angle), #48d3e4, #6d9cff, #aa8cff, #ff6eb4, #f4c56a, #58d69a, #48d3e4);
   filter: blur(22px);
   opacity: 0;
-  animation: home-aurora 2.8s linear infinite;
+  animation: g-spin-angle 2.8s linear infinite;
   transition: opacity 0.5s ease;
 }
 
@@ -624,7 +618,7 @@ html.home-doc {
 .home-composer-glyph svg {
   width: 22px;
   height: 22px;
-  animation: home-spin 16s linear infinite;
+  animation: g-spin 16s linear infinite;
 }
 
 .home-composer-input {
@@ -725,7 +719,7 @@ html.home-doc {
 
 .is-busy .home-launch-ring {
   opacity: 1;
-  animation: home-spin 0.8s linear infinite;
+  animation: g-spin 0.8s linear infinite;
 }
 
 .is-launching .home-launch {
@@ -1051,8 +1045,8 @@ body.home-confirm-open .home-composer-dock {
   position: absolute;
   inset: -50%;
   z-index: -1;
-  background: conic-gradient(from var(--home-angle), transparent 0 70%, rgba(72, 211, 228, 0.9), transparent 85%);
-  animation: home-aurora 2.4s linear infinite;
+  background: conic-gradient(from var(--g-angle), transparent 0 70%, rgba(72, 211, 228, 0.9), transparent 85%);
+  animation: g-spin-angle 2.4s linear infinite;
 }
 
 .home-card.is-running::after {
@@ -1219,12 +1213,6 @@ body.home-confirm-open .home-composer-dock {
 /* --------------------------------------------------------------------------
    Keyframes */
 
-@keyframes home-aurora {
-  to {
-    --home-angle: 360deg;
-  }
-}
-
 @keyframes home-shimmer {
   0%,
   55% {
@@ -1242,12 +1230,6 @@ body.home-confirm-open .home-composer-dock {
   }
   50% {
     opacity: 0.45;
-  }
-}
-
-@keyframes home-spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 

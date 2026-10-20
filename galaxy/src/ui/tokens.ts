@@ -1,7 +1,9 @@
 // HUD colour maps that the shared lib does not have.
 
+import { ERROR_RED, TONE_COLOR } from "../lib/palette";
+
 /** Tool label colours (2D TITLE_COLOR, constellation/index.html:446). */
-export const TOOL_COLOR: Record<string, string> = {
+const TOOL_COLOR: Record<string, string> = {
   web_search: "#60a5fa",
   web_fetch: "#2dd4bf",
   bash: "#fb923c",
@@ -18,15 +20,15 @@ export function toolColor(tool: string): string {
 }
 
 /** State text (from `stateText`) → chip colour. */
-export const STATE_COLOR: Record<string, string> = {
-  未开始: "#6d9cff",
-  进行中: "#48d3e4",
-  已完成: "#58d69a",
+const STATE_COLOR: Record<string, string> = {
+  未开始: TONE_COLOR.blue,
+  进行中: TONE_COLOR.cyan,
+  已完成: TONE_COLOR.green,
   已取消: "#8b93a6",
-  存在错误: "#ff5a6a",
-  待分配: "#9eb0c2",
+  存在错误: ERROR_RED,
+  待分配: TONE_COLOR.pending,
 };
 
 export function stateColor(label: string): string {
-  return STATE_COLOR[label] ?? "#9eb0c2";
+  return STATE_COLOR[label] ?? TONE_COLOR.pending;
 }

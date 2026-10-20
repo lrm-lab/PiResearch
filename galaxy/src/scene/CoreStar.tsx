@@ -4,12 +4,12 @@
 
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { AdditiveBlending, Color, DoubleSide, type Mesh, PlaneGeometry, RingGeometry, ShaderMaterial, SphereGeometry } from "three";
+import { AdditiveBlending, Color, DoubleSide, MathUtils, type Mesh, PlaneGeometry, RingGeometry, ShaderMaterial, SphereGeometry } from "three";
 import { toneColor } from "../lib/palette";
 import { useGalaxy } from "../store";
 import type { SceneFx } from "./fx";
 import type { SceneGraph } from "./graph";
-import { NODE_FX, NOISE } from "./shaders/chunks";
+import { BILLBOARD, NODE_FX, NOISE } from "./shaders/chunks";
 
 const CORE_FX = /* glsl */ `
 ${NODE_FX}
@@ -69,6 +69,7 @@ void main() {
 
 const SPRITE_VERTEX = /* glsl */ `
 ${CORE_FX}
+${BILLBOARD}
 uniform float uRadius;
 uniform vec2 uSize;
 uniform float uLift;
@@ -76,12 +77,9 @@ varying vec2 vUv;
 varying vec4 vFx;
 void main() {
   vec4 fx = coreFx();
-  vec4 mv = viewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-  mv.xy += position.xy * 2.0 * uSize * uRadius * fx.g;
-  mv.z += uLift * uRadius;
   vUv = position.xy * 2.0;
   vFx = fx;
-  gl_Position = projectionMatrix * mv;
+  gl_Position = billboard(vec3(0.0), position.xy, uSize * uRadius * fx.g, uLift * uRadius);
 }
 `;
 
@@ -168,11 +166,6 @@ const GLARE_MIN = 0.32;
 const GLARE_NEAR = 8;
 const GLARE_FAR = 20;
 
-function smoothstep(a: number, b: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-}
-
 export function CoreStar({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
   const select = useGalaxy((state) => state.select);
   const hover = useGalaxy((state) => state.hover);
@@ -242,7 +235,7 @@ export function CoreStar({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
     // Glare falls off as the camera closes in (a goal focus sits ~14 radii
     // away) so a close view stays readable instead of a white bloom.
     const near = camera.position.length() / Math.max(radius, 0.05);
-    fx.glare = GLARE_MIN + (1 - GLARE_MIN) * smoothstep(GLARE_NEAR, GLARE_FAR, near);
+    fx.glare = GLARE_MIN + (1 - GLARE_MIN) * MathUtils.smoothstep(near, GLARE_NEAR, GLARE_FAR);
     shared.uGlare.value = fx.glare;
     const activity = materials.ring.uniforms.uActivity;
     if (activity) activity.value = fx.activity;

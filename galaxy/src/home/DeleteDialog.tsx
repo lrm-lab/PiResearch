@@ -2,7 +2,9 @@
 // aria-modal, Tab focus trap, Escape / backdrop cancel, running-study copy,
 // 保留研究 / 永久删除 (正在删除… while pending), inline errors.
 
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "../lib/hooks";
+import { IconTrash } from "../ui/icons";
 import { DELETE_NOTE_DONE, DELETE_NOTE_RUNNING, rowTitle } from "./format";
 import { deleteStudy } from "./mutations";
 import { refreshHistoryNow } from "./polling";
@@ -19,9 +21,11 @@ function Dialog() {
   const close = useHome((state) => state.closeDelete);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
-  const yesRef = useRef<HTMLButtonElement>(null);
   const { row, opener } = target;
+  // While busy, 保留研究 is disabled, so Tab stays on 永久删除.
+  useFocusTrap(dialogRef, true);
 
   useEffect(() => {
     stayRef.current?.focus();
@@ -44,18 +48,6 @@ function Dialog() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   });
-
-  function onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    if (event.key !== "Tab") return;
-    event.preventDefault();
-    if (busy) {
-      yesRef.current?.focus();
-      return;
-    }
-    const nodes = [stayRef.current, yesRef.current].filter(Boolean) as HTMLButtonElement[];
-    const index = nodes.indexOf(document.activeElement as HTMLButtonElement);
-    nodes[(index + (event.shiftKey ? -1 : 1) + nodes.length) % nodes.length]?.focus();
-  }
 
   async function confirm() {
     if (busy) return;
@@ -86,23 +78,15 @@ function Dialog() {
       }}
     >
       <div
+        ref={dialogRef}
         className="home-confirm"
         role="dialog"
         aria-modal="true"
         aria-labelledby="home-forget-title"
         aria-describedby="home-forget-note"
-        onKeyDown={onKeyDown}
       >
         <span className="home-confirm-symbol" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path
-              d="M4.5 6.5h15M9 6.5V4.7c0-.7.6-1.2 1.3-1.2h3.4c.7 0 1.3.5 1.3 1.2v1.8m-8.9 0 .8 12.1c.1 1 .8 1.7 1.8 1.7h6.6c1 0 1.7-.7 1.8-1.7l.8-12.1M10 10v6.5m4-6.5v6.5"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <IconTrash lines />
         </span>
         <h2 id="home-forget-title" className="home-confirm-title">
           确认删除这项研究？
@@ -124,7 +108,6 @@ function Dialog() {
             保留研究
           </button>
           <button
-            ref={yesRef}
             type="button"
             className="home-btn home-btn-danger"
             aria-disabled={busy ? true : undefined}

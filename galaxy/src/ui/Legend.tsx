@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { REL } from "../lib/activity";
-import { RELATION_COLOR } from "../lib/palette";
+import { ERROR_RED, RELATION_COLOR, TONE_COLOR } from "../lib/palette";
 import { hasWebGL2 } from "../lib/webgl";
 import { useGalaxy } from "../store";
 import { IconChevronDown } from "./icons";
@@ -75,9 +75,9 @@ const STATUSES: { label: string; glyph: ReactNode }[] = [
     label: "进行中",
     glyph: (
       <svg className="body-glyph" viewBox="0 0 14 14" aria-hidden="true">
-        <circle cx="7" cy="7" r="3.4" fill="#48d3e4" />
+        <circle cx="7" cy="7" r="3.4" fill={TONE_COLOR.cyan} />
         <g className="spin">
-          <ellipse cx="7" cy="7" rx="6.4" ry="2.4" fill="none" stroke="#48d3e4" strokeOpacity={0.7} strokeDasharray="5 3" />
+          <ellipse cx="7" cy="7" rx="6.4" ry="2.4" fill="none" stroke={TONE_COLOR.cyan} strokeOpacity={0.7} strokeDasharray="5 3" />
         </g>
       </svg>
     ),
@@ -86,8 +86,8 @@ const STATUSES: { label: string; glyph: ReactNode }[] = [
     label: "已完成",
     glyph: (
       <svg className="body-glyph" viewBox="0 0 14 14" aria-hidden="true">
-        <circle cx="7" cy="7" r="6.5" fill="#58d69a" fillOpacity={0.18} />
-        <circle className="twinkle" cx="7" cy="7" r="4" fill="#58d69a" style={{ filter: "drop-shadow(0 0 3px #58d69a)" }} />
+        <circle cx="7" cy="7" r="6.5" fill={TONE_COLOR.green} fillOpacity={0.18} />
+        <circle className="twinkle" cx="7" cy="7" r="4" fill={TONE_COLOR.green} style={{ filter: `drop-shadow(0 0 3px ${TONE_COLOR.green})` }} />
       </svg>
     ),
   },
@@ -105,23 +105,20 @@ const STATUSES: { label: string; glyph: ReactNode }[] = [
     glyph: (
       <svg className="body-glyph" viewBox="0 0 14 14" aria-hidden="true">
         <circle cx="7" cy="7" r="3.8" fill={BODY} fillOpacity={0.55} />
-        <circle className="flicker" cx="7" cy="7" r="5.8" fill="none" stroke="#ff5a6a" strokeWidth={1.4} style={{ filter: "drop-shadow(0 0 2px #ff5a6a)" }} />
+        <circle className="flicker" cx="7" cy="7" r="5.8" fill="none" stroke={ERROR_RED} strokeWidth={1.4} style={{ filter: `drop-shadow(0 0 2px ${ERROR_RED})` }} />
       </svg>
     ),
   },
 ];
-
-let webgl: boolean | null = null;
 
 export function Legend() {
   const open = useUi((state) => state.legendOpen);
   const setOpen = useUi((state) => state.setLegendOpen);
   const selected = useGalaxy((state) => state.selectedId !== null);
   const lens = useGalaxy((state) => state.lens);
-  const view = useGalaxy((state) => state.view);
+  const ok = useGalaxy((state) => state.view?.ok === true);
   // Nothing to explain when the page shows the no-WebGL notice instead of the scene.
-  webgl ??= hasWebGL2();
-  if (!view?.ok || !webgl) return null;
+  if (!ok || !hasWebGL2()) return null;
 
   return (
     <section
@@ -132,7 +129,7 @@ export function Legend() {
       <button type="button" className="legend-toggle" aria-expanded={open} aria-controls="galaxy-legend-body" onClick={() => setOpen(!open)}>
         图例
         {lens && (
-          <span className="g-chip" style={{ ["--chip-color" as string]: "#48d3e4", height: 20, letterSpacing: 0, fontSize: 11 }}>
+          <span className="g-chip" style={{ ["--chip-color" as string]: TONE_COLOR.cyan, height: 20, letterSpacing: 0, fontSize: 11 }}>
             核验透镜
           </span>
         )}

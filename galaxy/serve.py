@@ -81,33 +81,35 @@ class GalaxyHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "PiResearchGalaxy/1"
     upstream = "http://127.0.0.1:8765"
-    dist = Path(__file__).resolve().parent / "dist"
+    # Resolved once here (and in make_server), not per request.
+    dist = (Path(__file__).resolve().parent / "dist").resolve()
     quiet = False
 
     # -- routing ---------------------------------------------------------
+    # HEAD gets the same status and headers as GET, never a body (see _send).
 
     def do_GET(self) -> None:
-        self._route(send_body=True)
+        self._route()
 
     def do_HEAD(self) -> None:
-        self._route(send_body=False)
+        self._route()
 
     def do_POST(self) -> None:
-        self._proxy(send_body=True)
+        self._proxy()
 
     def do_DELETE(self) -> None:
-        self._proxy(send_body=True)
+        self._proxy()
 
-    def _route(self, send_body: bool) -> None:
+    def _route(self) -> None:
         path = urlsplit(self.path).path
         if path == "/galaxy":
             query = urlsplit(self.path).query
-            self._send(301, b"", {"Location": PREFIX + ("?" + query if query else ""), "Cache-Control": "no-cache"}, send_body)
+            self._send(301, b"", {"Location": PREFIX + ("?" + query if query else ""), "Cache-Control": "no-cache"})
             return
         if path.startswith(PREFIX):
-            self._static(path, send_body)
+            self._static(path)
             return
-        self._proxy(send_body=send_body)
+        self._proxy()
 
     # -- static bundle ---------------------------------------------------
 
@@ -117,7 +119,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
             return None
         if relative.startswith("..") or relative.startswith("/"):
             return None
-        root = self.dist.resolve()
+        root = self.dist
         try:
             candidate = (root / relative).resolve()
             candidate.relative_to(root)
@@ -125,26 +127,25 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         except (ValueError, OSError):  # outside dist, or unusable (e.g. %00: embedded null byte)
             return None
 
-    def _static(self, path: str, send_body: bool) -> None:
+    def _static(self, path: str) -> None:
         target = self._resolve(path)
-        immutable = target is not None and path.startswith(PREFIX + "assets/")
+        # Hashed bundle files are immutable; index.html (the SPA fallback included) always revalidates.
+        immutable = target is not None and path.startswith(PREFIX + "assets/") and target.name != "index.html"
         if target is None:
             if path.startswith(PREFIX + "assets/"):
-                self._send(404, b"not found", {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}, send_body)
+                self._send(404, b"not found", {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"})
                 return
             target = self.dist / "index.html"
             if not target.is_file():
                 message = "galaxy bundle not built: run `pnpm build` in galaxy/".encode("utf-8")
-                self._send(503, message, {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}, send_body)
+                self._send(503, message, {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"})
                 return
         body = target.read_bytes()
         headers = {
             "Content-Type": content_type(target),
             "Cache-Control": "public, max-age=31536000, immutable" if immutable else "no-cache",
         }
-        if target.name == "index.html":
-            headers["Cache-Control"] = "no-cache"
-        self._send(200, body, headers, send_body)
+        self._send(200, body, headers)
 
     # -- proxy -----------------------------------------------------------
 
@@ -160,17 +161,16 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         if size < 0:
             return None, 400
         if size > MAX_BODY:
-            # Do not buffer huge bodies; the unread rest forces a close.
-            self.close_connection = True
+            # Do not buffer huge bodies; the caller closes the connection over the unread rest.
             return None, 413
         return self.rfile.read(size), 0
 
-    def _proxy(self, send_body: bool) -> None:
+    def _proxy(self) -> None:
         body, problem = self._read_body() if self.command in ("POST", "DELETE") else (None, 0)
         if problem:
             self.close_connection = True
             text = b"request too large" if problem == 413 else b"bad request"
-            self._send(problem, text, {"Content-Type": "text/plain; charset=utf-8", "Connection": "close"}, True)
+            self._send(problem, text, {"Content-Type": "text/plain; charset=utf-8", "Connection": "close"})
             return
         headers = {}
         for name in FORWARD_REQUEST_HEADERS:
@@ -187,23 +187,27 @@ class GalaxyHandler(BaseHTTPRequestHandler):
                 payload = error.read()
             except Exception:  # noqa: BLE001 - a broken error body is still a response
                 payload = b""
-            self._relay(error.code, error.headers, payload, send_body)
+            self._relay(error.code, error.headers, payload)
             return
         except (URLError, OSError, ValueError):
-            self._send(502, UNAVAILABLE, {"Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store"}, send_body)
+            self._send_unavailable()
             return
         try:
             payload = response.read()
             status = response.status
             upstream_headers = response.headers
         except OSError:
-            self._send(502, UNAVAILABLE, {"Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store"}, send_body)
+            self._send_unavailable()
             return
         finally:
             response.close()
-        self._relay(status, upstream_headers, payload, send_body)
+        self._relay(status, upstream_headers, payload)
 
-    def _relay(self, status: int, upstream_headers, payload: bytes, send_body: bool) -> None:
+    def _send_unavailable(self) -> None:
+        """502 with the JSON body the front end shows (星图服务暂时不可用。)."""
+        self._send(502, UNAVAILABLE, {"Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store"})
+
+    def _relay(self, status: int, upstream_headers, payload: bytes) -> None:
         headers = {}
         if upstream_headers is not None:
             for name in FORWARD_RESPONSE_HEADERS:
@@ -213,13 +217,13 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         if self.command == "HEAD":
             # HEAD has no body; keep upstream's length so the client sees the real size.
             length = upstream_headers.get("Content-Length") if upstream_headers is not None else None
-            self._send(status, b"", headers, False, length)
+            self._send(status, b"", headers, length)
             return
-        self._send(status, payload, headers, send_body)
+        self._send(status, payload, headers)
 
     # -- output ----------------------------------------------------------
 
-    def _send(self, status: int, body: bytes, headers: dict, send_body: bool, length: Optional[str] = None) -> None:
+    def _send(self, status: int, body: bytes, headers: dict, length: Optional[str] = None) -> None:
         bodiless = status == 304 or status == 204 or 100 <= status < 200
         self.send_response(status)
         for name, value in headers.items():
@@ -227,7 +231,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         if not bodiless:
             self.send_header("Content-Length", length if length is not None else str(len(body)))
         self.end_headers()
-        if send_body and not bodiless and self.command != "HEAD" and body:
+        if not bodiless and self.command != "HEAD" and body:
             self.wfile.write(body)
 
     def log_message(self, format: str, *args) -> None:  # noqa: A002 - stdlib signature

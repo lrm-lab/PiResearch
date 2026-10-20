@@ -8,18 +8,18 @@ import type { Edge, Snapshot, ViewNode } from "../types/api";
 import { discTilt, type Tilt } from "./orbits";
 
 /** Body look codes shared with the shaders. */
-export const KIND_OPEN = 0;
+const KIND_OPEN = 0;
 export const KIND_PROGRESS = 1;
-export const KIND_RESOLVED = 2;
+const KIND_RESOLVED = 2;
 export const KIND_CANCELLED = 3;
 export const KIND_GOAL = 4;
 
 /** Relation codes shared with the edge shader. */
 export const REL_PARENT = 0;
 export const REL_AUDIT = 1;
-export const REL_SUPPORT = 2;
-export const REL_CHALLENGE = 3;
-export const REL_ERROR = 4;
+const REL_SUPPORT = 2;
+const REL_CHALLENGE = 3;
+const REL_ERROR = 4;
 
 const REL_CODE = { parent: REL_PARENT, audit: REL_AUDIT, support: REL_SUPPORT, challenge: REL_CHALLENGE, error: REL_ERROR } as const;
 
@@ -35,11 +35,13 @@ export interface SceneNode {
   err: boolean;
   seed: number;
   tilt: Tilt;
+  /** Height of the label anchor above the body centre. */
+  lift: number;
 }
 
-export type Vec3Tuple = [number, number, number];
+type Vec3Tuple = [number, number, number];
 
-export interface SceneEdge {
+interface SceneEdge {
   i: number;
   key: string;
   edge: Edge;
@@ -67,7 +69,7 @@ export interface SceneGraph {
   live: boolean;
 }
 
-export const EMPTY_GRAPH: SceneGraph = { nodes: [], edges: [], byId: new Map(), goal: null, extent: 6, live: false };
+const EMPTY_GRAPH: SceneGraph = { nodes: [], edges: [], byId: new Map(), goal: null, extent: 6, live: false };
 
 function kindOf(node: ViewNode): number {
   if (node.goal) return KIND_GOAL;
@@ -100,6 +102,7 @@ export function buildGraph(view: Snapshot | null, layout: Map<string, SpacePoint
       err: !node.goal && errors.has(node.id) && node.status !== "resolved",
       seed: hash01(node.id),
       tilt: discTilt(node.id),
+      lift: node.goal ? p.r * 1.3 : p.r * 1.15,
     };
     nodes.push(scene);
     byId.set(node.id, scene);

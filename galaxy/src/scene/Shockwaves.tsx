@@ -16,7 +16,10 @@ import type { FxEvent, SceneFx } from "./fx";
 
 const POOL = 48;
 
+// Idle or finished slots (age outside [0, 1]) collapse to a point outside the
+// clip volume, so they cost no fragments.
 const VERTEX = /* glsl */ `
+uniform float uTime;
 attribute vec3 aCenter;
 attribute vec3 aColor;
 attribute vec3 aWave; // start, duration, size
@@ -24,6 +27,11 @@ varying vec2 vUv;
 varying vec3 vColor;
 varying vec3 vWave;
 void main() {
+  float age = (uTime - aWave.x) / aWave.y;
+  if (age < 0.0 || age > 1.0) {
+    gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+    return;
+  }
   vUv = position.xz * 2.0;
   vColor = aColor;
   vWave = aWave;

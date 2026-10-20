@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { GalaxyCanvas } from "../scene/GalaxyCanvas";
 import { Hud } from "../ui/Hud";
-import { classicStudyHref, studyApiPrefix } from "../lib/api";
+import { classicStudyHref } from "../lib/api";
 import { hasWebGL2 } from "../lib/webgl";
 import { useGalaxy } from "../store";
 
@@ -12,7 +12,7 @@ export function StudyPage({ studyId }: { studyId: string }) {
   const startStudy = useGalaxy((state) => state.startStudy);
   const [webgl] = useState(hasWebGL2);
 
-  useEffect(() => startStudy(studyId, studyApiPrefix(studyId)), [startStudy, studyId]);
+  useEffect(() => startStudy(studyId), [startStudy, studyId]);
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-space">

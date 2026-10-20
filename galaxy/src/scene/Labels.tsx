@@ -12,10 +12,10 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type CSSProperties, type RefObject } from "react";
-import { type Camera, Group, Vector3 } from "three";
+import { type Camera, Group, MathUtils, Vector3 } from "three";
 import { ariaLabel } from "../lib/activity";
 import { compareNodes } from "../lib/order";
-import { ERROR_RED } from "../lib/palette";
+import { CANCELLED_GREY, ERROR_RED, TONE_COLOR } from "../lib/palette";
 import { useGalaxy } from "../store";
 import type { SceneFx } from "./fx";
 import type { SceneGraph, SceneNode } from "./graph";
@@ -50,11 +50,6 @@ function overlaps(a: Rect, b: Rect): boolean {
   return a.l < b.r + LABEL_GAP && b.l < a.r + LABEL_GAP && a.t < b.b + LABEL_GAP && b.t < a.b + LABEL_GAP;
 }
 
-function smoothstep(a: number, b: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-}
-
 function dotStatus(node: SceneNode): string {
   if (node.err) return "error";
   return node.node.status || "resolved";
@@ -62,8 +57,8 @@ function dotStatus(node: SceneNode): string {
 
 function dotColor(node: SceneNode): string {
   if (node.err) return ERROR_RED;
-  if (node.node.status === "cancelled") return "#8a8f98";
-  if (node.node.status === "open") return "#9eb0c2";
+  if (node.node.status === "cancelled") return CANCELLED_GREY;
+  if (node.node.status === "open") return TONE_COLOR.pending;
   return node.tone;
 }
 
@@ -90,19 +85,62 @@ export function Labels({ graph, fx, portal }: { graph: SceneGraph; fx: SceneFx; 
   const select = useGalaxy((state) => state.select);
   const hover = useGalaxy((state) => state.hover);
   // Leaving one label must not clear a hover another label (or a body) already took.
-  const unhover = (id: string) => {
-    if (useGalaxy.getState().hoveredId === id) hover(null);
-  };
+  const unhover = useGalaxy((state) => state.unhover);
   const sorted = useMemo(() => [...graph.nodes].sort((a, b) => compareNodes(a.node, b.node)), [graph]);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const applied = useRef(new Map<string, Applied>());
   const slots = useRef(new Map<string, Slot>());
+  /** Untransformed label sizes (offsetWidth / offsetHeight), kept current by a ResizeObserver. */
+  const sizes = useRef(new WeakMap<HTMLButtonElement, { width: number; height: number }>());
+  const observed = useRef(new Set<HTMLButtonElement>());
+  const sizeObserver = useRef<ResizeObserver | null>(null);
+
+  function observe(el: HTMLButtonElement) {
+    const observer = sizeObserver.current;
+    if (!observer || observed.current.has(el)) return;
+    observed.current.add(el);
+    observer.observe(el);
+  }
+
+  /** Label size without a layout read per pass (one direct read until the observer reports). */
+  function labelSize(el: HTMLButtonElement): { width: number; height: number } {
+    let size = sizes.current.get(el);
+    if (!size) {
+      size = { width: el.offsetWidth, height: el.offsetHeight };
+      if (observed.current.has(el)) sizes.current.set(el, size);
+    }
+    return size;
+  }
+
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    sizeObserver.current = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const el = entry.target as HTMLButtonElement;
+        sizes.current.set(el, { width: el.offsetWidth, height: el.offsetHeight });
+      }
+    });
+    for (const el of buttons.current.values()) observe(el);
+    return () => {
+      sizeObserver.current?.disconnect();
+      sizeObserver.current = null;
+      observed.current.clear();
+      sizes.current = new WeakMap();
+    };
+  }, []);
   const lastDeclutter = useRef(-Infinity);
   const reorder = useRef(true);
 
   useEffect(() => ensureLabelStyles(), []);
   useEffect(() => {
     reorder.current = true;
+    // Stop observing labels whose node left the graph.
+    const live = new Set(buttons.current.values());
+    for (const el of observed.current) {
+      if (live.has(el)) continue;
+      sizeObserver.current?.unobserve(el);
+      observed.current.delete(el);
+    }
   }, [sorted]);
 
   /** Greedy placement in priority order; losers fade (see header). */
@@ -119,16 +157,16 @@ export function Labels({ graph, fx, portal }: { graph: SceneGraph; fx: SceneFx; 
         slot.show = true;
         return;
       }
-      const lift = node.node.goal ? node.p.r * 1.3 : node.p.r * 1.15;
-      projected.set(node.p.x, node.p.y + lift, node.p.z).project(camera);
+      projected.set(node.p.x, node.p.y + node.lift, node.p.z).project(camera);
       if (projected.z > 1 || projected.z < -1) {
         slot.show = forced;
         return;
       }
       const x = (projected.x * 0.5 + 0.5) * width;
       const y = (0.5 - projected.y * 0.5) * height;
-      const w = el.offsetWidth * slot.scale;
-      const h = el.offsetHeight * slot.scale;
+      const size = labelSize(el);
+      const w = size.width * slot.scale;
+      const h = size.height * slot.scale;
       const rect = { l: x - w / 2, r: x + w / 2, t: y - 4 - h, b: y - 4 };
       if (rect.r < 0 || rect.l > width || rect.b < 0 || rect.t > height) {
         slot.show = true;
@@ -171,7 +209,7 @@ export function Labels({ graph, fx, portal }: { graph: SceneGraph; fx: SceneFx; 
       if (important) {
         s = Math.max(s, 0.94) * (hot ? 1.12 : 1);
       } else {
-        o = 1 - 0.8 * smoothstep(far, far * 1.6, dist);
+        o = 1 - 0.8 * MathUtils.smoothstep(dist, far, far * 1.6);
         const emph = fx.emphasis(node.id);
         o *= Math.min(1, Math.max(0.2, (emph - 0.15) / 0.75));
       }
@@ -216,20 +254,21 @@ export function Labels({ graph, fx, portal }: { graph: SceneGraph; fx: SceneFx; 
   return (
     <>
       {sorted.map((node) => {
-        const lift = node.node.goal ? node.p.r * 1.3 : node.p.r * 1.15;
         const isSelected = node.id === selectedId;
         return (
           <Html
             key={node.id}
-            position={[node.p.x, node.p.y + lift, node.p.z]}
+            position={[node.p.x, node.p.y + node.lift, node.p.z]}
             portal={portal}
             zIndexRange={[100, 0]}
             style={{ pointerEvents: "none" }}
           >
             <button
               ref={(el) => {
-                if (el) buttons.current.set(node.id, el);
-                else {
+                if (el) {
+                  buttons.current.set(node.id, el);
+                  observe(el);
+                } else {
                   buttons.current.delete(node.id);
                   applied.current.delete(node.id);
                   slots.current.delete(node.id);
@@ -284,10 +323,10 @@ export function CometChips({ comets, fx, portal }: { comets: Comet[]; fx: SceneF
       orbitPosition(orbit, comet.center, t, group.position);
       group.position.y += 0.06;
       const dist = camera.position.distanceTo(group.position);
-      const fadeOut = Number.isFinite(comet.dieAt) ? 1 - smoothstep(comet.dieAt, comet.dieAt + COMET_FADE, t) : 1;
-      const life = fx.reduced ? 1 : smoothstep(comet.bornAt, comet.bornAt + 0.6, t) * fadeOut;
+      const fadeOut = Number.isFinite(comet.dieAt) ? 1 - MathUtils.smoothstep(t, comet.dieAt, comet.dieAt + COMET_FADE) : 1;
+      const life = fx.reduced ? 1 : MathUtils.smoothstep(t, comet.bornAt, comet.bornAt + 0.6) * fadeOut;
       const emph = comet.nodeIndex < 0 ? 1 : fx.emphasis(comet.nodeId);
-      const far = 1 - smoothstep(18, 34, dist);
+      const far = 1 - MathUtils.smoothstep(dist, 18, 34);
       const s = Math.min(1.05, Math.max(0.7, Math.sqrt(8 / Math.max(dist, 0.01))));
       chip.style.opacity = (life * far * Math.min(1, Math.max(0.15, (emph - 0.2) / 0.7))).toFixed(3);
       chip.style.transform = `translate(10px, -50%) scale(${s.toFixed(3)})`;

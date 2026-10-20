@@ -1,6 +1,8 @@
-// DOM overlay above the canvas and its drei label layer (labels use z-index up to
-// ~120 and are not in their own stacking context; the HUD is z-index 1000, isolated). The root ignores pointer
-// events so empty areas pass clicks to the scene; panels opt back in (.hud-auto).
+// DOM overlay above the canvas and its drei label layer. The label layer is
+// isolated (its labels' z-index up to ~120 stays inside it) and the HUD is its
+// own stacking context with a positive z-index, so the HUD always paints on top.
+// The root ignores pointer events so empty areas pass clicks to the scene;
+// panels opt back in (.hud-auto).
 
 import { MotionConfig } from "motion/react";
 import { useEffect } from "react";
@@ -14,15 +16,14 @@ import { TopBar } from "./TopBar";
 import { useUi } from "./uiStore";
 
 export function Hud() {
-  const view = useGalaxy((state) => state.view);
+  const goalTitle = useGalaxy((state) => (state.view?.ok ? state.view.goal?.title : null));
   const stage = useUi((state) => state.reportStage);
   const reportOpen = stage === "open";
   useShortcuts();
 
   useEffect(() => {
-    const title = view?.ok ? view.goal?.title : null;
-    document.title = title ? `${title} · PiResearch Galaxy` : "PiResearch Galaxy";
-  }, [view]);
+    document.title = goalTitle ? `${goalTitle} · PiResearch Galaxy` : "PiResearch Galaxy";
+  }, [goalTitle]);
 
   return (
     <MotionConfig reducedMotion="user">

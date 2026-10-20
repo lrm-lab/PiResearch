@@ -140,9 +140,3 @@ export interface HistoryRow {
   /** 2D page link, e.g. "/study/sessions/20261020-101500/1". */
   href: string;
 }
-
-/** Study-level 404 body and the galaxy proxy's 502 body. */
-export interface ApiFailure {
-  ok: false;
-  message: string;
-}

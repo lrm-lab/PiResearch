@@ -4,7 +4,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, ShaderMaterial, SphereGeometry, type Group } from "three";
-import { rng } from "../geometry";
+import { rng } from "../../lib/math";
 import { gallery } from "../motion";
 import { nebulaFragment, nebulaVertex, shared, starFragment, starVertex } from "./shaders";
 

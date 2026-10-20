@@ -2,6 +2,16 @@
 // keep the <report> blocks that are not incomplete, clean each into a Chinese
 // chapter and prefix the question heading. Rendering is left to react-markdown.
 
+/** Top-bar question while the first snapshot loads (or retries). */
+export const TITLE_LOADING = "正在读取";
+/** Top-bar question when the study has no graph. */
+export const TITLE_NO_GRAPH = "这份运行没有星图";
+
+/** A real question title: not empty and not one of the top-bar placeholders. Expects a trimmed string. */
+export function isUsableTitle(title: string): boolean {
+  return Boolean(title) && title !== TITLE_LOADING && title !== TITLE_NO_GRAPH;
+}
+
 /** Chapter title derived from a report block. */
 export function chapterTitle(body: string): string {
   if (/Completeness Check|Correctness Check|Deliverable Check/.test(body)) return "证据核对";
@@ -108,7 +118,6 @@ export function prepareUserReport(source: unknown, title?: string | null): strin
     : raw.replace(/^##\s+Best-effort collected results[\s\S]*?(?=\n#|\n<report|$)/, "").trim();
   if (chapters.length) body = body.replace(/^#\s+/gm, "## ");
   const heading = String(title || "").trim();
-  const usable = heading && heading !== "正在读取" && heading !== "这份运行没有星图";
-  if (chapters.length && usable) body = "# " + heading + "\n\n" + body;
+  if (chapters.length && isUsableTitle(heading)) body = "# " + heading + "\n\n" + body;
   return body;
 }

@@ -19,8 +19,8 @@ export function FxDriver({ fx, graph }: { fx: SceneFx; graph: SceneGraph }) {
     fx.reduced = reducedMotion;
   }, [fx, reducedMotion]);
 
+  // Runs after the effect above, so fx.reduced is already current here.
   useLayoutEffect(() => {
-    fx.reduced = useGalaxy.getState().reducedMotion;
     fx.sync(graph);
     fx.liveTarget = graph.live ? 1 : 0;
   }, [fx, graph]);

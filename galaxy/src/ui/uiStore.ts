@@ -1,7 +1,7 @@
 // UI-only state for the HUD (menus, legend, report landing). App data lives in src/store.ts.
 
 import { create } from "zustand";
-import { useGalaxy } from "../store";
+import { CORE_DIVE_MS, useGalaxy } from "../store";
 
 /**
  * Report "landing": closed → diving (camera flies into the core, ~0.9 s)
@@ -10,7 +10,6 @@ import { useGalaxy } from "../store";
 export type ReportStage = "closed" | "diving" | "open" | "leaving";
 export type MenuId = "quality" | "more" | "help" | null;
 
-export const DIVE_MS = 900;
 export const REPORT_BUTTON_ID = "galaxy-report-button";
 
 interface UiState {
@@ -22,6 +21,8 @@ interface UiState {
   setMenu(menu: MenuId): void;
   toggleMenu(menu: Exclude<MenuId, null>): void;
   setSheetExpanded(expanded: boolean): void;
+  /** Clear the selection, collapse the sheet and return focus to the node's label (`id` defaults to the selection). */
+  closeDetail(id?: string): void;
   /** Start the landing sequence (no-op unless closed). */
   beginReport(): void;
   /** Reverse the landing; the reader calls `reportClosed` when its exit finishes. */
@@ -53,6 +54,13 @@ export const useUi = create<UiState>()((set, get) => ({
   setSheetExpanded(expanded) {
     set({ sheetExpanded: expanded });
   },
+  closeDetail(id) {
+    const galaxy = useGalaxy.getState();
+    const target = id ?? galaxy.selectedId;
+    galaxy.select(null);
+    get().setSheetExpanded(false);
+    focusNodeLabel(target);
+  },
 
   beginReport() {
     if (get().reportStage !== "closed") return;
@@ -64,10 +72,9 @@ export const useUi = create<UiState>()((set, get) => ({
       () => {
         diveTimer = null;
         if (get().reportStage !== "diving") return;
-        useGalaxy.getState().openReport();
         set({ reportStage: "open" });
       },
-      galaxy.reducedMotion ? 0 : DIVE_MS,
+      galaxy.reducedMotion ? 0 : CORE_DIVE_MS,
     );
   },
 
@@ -76,9 +83,7 @@ export const useUi = create<UiState>()((set, get) => ({
     if (stage === "closed" || stage === "leaving") return;
     if (diveTimer) clearTimeout(diveTimer);
     diveTimer = null;
-    const galaxy = useGalaxy.getState();
-    galaxy.closeReport();
-    galaxy.emitCamera({ kind: "overview" });
+    useGalaxy.getState().emitCamera({ kind: "overview" });
     set({ reportStage: stage === "diving" ? "closed" : "leaving" });
     if (stage === "diving") focusReportButton();
   },

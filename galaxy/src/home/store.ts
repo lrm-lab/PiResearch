@@ -46,6 +46,8 @@ export interface HomeState {
   setLoadError(message: string | null): void;
   setThumb(id: string, thumb: Thumbnail): void;
   hover(id: string | null): void;
+  /** Clear the hover only if `id` still holds it. */
+  unhover(id: string): void;
   focus(id: string | null): void;
   fly(flight: Flight): void;
   startLaunch(launch: Launch): void;
@@ -109,6 +111,9 @@ export const useHome = create<HomeState>()((set, get) => ({
   },
   hover(id) {
     if (get().hovered !== id) set({ hovered: id });
+  },
+  unhover(id) {
+    if (get().hovered === id) set({ hovered: null });
   },
   focus(id) {
     if (get().focused !== id) set({ focused: id });

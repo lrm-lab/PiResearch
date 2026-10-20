@@ -19,8 +19,3 @@ export function compareNodes(a: Orderable, b: Orderable): number {
   if (da !== db) return da < db ? -1 : 1;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
-
-/** A sorted copy: goal first, then t1, t2, … t10 (not lexicographic). */
-export function sortNodes<T extends Orderable>(nodes: readonly T[]): T[] {
-  return [...nodes].sort(compareNodes);
-}

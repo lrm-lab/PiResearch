@@ -8,7 +8,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { gsap } from "gsap";
 import { useEffect, useRef, type ComponentRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
-import { useGalaxy } from "../store";
+import { CORE_DIVE_MS, useGalaxy } from "../store";
 import { fitOverview, shouldRefit, type FitPoint } from "./framing";
 import type { SceneFx } from "./fx";
 import type { SceneGraph } from "./graph";
@@ -82,8 +82,7 @@ function framePoints(graph: SceneGraph, labelHalf: number): FitPoint[] {
   const points: FitPoint[] = [];
   for (const node of graph.nodes) {
     const { x, y, z, r } = node.p;
-    const lift = node.node.goal ? r * 1.3 : r * 1.15;
-    points.push({ x, y: y + lift, z, padX: node.node.goal ? 0 : labelHalf, padTop: LABEL_HEIGHT, padBottom: 0 });
+    points.push({ x, y: y + node.lift, z, padX: node.node.goal ? 0 : labelHalf, padTop: LABEL_HEIGHT, padBottom: 0 });
     points.push({ x, y: y - r, z, padX: 0, padTop: 0, padBottom: 4 });
   }
   for (let i = 0; i < 8; i++) {
@@ -249,7 +248,7 @@ export function CameraRig({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
     const r = graphRef.current.goal?.p.r ?? 0.8;
     restFocal.current.set(0, 0, 0);
     atOverview.current = false;
-    fly({ target: new Vector3(), distance: r * 3.4, polar: 1.18, azimuth: rig.azimuthAngle, focal: new Vector3() }, 0.9, "power2.in");
+    fly({ target: new Vector3(), distance: r * 3.4, polar: 1.18, azimuth: rig.azimuthAngle, focal: new Vector3() }, CORE_DIVE_MS / 1000, "power2.in");
   }
 
   // Intro flight on the first data of a study: far and steep → overview.

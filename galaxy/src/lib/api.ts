@@ -5,8 +5,8 @@
 
 import type { HistoryRow, NodeDetail, Snapshot, Thumbnail } from "../types/api";
 
-export const REQUEST_TIMEOUT_MS = 15000;
-export const MAX_POLL_DELAY_MS = 15000;
+const REQUEST_TIMEOUT_MS = 15000;
+const MAX_POLL_DELAY_MS = 15000;
 const MAX_FAILURES = 4;
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -14,12 +14,10 @@ export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 /** A non-2xx, non-304 response. `message` comes from the JSON body when it has one. */
 export class HttpError extends Error {
   readonly status: number;
-  readonly body: unknown;
-  constructor(status: number, message: string, body?: unknown) {
+  constructor(status: number, message: string) {
     super(message);
     this.name = "HttpError";
     this.status = status;
-    this.body = body;
   }
 }
 
@@ -34,13 +32,7 @@ export function studyIdFromPath(pathname: string): string | null {
   return match ? match[1]!.replace(/\/$/, "") : null;
 }
 
-/** "/api/studies/<id>" for a galaxy study URL, else null. Ids keep their slashes. */
-export function apiPrefix(pathname: string): string | null {
-  const id = studyIdFromPath(pathname);
-  return id ? studyApiPrefix(id) : null;
-}
-
-/** "/api/studies/<id>" for a study id. */
+/** "/api/studies/<id>" for a study id. Ids keep their slashes. */
 export function studyApiPrefix(id: string): string {
   return `/api/studies/${id}`;
 }
@@ -125,7 +117,7 @@ async function failure(response: Response): Promise<HttpError> {
   } catch {
     /* unreadable body */
   }
-  return new HttpError(response.status, message, body);
+  return new HttpError(response.status, message);
 }
 
 /**
@@ -154,10 +146,6 @@ export async function fetchHistory(options: RequestOptions = {}): Promise<Fetche
 
 export async function fetchThumbnail(prefix: string, options: RequestOptions = {}): Promise<Fetched<Thumbnail>> {
   return fetchJson<Thumbnail>(`${prefix}/thumbnail`, options);
-}
-
-export async function fetchSnapshot(prefix: string, options: RequestOptions = {}): Promise<Fetched<Snapshot>> {
-  return fetchJson<Snapshot>(`${prefix}/snapshot`, options);
 }
 
 /** One node with steps filled. Throws HttpError(404) with "没有这个节点。" for unknown ids. */

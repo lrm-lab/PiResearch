@@ -4,6 +4,8 @@ import type { Relation, Tone } from "../types/api";
 
 export const SPACE = "#05060a";
 export const ERROR_RED = "#ff5a6a";
+/** Cancelled bodies and their label dots. */
+export const CANCELLED_GREY = "#8a8f98";
 
 export const TONE_COLOR: Record<Tone, string> = {
   origin: "#48d3e4",

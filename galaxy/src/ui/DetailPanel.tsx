@@ -2,17 +2,18 @@
 
 import { AnimatePresence, motion, useDragControls, type PanInfo } from "motion/react";
 import type { ReactNode } from "react";
-import { goalActivity, progress, stateText, STATUS, toolCount } from "../lib/activity";
+import { goalActivity, progress, stateText, toolCount } from "../lib/activity";
 import { headingPane } from "../lib/heading";
-import { toneColor } from "../lib/palette";
-import { findNode, useGalaxy, useNodeDetail, useSelectedNode } from "../store";
+import { useMediaQuery } from "../lib/media";
+import { TONE_COLOR, toneColor } from "../lib/palette";
+import { findGoal, findNode, useGalaxy, useNodeDetail, useSelectedNode } from "../store";
 import type { ViewNode } from "../types/api";
 import { childState, goalMeta, goalSummary } from "./childState";
-import { SHEET_QUERY, useMediaQuery } from "./hooks";
+import { SHEET_QUERY } from "./hooks";
 import { IconCheck, IconChevron, IconClose, IconCore } from "./icons";
 import { SignalTrace } from "./SignalTrace";
 import { stateColor } from "./tokens";
-import { focusNodeLabel, useUi } from "./uiStore";
+import { useUi } from "./uiStore";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -27,17 +28,15 @@ function Panel({ node, sheet }: { node: ViewNode; sheet: boolean }) {
   const live = useSelectedNode();
   const shown = live ?? node;
   const select = useGalaxy((state) => state.select);
-  const goalId = useGalaxy((state) => state.view?.nodes.find((item) => item.goal)?.id ?? null);
+  const goalId = useGalaxy((state) => findGoal(state.view)?.id ?? null);
   const expanded = useUi((state) => state.sheetExpanded);
   const setExpanded = useUi((state) => state.setSheetExpanded);
+  const closeDetail = useUi((state) => state.closeDetail);
   const drag = useDragControls();
   const tone = toneColor(shown.tone);
 
   function close() {
-    const id = shown.id;
-    select(null);
-    setExpanded(false);
-    focusNodeLabel(id);
+    closeDetail(shown.id);
   }
 
   function onDragEnd(_: unknown, info: PanInfo) {
@@ -172,7 +171,7 @@ function Section({ label, count, children }: { label: string; count?: number; ch
 
 function TaskFacts({ node }: { node: ViewNode }) {
   const view = useGalaxy((state) => state.view);
-  const state = stateText(view, node) || STATUS[node.status] || "—";
+  const state = stateText(view, node);
   const color = stateColor(state);
   const working = node.status === "in_progress" && view?.running !== false;
   const tone = toneColor(node.tone);
@@ -201,7 +200,7 @@ function TaskFacts({ node }: { node: ViewNode }) {
               </span>
             ))
           ) : (
-            <span className="g-chip" style={{ ["--chip-color" as string]: "#9eb0c2", borderStyle: "dashed" }}>
+            <span className="g-chip" style={{ ["--chip-color" as string]: TONE_COLOR.pending, borderStyle: "dashed" }}>
               待分配
             </span>
           )}

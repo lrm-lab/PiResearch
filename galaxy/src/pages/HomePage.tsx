@@ -10,6 +10,7 @@ import { flags, resetNavigation } from "../home/flags";
 import { Header } from "../home/Header";
 import { startHomePolling } from "../home/polling";
 import { useHome } from "../home/store";
+import { REDUCED_MOTION_QUERY } from "../lib/media";
 import { hasWebGL2 } from "../lib/webgl";
 import "../home/home.css";
 
@@ -34,7 +35,7 @@ export function HomePage() {
 
   // prefers-reduced-motion, live.
   useEffect(() => {
-    const query = matchMedia("(prefers-reduced-motion: reduce)");
+    const query = matchMedia(REDUCED_MOTION_QUERY);
     const apply = () => useHome.getState().setReducedMotion(query.matches);
     apply();
     query.addEventListener("change", apply);

@@ -21,6 +21,7 @@ import {
   SphereGeometry,
   WebGLRenderTarget,
 } from "three";
+import { rng } from "../lib/math";
 import { useGalaxy } from "../store";
 import type { SceneFx } from "./fx";
 import { NOISE } from "./shaders/chunks";
@@ -124,17 +125,6 @@ void main() {
 
 const STAR_TINTS = ["#9fc3ff", "#cfe0ff", "#ffffff", "#fff2dc", "#ffd8a8", "#bfe9ff"].map((hex) => new Color(hex));
 
-function rng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 function starLayer(count: number, rMin: number, rMax: number, sMin: number, sMax: number, gain: number, seed: number): BufferGeometry {
   const rand = rng(seed);
   const position = new Float32Array(count * 3);
@@ -146,12 +136,17 @@ function starLayer(count: number, rMin: number, rMax: number, sMin: number, sMax
     const phi = rand() * Math.PI * 2;
     const s = Math.sqrt(1 - z * z);
     const r = rMin + (rMax - rMin) * rand();
-    position.set([s * Math.cos(phi) * r, z * r, s * Math.sin(phi) * r], i * 3);
+    const o = i * 3;
+    position[o] = s * Math.cos(phi) * r;
+    position[o + 1] = z * r;
+    position[o + 2] = s * Math.sin(phi) * r;
     const u = rand();
     size[i] = sMin + (sMax - sMin) * Math.pow(u, 3.2);
     const c = STAR_TINTS[Math.floor(rand() * STAR_TINTS.length)]!;
     const lum = gain * (0.35 + 0.65 * Math.pow(rand(), 1.6));
-    tint.set([c.r * lum, c.g * lum, c.b * lum], i * 3);
+    tint[o] = c.r * lum;
+    tint[o + 1] = c.g * lum;
+    tint[o + 2] = c.b * lum;
     salt[i] = rand();
   }
   const geometry = new BufferGeometry();

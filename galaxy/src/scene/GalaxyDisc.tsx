@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo } from "react";
 import { AdditiveBlending, BufferAttribute, BufferGeometry, DoubleSide, PlaneGeometry, ShaderMaterial } from "three";
+import { gauss, rng } from "../lib/math";
 import { useGalaxy } from "../store";
 import type { SceneFx } from "./fx";
 import { NOISE } from "./shaders/chunks";
@@ -13,25 +14,10 @@ const LOW = 6000;
 /** Arm pitch: tan of the spiral angle. */
 const PITCH = 0.3;
 const R0 = 0.05;
-
-/** Seeded PRNG (mulberry32) so the disc looks the same on every load. */
-function rng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function gauss(rand: () => number): number {
-  const u = Math.max(rand(), 1e-7);
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand());
-}
+const GAUSS_MIN = 1e-7;
 
 function dustGeometry(): BufferGeometry {
+  // Seeded so the disc looks the same on every load.
   const rand = rng(0x9e3779b9);
   const position = new Float32Array(HIGH * 3);
   const extra = new Float32Array(HIGH * 3);
@@ -41,22 +27,27 @@ function dustGeometry(): BufferGeometry {
     let theta: number;
     let arm = 0;
     if (pick < 0.16) {
-      r = Math.abs(gauss(rand)) * 0.09;
+      r = Math.abs(gauss(rand, GAUSS_MIN)) * 0.09;
       theta = rand() * Math.PI * 2;
     } else if (pick < 0.86) {
       arm = 1;
       r = R0 + Math.pow(rand(), 0.9) * 1.05;
       const base = (i % 2) * Math.PI + Math.log(r / R0) / PITCH;
-      theta = base + gauss(rand) * (0.16 + 0.32 * r);
-      r *= 1 + gauss(rand) * 0.05;
+      theta = base + gauss(rand, GAUSS_MIN) * (0.16 + 0.32 * r);
+      r *= 1 + gauss(rand, GAUSS_MIN) * 0.05;
     } else {
       r = Math.sqrt(rand()) * 1.3;
       theta = rand() * Math.PI * 2;
     }
-    const h = gauss(rand) * (0.008 + 0.022 * Math.min(r, 1)) * (arm ? 1 : 1.6);
-    position.set([r, theta, h], i * 3);
+    const h = gauss(rand, GAUSS_MIN) * (0.008 + 0.022 * Math.min(r, 1)) * (arm ? 1 : 1.6);
+    const o = i * 3;
+    position[o] = r;
+    position[o + 1] = theta;
+    position[o + 2] = h;
     const big = rand() < 0.03 ? 2.2 : 1;
-    extra.set([(0.45 + rand() * 0.9) * big, rand(), arm], i * 3);
+    extra[o] = (0.45 + rand() * 0.9) * big;
+    extra[o + 1] = rand();
+    extra[o + 2] = arm;
   }
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new BufferAttribute(position, 3));

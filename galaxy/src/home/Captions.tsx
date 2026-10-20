@@ -5,6 +5,7 @@
 import { memo, useCallback, useMemo, type KeyboardEvent, type MouseEvent } from "react";
 import { galaxyStudyHref } from "../lib/api";
 import type { HistoryRow } from "../types/api";
+import { IconTrash } from "../ui/icons";
 import { captionLine, rowTitle, splitRows, thumbStats } from "./format";
 import { neighbour, type ArrowKey } from "./layout";
 import { emptyEls, gallery, registerCaption, rowLabelEls } from "./motion";
@@ -114,9 +115,7 @@ const Caption = memo(function Caption({ row }: { row: HistoryRow }) {
           if (useHome.getState().focused === id) useHome.getState().focus(null);
         }}
         onMouseEnter={() => !gallery.dragging && useHome.getState().hover(id)}
-        onMouseLeave={() => {
-          if (useHome.getState().hovered === id) useHome.getState().hover(null);
-        }}
+        onMouseLeave={() => useHome.getState().unhover(id)}
       >
         <span className="home-cap-meta">
           <span className="home-cap-dot" aria-hidden="true" />
@@ -149,15 +148,7 @@ const Caption = memo(function Caption({ row }: { row: HistoryRow }) {
         }}
         onClick={(event) => useHome.getState().openDelete(row, event.currentTarget)}
       >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M4.5 6.5h15M9 6.5V4.7c0-.7.6-1.2 1.3-1.2h3.4c.7 0 1.3.5 1.3 1.2v1.8m-8.9 0 .8 12.1c.1 1 .8 1.7 1.8 1.7h6.6c1 0 1.7-.7 1.8-1.7l.8-12.1"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <IconTrash />
       </button>
     </li>
   );

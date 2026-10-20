@@ -3,8 +3,9 @@
 
 import { useCallback, useRef } from "react";
 import { goalActivity, phaseLabel, progress } from "../lib/activity";
+import { useDismiss } from "../lib/hooks";
+import { TITLE_LOADING, TITLE_NO_GRAPH } from "../lib/report";
 import { type Quality, useGalaxy } from "../store";
-import { useDismiss } from "./hooks";
 import {
   IconCheck,
   IconCore,
@@ -25,7 +26,7 @@ export function TopBar() {
   const view = useGalaxy((state) => state.view);
   const loadState = useGalaxy((state) => state.loadState);
   const retrying = useGalaxy((state) => !state.view && state.loadState === "error" && state.errorKind === "retry");
-  const question = view?.ok ? (view.goal?.title ?? "") : loadState === "loading" || retrying ? "正在读取" : "这份运行没有星图";
+  const question = view?.ok ? (view.goal?.title ?? "") : loadState === "loading" || retrying ? TITLE_LOADING : TITLE_NO_GRAPH;
 
   return (
     <header className="topbar glass hud-auto">
@@ -293,7 +294,7 @@ function Actions() {
   );
 }
 
-export function ShortcutList() {
+function ShortcutList() {
   const rows: [string[], string][] = [
     [["V"], "核验透镜"],
     [["F"], "回到主节点"],

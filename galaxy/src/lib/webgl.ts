@@ -1,5 +1,12 @@
-/** True when a WebGL2 context can be created (the galaxy's renderer). */
+let cached: boolean | null = null;
+
+/** True when a WebGL2 context can be created (the galaxy's renderer). Probed once per page. */
 export function hasWebGL2(): boolean {
+  cached ??= probe();
+  return cached;
+}
+
+function probe(): boolean {
   if (typeof document === "undefined") return false;
   try {
     const canvas = document.createElement("canvas");

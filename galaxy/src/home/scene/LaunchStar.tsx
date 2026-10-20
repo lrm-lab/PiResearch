@@ -19,6 +19,7 @@ import {
   type Group,
   type Mesh,
 } from "three";
+import { TONE_COLOR } from "../../lib/palette";
 import { splitRows } from "../format";
 import { buildGalaxy } from "../geometry";
 import { slotPose, slotX } from "../layout";
@@ -107,7 +108,7 @@ function Star({ launch }: { launch: Launch }) {
         uImplode: { value: 0 },
         uIgnite: { value: 0.001 },
         uInner: { value: new Color("#d9f6ff") },
-        uOuter: { value: new Color("#6d9cff") },
+        uOuter: { value: new Color(TONE_COLOR.blue) },
       },
       transparent: true,
       depthWrite: false,

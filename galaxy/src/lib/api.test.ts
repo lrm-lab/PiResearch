@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Snapshot, ViewNode } from "../types/api";
 import {
-  apiPrefix,
   classicStudyHref,
   createPoller,
   fetchJson,
@@ -10,6 +9,7 @@ import {
   HttpError,
   isMissingStudy,
   pollDelay,
+  studyApiPrefix,
   studyIdFromPath,
   type FetchLike,
   type PollerOptions,
@@ -86,8 +86,7 @@ describe("URL helpers", () => {
     expect(studyIdFromPath("/galaxy/study/land/1/")).toBe("land/1");
     expect(studyIdFromPath("/galaxy/")).toBeNull();
     expect(studyIdFromPath("/study/land/1")).toBeNull();
-    expect(apiPrefix("/galaxy/study/sessions/20261020-101500/1")).toBe(PREFIX);
-    expect(apiPrefix("/galaxy/")).toBeNull();
+    expect(studyApiPrefix(studyIdFromPath("/galaxy/study/sessions/20261020-101500/1")!)).toBe(PREFIX);
     expect(galaxyStudyHref("land/1")).toBe("/galaxy/study/land/1");
     expect(classicStudyHref("land/1")).toBe("/study/land/1");
   });

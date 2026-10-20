@@ -32,35 +32,19 @@
   --color-glass: rgba(12, 14, 24, 0.55);
   --color-hairline: rgba(255, 255, 255, 0.08);
   --color-tone-origin: #48d3e4;
-  --color-tone-green: #58d69a;
-  --color-tone-violet: #aa8cff;
-  --color-tone-amber: #f4c56a;
-  --color-tone-blue: #6d9cff;
-  --color-tone-teal: #7ddec8;
-  --color-tone-pending: #9eb0c2;
-  --color-danger: #ff5a6a;
-  --color-ink: #e6e8ef;
-  --color-ink-dim: #a3abbd;
-  --color-ink-faint: #6e7689;
-  --color-paper: #f5f0e6;
-  --color-paper-ink: #1d1c1a;
 }
 
 :root {
-  --g-glass: rgba(12, 14, 24, 0.55);
   --g-glass-strong: rgba(10, 12, 21, 0.7);
   --g-glass-pop: rgba(16, 19, 32, 0.86);
   --g-hairline: rgba(255, 255, 255, 0.08);
   --g-hairline-strong: rgba(255, 255, 255, 0.14);
   --g-blur: 18px;
-  --g-radius-sm: 8px;
-  --g-radius: 12px;
   --g-radius-lg: 18px;
   --g-shadow: 0 18px 50px -18px rgba(0, 0, 0, 0.75), 0 2px 10px rgba(0, 0, 0, 0.35);
   --g-shadow-pop: 0 24px 60px -16px rgba(0, 0, 0, 0.85), 0 4px 14px rgba(0, 0, 0, 0.45);
   --g-accent: #48d3e4;
   --g-warm: #f4c56a;
-  --g-danger: #ff5a6a;
   --g-ink: #e6e8ef;
   --g-ink-dim: #a3abbd;
   --g-ink-faint: #6e7689;
@@ -389,12 +373,13 @@
 
 /* ===================================================================== HUD */
 
-/* Above the scene's drei label layer, whose labels use z-index up to ~120 and
-   are not contained in their own stacking context. */
+/* Above the canvas and the drei label layer: that layer is isolated (its labels'
+   z-index up to ~120 stays inside it), so any positive z-index here wins.
+   Everything inside the HUD stacks within its own context. */
 .hud {
   position: absolute;
   inset: 0;
-  z-index: 1000;
+  z-index: 10;
   isolation: isolate;
   pointer-events: none;
   font-family: var(--font-ui);

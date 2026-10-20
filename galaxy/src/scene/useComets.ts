@@ -21,7 +21,8 @@ export interface Comet {
   dieAt: number;
 }
 
-const FADE = 0.9;
+/** Fade-out of a finished comet (s). */
+export const COMET_FADE = 0.9;
 
 export function useComets(graph: SceneGraph, fx: SceneFx): Comet[] {
   const known = useRef(new Map<string, Comet>());
@@ -64,7 +65,7 @@ export function useComets(graph: SceneGraph, fx: SceneFx): Comet[] {
       timers.current.delete(timer);
       const drop = new Set(dying.map((comet) => comet.key));
       setRetired((list) => list.filter((comet) => !drop.has(comet.key)));
-    }, FADE * 1000 + 200);
+    }, COMET_FADE * 1000 + 200);
     timers.current.add(timer);
   }, [current, fx]);
 
@@ -78,5 +79,3 @@ export function useComets(graph: SceneGraph, fx: SceneFx): Comet[] {
 
   return useMemo(() => (retired.length ? [...current, ...retired] : current), [current, retired]);
 }
-
-export const COMET_FADE = FADE;
