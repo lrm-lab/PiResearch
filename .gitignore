@@ -6,6 +6,7 @@ __pycache__/
 *.py[cod]
 .DS_Store
 node_modules/
+.commandcode/
 
 # Local research sessions, trajectories, reports and benchmark outputs.
 /runs/

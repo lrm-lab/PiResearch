@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: FrontierAgent/uv.lock
+      - name: Install FrontierAgent
+        working-directory: FrontierAgent
+        run: uv sync --locked --extra dev
+      - name: pytest (constellation + integration)
+        run: |
+          PYTHONPATH=".:FrontierAgent" FrontierAgent/.venv/bin/python -m pytest \
+            constellation \
+            FrontierAgent/tests/test_constellation.py \
+            FrontierAgent/tests/test_constellation_prompt.py \
+            FrontierAgent/tests/test_constellation_review.py \
+            -q
+      - name: node tests
+        run: node --test constellation/test_report_tables.mjs
+
+  galaxy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g pnpm@9
+      - name: Install
+        working-directory: galaxy
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        working-directory: galaxy
+        run: pnpm typecheck
+      - name: Test
+        working-directory: galaxy
+        run: pnpm test
+      - name: Build
+        working-directory: galaxy
+        run: pnpm build

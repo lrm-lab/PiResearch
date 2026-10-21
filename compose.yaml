@@ -1,0 +1,13 @@
+services:
+  piresearch:
+    image: ${PIRESEARCH_IMAGE:-ghcr.io/lrm-lab/piresearch:latest}
+    container_name: piresearch
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RUNS_DIR: /data/runs
+    ports:
+      - "127.0.0.1:8766:8766"
+    volumes:
+      - ./runs:/data/runs
