@@ -65,12 +65,12 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
             -o StrictHostKeyChecking=accept-new "$REMOTE" \
-            "mkdir -p /home/dev/piresearch/runs"
-      - name: Upload compose file
+            "mkdir -p /home/dev/piresearch/runs /home/dev/piresearch/caddy-data /home/dev/piresearch/caddy-config"
+      - name: Upload compose file and Caddyfile
         run: |
           scp -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new compose.yaml \
-            "$REMOTE:/home/dev/piresearch/compose.yaml"
+            -o StrictHostKeyChecking=accept-new compose.yaml Caddyfile \
+            "$REMOTE:/home/dev/piresearch/"
       - name: Log in to GHCR on the host
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,6 +86,6 @@ jobs:
           ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
             -o StrictHostKeyChecking=accept-new "$REMOTE" \
             "cd /home/dev/piresearch && \
-             PIRESEARCH_IMAGE='$IMAGE' docker compose pull piresearch && \
-             PIRESEARCH_IMAGE='$IMAGE' docker compose up -d piresearch && \
+             PIRESEARCH_IMAGE='$IMAGE' docker compose pull && \
+             PIRESEARCH_IMAGE='$IMAGE' docker compose up -d && \
              docker logout ghcr.io"
