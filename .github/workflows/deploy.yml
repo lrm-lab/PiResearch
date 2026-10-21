@@ -44,6 +44,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Configure SSH
         env:
@@ -60,12 +63,17 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           IMAGE: ${{ needs.build.outputs.image }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
           ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
             "mkdir -p /home/dev/piresearch/runs"
           scp -i ~/.ssh/id_deploy compose.yaml \
             "$DEPLOY_USER@$DEPLOY_HOST:/home/dev/piresearch/compose.yaml"
           ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
+            "docker login ghcr.io -u '$ACTOR' --password-stdin" <<< "$GHCR_TOKEN"
+          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd /home/dev/piresearch && \
              PIRESEARCH_IMAGE='$IMAGE' docker compose pull piresearch && \
-             PIRESEARCH_IMAGE='$IMAGE' docker compose up -d piresearch"
+             PIRESEARCH_IMAGE='$IMAGE' docker compose up -d piresearch && \
+             docker logout ghcr.io"
