@@ -44,35 +44,47 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     permissions:
       contents: read
       packages: read
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      REMOTE: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
     steps:
-      - name: Configure SSH
+      - uses: actions/checkout@v4
+      - name: Configure SSH key
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-      - uses: actions/checkout@v4
-      - name: Upload compose file and restart
+      - name: Prepare remote directory
+        run: |
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=accept-new "$REMOTE" \
+            "mkdir -p /home/dev/piresearch/runs"
+      - name: Upload compose file
+        run: |
+          scp -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=accept-new compose.yaml \
+            "$REMOTE:/home/dev/piresearch/compose.yaml"
+      - name: Log in to GHCR on the host
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          IMAGE: ${{ needs.build.outputs.image }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
         run: |
-          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
-            "mkdir -p /home/dev/piresearch/runs"
-          scp -i ~/.ssh/id_deploy compose.yaml \
-            "$DEPLOY_USER@$DEPLOY_HOST:/home/dev/piresearch/compose.yaml"
-          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=accept-new "$REMOTE" \
             "docker login ghcr.io -u '$ACTOR' --password-stdin" <<< "$GHCR_TOKEN"
-          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
+      - name: Pull image and restart
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=accept-new "$REMOTE" \
             "cd /home/dev/piresearch && \
              PIRESEARCH_IMAGE='$IMAGE' docker compose pull piresearch && \
              PIRESEARCH_IMAGE='$IMAGE' docker compose up -d piresearch && \
