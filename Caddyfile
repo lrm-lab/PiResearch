@@ -17,5 +17,11 @@
 	}
 
 	encode gzip
+
+	# The 3D galaxy is the front door. The 2D homepage still exists upstream
+	# (the app keeps it for deep links and the no-WebGL fallback).
+	@root path /
+	redir @root /galaxy/ 302
+
 	reverse_proxy piresearch:8766
 }
