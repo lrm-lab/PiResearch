@@ -8,7 +8,7 @@ import { useGalaxy } from "../store";
  * closed → open (short scale/fade in) → leaving (fade out) → closed.
  */
 export type ReportStage = "closed" | "open" | "leaving";
-export type MenuId = "quality" | "more" | "help" | null;
+export type MenuId = "quality" | "more" | "help" | "export" | null;
 
 export const REPORT_BUTTON_ID = "galaxy-report-button";
 

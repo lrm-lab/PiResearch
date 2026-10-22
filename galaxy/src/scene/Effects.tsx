@@ -11,7 +11,7 @@ import { Vector2 } from "three";
 import { useGalaxy } from "../store";
 import type { SceneFx } from "./fx";
 
-const BLOOM = 0.85;
+const BLOOM = 0.7;
 
 export function Effects({ fx }: { fx: SceneFx }) {
   const quality = useGalaxy((state) => state.effectiveQuality);
@@ -32,7 +32,7 @@ export function Effects({ fx }: { fx: SceneFx }) {
       <Bloom
         ref={bloom}
         mipmapBlur
-        luminanceThreshold={0.65}
+        luminanceThreshold={0.72}
         luminanceSmoothing={0.25}
         intensity={BLOOM}
         radius={0.8}

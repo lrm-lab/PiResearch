@@ -55,7 +55,7 @@ void main() {
   float ring = exp(-pow(abs((u - r) / w), 2.0));
   float inner = smoothstep(r, 0.0, u) * 0.18 * (1.0 - age);
   float fade = pow(1.0 - age, 1.5);
-  vec3 col = mix(vColor, vec3(1.0), 0.35 * (1.0 - age)) * (ring * 1.6 + inner) * fade;
+  vec3 col = mix(vColor, vec3(1.0), 0.12 * (1.0 - age)) * (ring * 0.95 + inner) * fade;
   gl_FragColor = vec4(col, 1.0);
 }
 `;

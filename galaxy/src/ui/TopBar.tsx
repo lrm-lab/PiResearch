@@ -10,6 +10,7 @@ import { type Quality, useGalaxy } from "../store";
 import {
   IconCheck,
   IconCore,
+  IconDownload,
   IconHelp,
   IconLens,
   IconMore,
@@ -17,6 +18,7 @@ import {
   IconReport,
   IconReset,
 } from "./icons";
+import { exportAll, useExport } from "./exportRun";
 import { MenuPopover } from "./Menu";
 import { UiSwitch } from "./UiSwitch";
 import { REPORT_BUTTON_ID, useUi } from "./uiStore";
@@ -118,6 +120,8 @@ function Actions() {
   const hasReport = Boolean(view?.report);
   const finished = hasReport && view?.ok === true && view.running === false;
   const hasGoal = Boolean(view?.ok && view.nodes.some((node) => node.goal));
+  const exporting = useExport((state) => state.phase === "running");
+  const canExport = Boolean(view?.ok) && !exporting;
   const qualityHint = quality === "auto" ? `自动 · ${QUALITY_LABEL[effective]}` : QUALITY_LABEL[quality];
 
   const qualityItems = QUALITIES.map((value) => (
@@ -139,6 +143,41 @@ function Actions() {
       {value === "low" && <span className="hint">省电</span>}
     </button>
   ));
+
+  const exportItems = (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        className="g-menu-item"
+        aria-disabled={!canExport}
+        onClick={() => {
+          if (!canExport) return;
+          setMenu(null);
+          void exportAll("md");
+        }}
+      >
+        <IconDownload />
+        导出全部轨迹（Markdown）
+        <span className="hint">.md</span>
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className="g-menu-item"
+        aria-disabled={!canExport}
+        onClick={() => {
+          if (!canExport) return;
+          setMenu(null);
+          void exportAll("json");
+        }}
+      >
+        <IconDownload />
+        导出全部轨迹（JSON）
+        <span className="hint">.json</span>
+      </button>
+    </>
+  );
 
   return (
     <div className="topbar-actions" ref={ref}>
@@ -172,6 +211,25 @@ function Actions() {
           <IconLens />
           <span className="btn-label">核验透镜</span>
         </button>
+
+        <span className="relative">
+          <button
+            id="galaxy-export-button"
+            type="button"
+            className="g-btn g-btn-toggle"
+            aria-haspopup="menu"
+            aria-expanded={menu === "export"}
+            aria-label="导出轨迹"
+            onClick={() => toggleMenu("export")}
+          >
+            <IconDownload />
+            <span className="btn-label">导出</span>
+          </button>
+          <MenuPopover open={menu === "export"} label="导出轨迹" onClose={close} triggerId="galaxy-export-button">
+            <div className="g-kicker g-menu-label">导出研究轨迹</div>
+            {exportItems}
+          </MenuPopover>
+        </span>
 
         <span className="relative">
           <button
@@ -288,6 +346,8 @@ function Actions() {
             快捷键
             <span className="hint">?</span>
           </button>
+          <div className="g-menu-sep" role="separator" />
+          {exportItems}
           <div className="g-menu-sep" role="separator" />
           <div className="g-kicker g-menu-label">画质</div>
           {qualityItems}

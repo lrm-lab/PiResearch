@@ -170,3 +170,9 @@ export function ToolGlyph({ tool }: { tool: string }) {
     </svg>
   );
 }
+
+export const IconDownload = (p: P) => (
+  <Icon {...p}>
+    <path d="M12 4v10.5M7.5 10.5 12 15l4.5-4.5M5 19.5h14" />
+  </Icon>
+);
