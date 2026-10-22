@@ -603,15 +603,15 @@ html.home-doc {
 .home-composer-body {
   display: flex;
   align-items: flex-end;
-  gap: 12px;
-  padding: 14px 12px 6px 18px;
+  gap: 10px;
+  padding: 12px 12px 8px 16px;
 }
 
 .home-composer-glyph {
   display: grid;
   flex: none;
   width: 22px;
-  height: 30px;
+  height: 48px;
   place-items: center;
   color: #7fe6ff;
   opacity: 0.8;
@@ -626,21 +626,22 @@ html.home-doc {
 .home-composer-input {
   flex: 1;
   min-width: 0;
-  min-height: 30px;
+  box-sizing: border-box;
+  min-height: 48px;
   max-height: min(32vh, 260px);
-  padding: 3px 0;
+  padding: 11px 2px;
   border: 0;
   outline: none;
   resize: none;
   background: transparent;
-  color: #f2f4fa;
+  color: #f7f8fd;
   font: inherit;
   font-family: var(--home-serif);
   font-size: 17px;
-  line-height: 1.55;
+  line-height: 1.5;
   caret-color: #7fe6ff;
-  /* One line is only slightly taller than the empty box, so the native
-     scrollbar thumb sits between the text and the launch button. Keep
+  /* The empty line used to overflow by a couple of pixels, so the native
+     scrollbar thumb sat between the text and the launch button. Keep
      wheel and keyboard scrolling; do not draw that thumb. */
   overflow-y: auto;
   scrollbar-width: none;
@@ -653,9 +654,8 @@ html.home-doc {
 }
 
 .home-composer-input::placeholder {
-  color: #6e7891;
+  color: #9aa6c3;
   font-family: var(--home-ui);
-  font-size: 15px;
 }
 
 .home-composer-input:focus-visible {
@@ -709,13 +709,25 @@ html.home-doc {
 }
 
 .home-launch-icon {
-  width: 24px;
-  height: 24px;
-  transition: transform 0.3s ease;
+  width: 30px;
+  height: 34px;
+  overflow: visible;
+  animation: home-thrust 1.15s ease-in-out infinite;
+}
+
+.home-launch-flame {
+  fill: #ff8a1a;
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: home-flame 0.42s ease-in-out infinite;
 }
 
 .home-launch:hover:not(:disabled) .home-launch-icon {
-  transform: translateY(-1px) rotate(-8deg);
+  animation-duration: 0.62s;
+}
+
+.home-launch:hover:not(:disabled) .home-launch-flame {
+  animation-duration: 0.28s;
 }
 
 .home-launch-ring {
@@ -737,6 +749,11 @@ html.home-doc {
 .is-launching .home-launch {
   background: radial-gradient(circle, #ffffff 0%, #c9f5ff 55%, #7fe6ff 100%);
   box-shadow: 0 0 60px 10px rgba(159, 233, 255, 0.85);
+}
+
+.is-launching .home-launch-icon,
+.is-launching .home-launch-flame {
+  animation: none;
 }
 
 .is-launching .home-launch-icon {
@@ -1192,7 +1209,7 @@ body.home-confirm-open .home-composer-dock {
   }
 
   .home-composer-input::placeholder {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .home-composer-foot {
@@ -1257,6 +1274,28 @@ body.home-confirm-open .home-composer-dock {
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.97);
+  }
+}
+
+@keyframes home-thrust {
+  0%,
+  100% {
+    transform: translateY(1px);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes home-flame {
+  0%,
+  100% {
+    transform: scaleY(0.72);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scaleY(1.18);
+    opacity: 1;
   }
 }
 
