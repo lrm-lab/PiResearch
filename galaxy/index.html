@@ -6,6 +6,23 @@
     <meta name="color-scheme" content="dark" />
     <link rel="icon" href="data:," />
     <title>PiResearch Galaxy</title>
+    <script>
+      // Entry point honours the stored frontend preference (localStorage "piresearch-ui", written by the
+      // Galaxy / Prism / 2D switcher): on the home only, never on study deep links, jump to the chosen
+      // frontend's home before anything renders. Skipped when the visitor is navigating inside this app
+      // (same-origin referrer under /galaxy/), so its own "back to home" links stay put. The switcher saves
+      // the preference before navigating, so landing on the chosen app never bounces back.
+      (function () {
+        try {
+          var u = localStorage.getItem("piresearch-ui");
+          var to = u === "galaxy" ? "/galaxy/" : u === "prism" ? "/prism/" : u === "2d" ? "/index.html" : null;
+          if (!to || to === "/galaxy/" || location.pathname !== "/galaxy/") return;
+          var r = document.referrer;
+          if (r.indexOf(location.origin + "/galaxy/") === 0) return;
+          location.replace(to);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

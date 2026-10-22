@@ -449,16 +449,12 @@
   gap: 2px;
   flex: none;
 }
-/* 报告 and 2D 视图 keep their labels at every width. */
+/* 报告 keeps its label at every width. */
 .topbar-report.is-ready {
   animation: g-ready 3.2s ease-in-out infinite;
 }
-.topbar-classic {
-  border-color: var(--g-hairline);
-  text-decoration: none;
-}
-.topbar-classic:hover {
-  border-color: color-mix(in srgb, var(--g-accent) 40%, transparent);
+.topbar-ui-switch {
+  margin: 0 4px;
 }
 .topbar-progress-line {
   position: absolute;
@@ -2078,9 +2074,6 @@
   .detail-body {
     padding: 14px 16px 20px;
   }
-  .topbar-classic-word {
-    display: none;
-  }
 }
 
 /* Phones: the report is a full-height sheet. */
@@ -2331,5 +2324,67 @@
   }
   .report-scroll {
     scroll-behavior: auto;
+  }
+}
+
+/* ------------------------------------------------------- frontend switch */
+/* Segmented "Galaxy 星系 · Prism 棱镜 · 2D 经典" control (home header, study top bar). */
+.ui-switch {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--g-hairline-strong);
+  background: rgba(12, 14, 24, 0.55);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  font: 560 12px/1 var(--font-ui);
+}
+.ui-switch-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  color: var(--g-ink-dim);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color 0.2s var(--g-ease),
+    background-color 0.2s var(--g-ease),
+    box-shadow 0.2s var(--g-ease);
+}
+.ui-switch-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+.ui-switch-item:focus-visible {
+  outline: 2px solid var(--g-accent);
+  outline-offset: 1px;
+}
+.ui-switch-item[aria-current="page"] {
+  color: #04161a;
+  background: linear-gradient(180deg, #7ee0ef, var(--g-accent));
+  box-shadow: 0 0 16px -2px color-mix(in srgb, var(--g-accent) 70%, transparent);
+  pointer-events: none;
+}
+.ui-switch-zh {
+  font-weight: 500;
+  font-size: 11px;
+  opacity: 0.72;
+}
+@media (max-width: 900px) {
+  .ui-switch-zh {
+    display: none;
+  }
+  .ui-switch-item {
+    padding: 7px 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-switch-item {
+    transition: none;
   }
 }

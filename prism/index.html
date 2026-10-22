@@ -7,13 +7,32 @@
     <link rel="icon" href="data:," />
     <title>PiResearch Prism</title>
     <script>
+      // Entry point honours the stored frontend preference (localStorage "piresearch-ui", written by the
+      // Galaxy / Prism / 2D switcher): on the home only, never on study deep links, jump to the chosen
+      // frontend's home before anything renders. Skipped when the visitor is navigating inside this app
+      // (same-origin referrer under /prism/), so its own "back to home" links stay put. The switcher saves
+      // the preference before navigating, so landing on the chosen app never bounces back.
+      (function () {
+        try {
+          var u = localStorage.getItem("piresearch-ui");
+          var to = u === "galaxy" ? "/galaxy/" : u === "prism" ? "%BASE_URL%" : u === "2d" ? "/index.html" : null;
+          if (!to || to === "%BASE_URL%" || location.pathname !== "%BASE_URL%") return;
+          var r = document.referrer;
+          if (r.indexOf(location.origin + "%BASE_URL%") === 0) return;
+          location.replace(to);
+        } catch (e) {}
+      })();
+    </script>
+    <script>
       // Apply the theme before first paint so an embedded page never flashes the wrong one.
-      // Same rules as src/lib/theme.ts: ?theme= wins, then the stored host choice, then the system.
+      // Same rules as src/lib/theme.ts: ?theme= wins, then the host's theme kept for the tab, then the
+      // visitor's saved choice (prism-theme-choice), then the system.
       (function () {
         try {
           var q = new URLSearchParams(location.search).get("theme");
           var t = q === "light" || q === "dark" ? q : sessionStorage.getItem("prism-theme");
           if (q === "light" || q === "dark") sessionStorage.setItem("prism-theme", q);
+          if (t !== "light" && t !== "dark") t = localStorage.getItem("prism-theme-choice");
           if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           if (t === "dark") document.documentElement.classList.add("dark-mode");
         } catch (e) {}

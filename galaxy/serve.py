@@ -1,13 +1,14 @@
-"""Standalone server for PiResearch Galaxy.
+"""Standalone server for PiResearch Galaxy (and Prism).
 
-Serves the built bundle under ``/galaxy/`` (SPA fallback to ``index.html``)
-and forwards every other path (``/api/*``, the 2D pages ``/`` and
-``/study/*``) to the existing ``constellation.serve``. Responses pass through
-byte for byte, except the 2D HTML pages, which get a small "切换到 3D" button
-injected (see ``inject_switch``).
+Serves the built bundle under ``/galaxy/`` (SPA fallback to ``index.html``),
+the Prism bundle under ``/prism/`` when its dist exists, and forwards every
+other path (``/api/*``, the 2D pages ``/`` and ``/study/*``) to the existing
+``constellation.serve``. Responses pass through byte for byte, except the 2D
+HTML pages, which get a small "Galaxy · Prism · 2D" switcher injected (see
+``inject_switch``).
 
     python3 galaxy/serve.py --upstream http://127.0.0.1:8765 \
-        --host 127.0.0.1 --port 8766 [--dist galaxy/dist]
+        --host 127.0.0.1 --port 8766 [--dist galaxy/dist] [--prism-dist prism/dist]
 
 Standard library only; runs on Python 3.9+.
 """
@@ -24,38 +25,47 @@ import socketserver
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 PREFIX = "/galaxy/"
+PRISM_PREFIX = "/prism/"
 UNAVAILABLE = json.dumps({"ok": False, "message": "星图服务暂时不可用。"}, ensure_ascii=False).encode("utf-8")
 FORWARD_REQUEST_HEADERS = ("If-None-Match", "Accept-Encoding", "Content-Type", "Content-Length", "Accept")
 FORWARD_RESPONSE_HEADERS = ("ETag", "Content-Encoding", "Content-Type", "Cache-Control", "Vary", "Location")
 UPSTREAM_TIMEOUT = 30
 MAX_BODY = 1_000_000
 
-# -- the "切换到 3D" switch on the 2D pages ------------------------------------
+# -- the Galaxy · Prism · 2D switcher on the 2D pages --------------------------
 # Self-contained (inline style and script, no external requests). It is a fixed
-# pill in the 2D pages' dark style; on the 2D study page it sits in the top bar
-# next to 报告 instead. It hides itself inside the 2D home's study-preview iframe.
+# segmented pill in the 2D pages' dark style (2D is the current option); on the
+# 2D study page it sits in the top bar next to 报告 instead. It hides itself
+# inside the 2D home's study-preview iframe. Clicking an option saves the
+# preference (localStorage "piresearch-ui") and opens the same page there.
+# The preference key and URL mapping are mirrored in galaxy/src/lib/uiSwitch.ts
+# and prism/src/lib/uiSwitch.ts.
 # Same-origin anchors to exactly "/" are pointed at "/index.html": production
 # redirects "/" to the 3D home, and 2D navigation should stay in 2D.
-SWITCH_TEMPLATE = """<style id="pr-galaxy-switch-style">
-.pr-galaxy-switch{position:fixed;top:16px;right:20px;z-index:30;display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px 0 11px;border:1px solid #ffffff1f;border-radius:999px;background:linear-gradient(180deg,#1c1c1ce8,#101010ed);color:#f4f4f5;font:560 13px/1 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:.04em;text-decoration:none;white-space:nowrap;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 10px 28px #0007,inset 0 1px 0 #ffffff0d;transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
-.pr-galaxy-switch:hover{border-color:#7ee0ef66;background:linear-gradient(180deg,#232323f0,#141414f2);box-shadow:0 10px 28px #0007,0 0 0 4px #7ee0ef14,0 0 22px #6d9cff33}
-.pr-galaxy-switch:focus-visible{outline:2px solid #fff;outline-offset:3px}
-.pr-galaxy-switch svg{width:16px;height:16px;flex:none;color:#7ee0ef}
-.pr-galaxy-switch.in-bar{position:static;flex:none;margin-left:auto;margin-right:10px}
-.pr-galaxy-switch.in-bar+#open-report{margin-left:0}
-@media(max-width:480px){.pr-galaxy-switch{top:12px;right:12px;padding:0 11px 0 9px}.pr-galaxy-switch .pr-long{display:none}.pr-galaxy-switch.in-bar{margin-right:8px}}
-@media(prefers-reduced-motion:reduce){.pr-galaxy-switch{transition:none}}
+SWITCH_TEMPLATE = """<style id="pr-ui-switch-style">
+.pr-ui-switch{position:fixed;top:16px;right:20px;z-index:30;display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid #ffffff1f;border-radius:999px;background:linear-gradient(180deg,#1c1c1ce8,#101010ed);font:560 12.5px/1 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:.02em;white-space:nowrap;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 10px 28px #0007,inset 0 1px 0 #ffffff0d}
+.pr-ui-switch a{display:inline-flex;align-items:baseline;gap:5px;padding:8px 12px;border-radius:999px;color:#c9ccd3;text-decoration:none;transition:color .18s ease,background .18s ease,box-shadow .18s ease}
+.pr-ui-switch a:hover{color:#fff;background:#ffffff14}
+.pr-ui-switch a:focus-visible{outline:2px solid #fff;outline-offset:1px}
+.pr-ui-switch a[aria-current=page]{color:#04161a;background:linear-gradient(180deg,#7ee0ef,#48d3e4);box-shadow:0 0 16px -2px #48d3e4b3;pointer-events:none}
+.pr-ui-switch .pr-zh{font-weight:500;font-size:11px;opacity:.72}
+.pr-ui-switch.in-bar{position:static;flex:none;margin-left:auto;margin-right:10px}
+.pr-ui-switch.in-bar+#open-report{margin-left:0}
+@media(max-width:640px){.pr-ui-switch{top:12px;right:12px}.pr-ui-switch .pr-zh{display:none}.pr-ui-switch a{padding:8px 10px}.pr-ui-switch.in-bar{margin-right:8px}}
+@media(prefers-reduced-motion:reduce){.pr-ui-switch a{transition:none}}
 </style>
-<a class="pr-galaxy-switch" id="pr-galaxy-switch" href="__HREF__" title="切换到 3D 星系视图"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="2.4" fill="currentColor"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" stroke="currentColor" stroke-width="1.3" transform="rotate(-28 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" stroke="currentColor" stroke-width=".9" opacity=".5" transform="rotate(38 12 12)"/></svg><span><span class="pr-long">切换到 </span>3D</span></a>
-<script>(function(){var s=document.getElementById("pr-galaxy-switch");if(!s)return;
+<nav class="pr-ui-switch" id="pr-ui-switch" aria-label="切换界面"><a href="__GALAXY__" data-ui="galaxy" title="Galaxy 星系">Galaxy<span class="pr-zh">星系</span></a><a href="__PRISM__" data-ui="prism" title="Prism 棱镜">Prism<span class="pr-zh">棱镜</span></a><a href="__2D__" data-ui="2d" title="2D 经典" aria-current="page">2D<span class="pr-zh">经典</span></a></nav>
+<script>(function(){var s=document.getElementById("pr-ui-switch");if(!s)return;
 try{if(window.self!==window.top){s.remove();return}}catch(e){s.remove();return}
 var r=document.getElementById("open-report");if(r&&r.parentNode){s.classList.add("in-bar");r.parentNode.insertBefore(s,r)}
+function save(e){var a=e.target&&e.target.closest?e.target.closest("a[data-ui]"):null;if(!a)return;try{localStorage.setItem("piresearch-ui",a.getAttribute("data-ui"))}catch(x){}}
+s.addEventListener("click",save);s.addEventListener("auxclick",save);
 function fix(a){if(a&&a.getAttribute&&a.getAttribute("href")==="/")a.setAttribute("href","/index.html")}
 document.querySelectorAll('a[href="/"]').forEach(fix);
 function on(e){var t=e.target;fix(t&&t.closest?t.closest("a[href]"):null)}
@@ -67,23 +77,28 @@ document.addEventListener("click",on,true);document.addEventListener("auxclick",
 SWITCH_ETAG_SUFFIX = "-g3d" + hashlib.sha256(SWITCH_TEMPLATE.encode("utf-8")).hexdigest()[:8]
 
 
-def switch_target(path: str) -> Optional[str]:
-    """The 3D page for a 2D HTML page path, or None when the path is not one."""
+def switch_targets(path: str) -> Optional[Dict[str, str]]:
+    """Where each frontend shows the same page as a 2D HTML page path (home or study),
+    keyed "galaxy" / "prism" / "2d"; None when the path is not such a page."""
     if path in ("/", "/index.html"):
-        return PREFIX
+        return {"galaxy": PREFIX, "prism": PRISM_PREFIX, "2d": "/index.html"}
     if path.startswith("/study/") and path.strip("/") != "study":
-        return PREFIX + "study/" + path[len("/study/"):].strip("/")
+        study = path[len("/study/"):].strip("/")
+        return {"galaxy": PREFIX + "study/" + study, "prism": PRISM_PREFIX + "study/" + study, "2d": "/study/" + study}
     return None
 
 
-def inject_switch(body: bytes, target: str) -> bytes:
-    """Add the 3D switch before the last </body> (or at the end) and keep 2D links in 2D."""
-    snippet = SWITCH_TEMPLATE.replace("__HREF__", html.escape(target, quote=True)).encode("utf-8")
+def inject_switch(body: bytes, targets: Dict[str, str]) -> bytes:
+    """Add the switcher before the last </body> (or at the end) and keep 2D links in 2D."""
+    snippet = SWITCH_TEMPLATE
+    for key, placeholder in (("galaxy", "__GALAXY__"), ("prism", "__PRISM__"), ("2d", "__2D__")):
+        snippet = snippet.replace(placeholder, html.escape(targets[key], quote=True))
+    snippet_bytes = snippet.encode("utf-8")
     body = body.replace(b' href="/"', b' href="/index.html"')
     index = body.lower().rfind(b"</body>")
     if index < 0:
-        return body + snippet
-    return body[:index] + snippet + body[index:]
+        return body + snippet_bytes
+    return body[:index] + snippet_bytes + body[index:]
 
 
 def tag_etag(etag: Optional[str]) -> Optional[str]:
@@ -153,6 +168,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
     upstream = "http://127.0.0.1:8765"
     # Resolved once here (and in make_server), not per request.
     dist = (Path(__file__).resolve().parent / "dist").resolve()
+    prism_dist: Optional[Path] = None  # served under /prism/ when it has an index.html
     quiet = False
 
     # -- routing ---------------------------------------------------------
@@ -170,44 +186,53 @@ class GalaxyHandler(BaseHTTPRequestHandler):
     def do_DELETE(self) -> None:
         self._proxy()
 
+    def _mounts(self):
+        """(URL prefix, bundle directory) for each app served from disk. Prism only
+        while its dist has an index.html; otherwise /prism/* is proxied like any other path."""
+        mounts = [(PREFIX, self.dist)]
+        if self.prism_dist is not None and (self.prism_dist / "index.html").is_file():
+            mounts.append((PRISM_PREFIX, self.prism_dist))
+        return mounts
+
     def _route(self) -> None:
-        path = urlsplit(self.path).path
-        if path == "/galaxy":
-            query = urlsplit(self.path).query
-            self._send(301, b"", {"Location": PREFIX + ("?" + query if query else ""), "Cache-Control": "no-cache"})
-            return
-        if path.startswith(PREFIX):
-            self._static(path)
-            return
+        parts = urlsplit(self.path)
+        for prefix, root in self._mounts():
+            if parts.path == prefix.rstrip("/"):
+                self._send(301, b"", {"Location": prefix + ("?" + parts.query if parts.query else ""), "Cache-Control": "no-cache"})
+                return
+            if parts.path.startswith(prefix):
+                self._static(parts.path, prefix, root)
+                return
         self._proxy()
 
-    # -- static bundle ---------------------------------------------------
+    # -- static bundles --------------------------------------------------
 
-    def _resolve(self, path: str) -> Optional[Path]:
-        relative = posixpath.normpath(unquote(path[len(PREFIX):]))
+    @staticmethod
+    def _resolve(path: str, prefix: str, root: Path) -> Optional[Path]:
+        relative = posixpath.normpath(unquote(path[len(prefix):]))
         if relative in ("", "."):
             return None
         if relative.startswith("..") or relative.startswith("/"):
             return None
-        root = self.dist
         try:
             candidate = (root / relative).resolve()
             candidate.relative_to(root)
             return candidate if candidate.is_file() else None
-        except (ValueError, OSError):  # outside dist, or unusable (e.g. %00: embedded null byte)
+        except (ValueError, OSError):  # outside the bundle, or unusable (e.g. %00: embedded null byte)
             return None
 
-    def _static(self, path: str) -> None:
-        target = self._resolve(path)
+    def _static(self, path: str, prefix: str, root: Path) -> None:
+        target = self._resolve(path, prefix, root)
         # Hashed bundle files are immutable; index.html (the SPA fallback included) always revalidates.
-        immutable = target is not None and path.startswith(PREFIX + "assets/") and target.name != "index.html"
+        immutable = target is not None and path.startswith(prefix + "assets/") and target.name != "index.html"
         if target is None:
-            if path.startswith(PREFIX + "assets/"):
+            if path.startswith(prefix + "assets/"):
                 self._send(404, b"not found", {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"})
                 return
-            target = self.dist / "index.html"
+            target = root / "index.html"
             if not target.is_file():
-                message = "galaxy bundle not built: run `pnpm build` in galaxy/".encode("utf-8")
+                app = prefix.strip("/")
+                message = f"{app} bundle not built: run `pnpm build` in {app}/".encode("utf-8")
                 self._send(503, message, {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"})
                 return
         body = target.read_bytes()
@@ -245,7 +270,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         # 2D HTML pages are fetched uncompressed (so the switch can be added),
         # revalidated with our own ETags, and HEAD is answered from a GET so
         # its Content-Length matches the injected body.
-        target = switch_target(urlsplit(self.path).path) if self.command in ("GET", "HEAD") else None
+        target = switch_targets(urlsplit(self.path).path) if self.command in ("GET", "HEAD") else None
         headers = {}
         for name in FORWARD_REQUEST_HEADERS:
             value = self.headers.get(name)
@@ -356,11 +381,18 @@ class GalaxyServer(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-def make_server(upstream: str, host: str, port: int, dist: Path, quiet: bool = False) -> GalaxyServer:
+def make_server(
+    upstream: str, host: str, port: int, dist: Path, quiet: bool = False, prism_dist: Optional[Path] = None
+) -> GalaxyServer:
     handler = type(
         "BoundGalaxyHandler",
         (GalaxyHandler,),
-        {"upstream": upstream.rstrip("/"), "dist": Path(dist).resolve(), "quiet": quiet},
+        {
+            "upstream": upstream.rstrip("/"),
+            "dist": Path(dist).resolve(),
+            "prism_dist": Path(prism_dist).resolve() if prism_dist is not None else None,
+            "quiet": quiet,
+        },
     )
     return GalaxyServer((host, port), handler)
 
@@ -371,12 +403,21 @@ def main(argv: Optional[list] = None) -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8766)
     parser.add_argument("--dist", type=Path, default=Path(__file__).resolve().parent / "dist")
+    parser.add_argument(
+        "--prism-dist",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent / "prism" / "dist",
+        help="Prism bundle served under /prism/ (only when it has an index.html; default: <repo>/prism/dist)",
+    )
     parser.add_argument("--quiet", action="store_true", help="no request log")
     args = parser.parse_args(argv)
     if not (args.dist / "index.html").is_file():
         print(f"warning: {args.dist}/index.html not found; run `pnpm build` in galaxy/", file=sys.stderr)
-    server = make_server(args.upstream, args.host, args.port, args.dist, args.quiet)
-    print(f"PiResearch Galaxy on http://{args.host}:{server.server_address[1]}/galaxy/ -> {args.upstream}", flush=True)
+    prism = args.prism_dist if (args.prism_dist / "index.html").is_file() else None
+    server = make_server(args.upstream, args.host, args.port, args.dist, args.quiet, prism)
+    base = f"http://{args.host}:{server.server_address[1]}"
+    print(f"PiResearch Galaxy on {base}/galaxy/ -> {args.upstream}", flush=True)
+    print(f"PiResearch Prism on {base}/prism/" if prism else f"Prism not served (no {args.prism_dist}/index.html)", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -502,27 +502,6 @@ html.home-doc {
   font-variant-numeric: tabular-nums;
 }
 
-.home-classic {
-  padding: 7px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--home-hairline);
-  background: rgba(12, 14, 24, 0.5);
-  backdrop-filter: blur(12px);
-  color: #c4cbdb;
-  font-size: 12.5px;
-  text-decoration: none;
-  transition:
-    color 0.2s ease,
-    border-color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.home-classic:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(30, 34, 52, 0.6);
-}
-
 /* --------------------------------------------------------------------------
    Composer */
 
