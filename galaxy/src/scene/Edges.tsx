@@ -127,7 +127,7 @@ void main() {
     // parent: faint gravity arc with a flow pulse parent -> child
     float period = 2.6 + L * 0.12;
     float h = fract(T / period + vSeed) * 1.2 - 0.1;
-    float pulse = exp(-pow((t - h) * L / 0.5, 2.0));
+    float pulse = exp(-pow(abs((t - h) * L / 0.5), 2.0));
     I = 0.22 + pulse * 1.0;
     col = mix(col, white, pulse * 0.25);
   } else if (vRel < 1.5) {
@@ -135,7 +135,7 @@ void main() {
     float h = fract(T / 2.4 + vSeed) * 1.25 - 0.05;
     float behind = h - t;
     float sweep = behind >= 0.0 ? exp(-behind * L / 1.5) : 0.0;
-    float head = exp(-pow((t - h) * L / 0.12, 2.0));
+    float head = exp(-pow(abs((t - h) * L / 0.12), 2.0));
     float scan = 0.5 + 0.5 * sin(t * L * 10.0 - T * 7.0);
     I = 0.26 + 0.1 * scan + sweep * 0.85 + head * 1.7;
     col = mix(col, white, head * 0.6);
@@ -151,7 +151,7 @@ void main() {
     float h = fract(T / 3.2 + vSeed) * 1.2 - 0.05;
     float behind = h - t;
     float trail = behind >= 0.0 ? exp(-behind * L / 2.4) : 0.0;
-    float head = exp(-pow((t - h) * L / 0.14, 2.0));
+    float head = exp(-pow(abs((t - h) * L / 0.14), 2.0));
     I = 0.2 + trail * 0.75 + head * 2.5;
     prof = core + glow * (1.0 + head * 1.5);
     col = mix(col, white, head * 0.55);

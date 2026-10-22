@@ -47,16 +47,16 @@ void main() {
   float lat = (vUv.y - 0.5) * 3.14159265359;
   vec3 d = vec3(cos(lat) * sin(lon), sin(lat), cos(lat) * cos(lon));
   vec3 bandN = normalize(vec3(0.3, 1.0, 0.42));
-  float band = exp(-pow(dot(d, bandN) * 2.4, 2.0));
+  float band = exp(-pow(abs(dot(d, bandN) * 2.4), 2.0));
   float n1 = fbm(d * 2.1) * 0.5 + 0.5;
   float n2 = fbm(d * 4.6 + vec3(3.1, 1.7, 8.2)) * 0.5 + 0.5;
   float mixer = fbm(d * 1.3 + vec3(7.0)) * 0.5 + 0.5;
   float clouds = smoothstep(0.38, 0.82, n1);
-  float wisps = pow(n2, 3.0);
+  float wisps = pow(max(n2, 0.0), 3.0);
   vec3 col = mix(uIndigo, uTeal, smoothstep(0.35, 0.68, mixer)) * (clouds * 1.1 + wisps * 1.3) * (0.3 + 1.2 * band);
   float lanes = smoothstep(0.52, 0.78, fbm(d * 6.0 + vec3(2.0)) * 0.5 + 0.5);
   col *= 1.0 - 0.65 * lanes * band;
-  col += uRose * pow(n1 * n2, 3.0) * band * 1.4;
+  col += uRose * pow(max(n1 * n2, 0.0), 3.0) * band * 1.4;
   col += mix(uIndigo, uTeal, 0.5) * band * 0.25;
   gl_FragColor = vec4(col, 1.0);
 }

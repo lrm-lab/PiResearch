@@ -224,7 +224,7 @@ void main() {
   } else if (vKind < 1.5) {
     // in progress: pulsing rim light
     float pulse = 0.5 + 0.5 * sin(t * 3.927 + vSeed * 6.283);
-    float rim = exp(-pow((d - 1.03) * 7.0, 2.0));
+    float rim = exp(-pow(abs((d - 1.03) * 7.0), 2.0));
     float halo = exp(-max(d - 1.0, 0.0) * 1.8);
     col = vTone * (rim * (0.45 + 0.6 * pulse) + halo * (0.16 + 0.16 * pulse));
   } else if (vKind < 2.5) {
@@ -242,14 +242,14 @@ void main() {
   if (vErr > 0.5) {
     float flick = 0.55 + 0.45 * sin(t * 6.981) + 0.3 * (hash11(floor(t * 16.0) + vSeed * 91.0) - 0.5);
     float ringD = vKind < 0.5 ? 2.6 : 1.2;
-    col += uErrColor * exp(-pow((d - ringD) * 5.0, 2.0)) * flick * 1.2;
+    col += uErrColor * exp(-pow(abs((d - ringD) * 5.0), 2.0)) * flick * 1.2;
     col += uErrColor * exp(-max(d - ringD + 0.2, 0.0) * 2.4) * 0.22 * flick;
   }
   float sel = clamp(vFx.r - 1.0, 0.0, 1.0);
   col *= min(vFx.r, 1.0) * (1.0 + 0.5 * vFx.a + 0.9 * sel);
-  col += vTone * exp(-pow((d - 1.35 - 0.1 * sin(t * 2.0)) * 7.0, 2.0)) * sel * 0.7;
+  col += vTone * exp(-pow(abs((d - 1.35 - 0.1 * sin(t * 2.0)) * 7.0), 2.0)) * sel * 0.7;
   float f = vFx.b;
-  float ring = exp(-pow((u - (1.0 - f) * 0.95) * 9.0, 2.0));
+  float ring = exp(-pow(abs((u - (1.0 - f) * 0.95) * 9.0), 2.0));
   col += mix(vTone, white, 0.55) * f * (exp(-u * u * 6.0) * 1.2 + ring * 0.9);
   gl_FragColor = vec4(col * edge, 1.0);
 }

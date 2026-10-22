@@ -125,7 +125,7 @@ void main() {
   if (r > 1.35) discard;
   float theta = atan(p.y, p.x) - uTime * 0.01;
   float phase = theta - log(max(r, ${R0.toFixed(3)}) / ${R0.toFixed(3)}) / ${PITCH.toFixed(3)};
-  float arms = pow(0.5 + 0.5 * cos(2.0 * phase), 2.5);
+  float arms = pow(max(0.5 + 0.5 * cos(2.0 * phase), 0.0), 2.5);
   float n = fbm3(vec3(p * 3.2, 0.7)) * 0.5 + 0.5;
   float bulge = exp(-r * r * 60.0) * 1.4 + exp(-r * 7.0) * 0.5;
   float disc = arms * exp(-r * 1.9) * smoothstep(0.02, 0.18, r) * (0.45 + 0.9 * n);

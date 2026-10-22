@@ -57,7 +57,7 @@ export const nebulaFragment = /* glsl */ `
     float n = fbm(d * 2.1 + vec3(drift, 0.0, -drift * 0.5)) * 0.5 + 0.5;
     float m = fbm(d * 4.3 + vec3(0.0, drift, n * 1.4)) * 0.5 + 0.5;
     float w = fbm(d * 9.0 + n * 2.0) * 0.5 + 0.5;
-    float band = exp(-pow((d.y + 0.22 * sin(d.x * 2.4 + 0.6)) * 2.4, 2.0));
+    float band = exp(-pow(abs((d.y + 0.22 * sin(d.x * 2.4 + 0.6)) * 2.4), 2.0));
     vec3 indigo = vec3(0.106, 0.122, 0.290);
     vec3 teal = vec3(0.051, 0.231, 0.247);
     vec3 rose = vec3(0.20, 0.08, 0.22);
@@ -251,7 +251,7 @@ export const discFragment = /* glsl */ `
     float a = atan(p.y, p.x);
     float spiral = 0.5 + 0.5 * cos(uArms * (a + uImplode * 6.0) - log(r + 0.04) * uTwist * uArms * 0.5);
     float fall = exp(-r * 3.4);
-    float v = fall * (0.3 + 0.7 * pow(spiral, 2.5)) * smoothstep(1.0, 0.55, r);
+    float v = fall * (0.3 + 0.7 * pow(max(spiral, 0.0), 2.5)) * smoothstep(1.0, 0.55, r);
     v += exp(-r * r * 60.0) * 0.6;
     vec3 col = mix(uInner, uOuter, smoothstep(0.0, 0.7, r));
     float l = dot(col, vec3(0.299, 0.587, 0.114));
@@ -311,7 +311,7 @@ export const glowFragment = /* glsl */ `
     if (r > 1.0) discard;
     float a;
     if (uRing > 0.0) {
-      a = exp(-pow((r - 0.82) * 14.0, 2.0)) + exp(-r * 3.0) * 0.08;
+      a = exp(-pow(abs((r - 0.82) * 14.0), 2.0)) + exp(-r * 3.0) * 0.08;
     } else {
       a = exp(-r * r * 18.0) * 1.6 + exp(-r * 4.0) * 0.4;
     }

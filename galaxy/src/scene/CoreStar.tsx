@@ -101,7 +101,7 @@ void main() {
   float t = uTime;
   float rays = snoise(vec3(cos(a + t * 0.012) * 3.2, sin(a + t * 0.012) * 3.2, t * 0.07)) * 0.5 + 0.5;
   float fine = snoise(vec3(cos(a - t * 0.02) * 9.0, sin(a - t * 0.02) * 9.0, t * 0.15)) * 0.5 + 0.5;
-  float streamers = pow(rays, 3.0) * 1.1 + pow(fine, 4.0) * 0.5;
+  float streamers = pow(max(rays, 0.0), 3.0) * 1.1 + pow(max(fine, 0.0), 4.0) * 0.5;
   vec3 hot = vec3(1.0, 0.97, 0.92);
   float glow = exp(-x * 1.25);
   float inner = exp(-x * 5.5);
@@ -121,8 +121,8 @@ varying vec2 vUv;
 varying vec4 vFx;
 void main() {
   vec2 q = vUv;
-  float streak = exp(-pow(q.y * 7.0, 2.0)) * pow(max(1.0 - abs(q.x), 0.0), 2.4);
-  float thin = exp(-pow(q.y * 26.0, 2.0)) * pow(max(1.0 - abs(q.x), 0.0), 1.2);
+  float streak = exp(-pow(abs(q.y * 7.0), 2.0)) * pow(max(1.0 - abs(q.x), 0.0), 2.4);
+  float thin = exp(-pow(abs(q.y * 26.0), 2.0)) * pow(max(1.0 - abs(q.x), 0.0), 1.2);
   float core = exp(-dot(q * vec2(4.0, 9.0), q * vec2(4.0, 9.0)));
   float shimmer = 0.85 + 0.15 * sin(uTime * 1.3);
   vec3 hot = vec3(1.0, 0.98, 0.95);
@@ -150,11 +150,11 @@ void main() {
   float r = length(vLocal.xy);
   float k = (r - uBand.x) / (uBand.y - uBand.x);
   float a = atan(vLocal.y, vLocal.x);
-  float profile = exp(-pow((k - 0.5) * 4.6, 2.0));
-  float thin = exp(-pow((k - 0.5) * 18.0, 2.0));
-  float arc = pow(0.5 + 0.5 * cos(a - uTime * 1.25), 14.0);
-  float arc2 = pow(0.5 + 0.5 * cos(a + 3.14159 - uTime * 1.25), 30.0) * 0.5;
-  float ripples = pow(0.5 + 0.5 * cos(a * 18.0 - uTime * 4.0), 6.0) * 0.18;
+  float profile = exp(-pow(abs((k - 0.5) * 4.6), 2.0));
+  float thin = exp(-pow(abs((k - 0.5) * 18.0), 2.0));
+  float arc = pow(max(0.5 + 0.5 * cos(a - uTime * 1.25), 0.0), 14.0);
+  float arc2 = pow(max(0.5 + 0.5 * cos(a + 3.14159 - uTime * 1.25), 0.0), 30.0) * 0.5;
+  float ripples = pow(max(0.5 + 0.5 * cos(a * 18.0 - uTime * 4.0), 0.0), 6.0) * 0.18;
   vec3 hot = vec3(1.0, 0.98, 0.95);
   vec3 col = uTone * profile * (0.18 + ripples) + mix(uTone, hot, 0.6) * (profile * 0.6 + thin * 1.6) * (arc + arc2);
   gl_FragColor = vec4(col * uActivity, 1.0);

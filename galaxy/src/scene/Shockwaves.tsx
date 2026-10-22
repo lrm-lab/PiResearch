@@ -52,7 +52,7 @@ void main() {
   if (u > 1.0) discard;
   float r = 1.0 - pow(1.0 - age, 3.0);
   float w = 0.035 + 0.08 * age;
-  float ring = exp(-pow((u - r) / w, 2.0));
+  float ring = exp(-pow(abs((u - r) / w), 2.0));
   float inner = smoothstep(r, 0.0, u) * 0.18 * (1.0 - age);
   float fade = pow(1.0 - age, 1.5);
   vec3 col = mix(vColor, vec3(1.0), 0.35 * (1.0 - age)) * (ring * 1.6 + inner) * fade;
