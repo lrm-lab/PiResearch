@@ -1,0 +1,98 @@
+/*
+ * Home-only styles that utilities cannot express: the cross-document view transition into a
+ * study, the hero's static gradient (no-WebGL / before the shader's first frame), skeleton shimmer
+ * and the composer caret. Colours come from tokens (tokens.css) only.
+ */
+
+/* Clicking a card morphs its mini into the study page (both documents load this bundle). */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-group(prism-diorama) {
+  animation-duration: 460ms;
+  animation-timing-function: var(--ease-out-quint);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+
+/* The landing gradient's colours as a still picture: violet light pooling over the ground. */
+.home-hero-still {
+  background:
+    radial-gradient(60% 90% at 18% 10%, color-mix(in srgb, var(--prism-lavender) 55%, transparent) 0%, transparent 60%),
+    radial-gradient(70% 100% at 85% 30%, color-mix(in srgb, var(--prism-violet) 85%, transparent) 0%, transparent 65%),
+    radial-gradient(80% 80% at 50% 115%, color-mix(in srgb, var(--prism-violet) 60%, transparent) 0%, transparent 70%),
+    var(--prism-ground);
+}
+
+/* Legibility veil over the gradient, as on the landing page. */
+.home-hero-veil {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--prism-ground) 35%, transparent) 0%,
+    color-mix(in srgb, var(--prism-ground) 5%, transparent) 38%,
+    color-mix(in srgb, var(--prism-ground) 45%, transparent) 78%,
+    color-mix(in srgb, var(--prism-ground) 70%, transparent) 100%
+  );
+}
+
+.home-skeleton {
+  background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, var(--color-bg-primary) 70%, transparent) 50%,
+      transparent 70%
+    )
+    0 0 / 250% 100% no-repeat,
+    var(--color-bg-secondary);
+  animation: home-skeleton 1.6s linear infinite;
+}
+
+@keyframes home-skeleton {
+  from {
+    background-position: 150% 0, 0 0;
+  }
+  to {
+    background-position: -100% 0, 0 0;
+  }
+}
+
+/* Thin text caret for the typed placeholder. */
+.home-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.15em;
+  margin-left: 1px;
+  vertical-align: -0.2em;
+  background: currentColor;
+  animation: prism-caret 1s steps(1) infinite;
+}
+
+/* The forming card's crystal: light flows along the spectrum rays. */
+.home-ray {
+  stroke-dasharray: 5 4;
+  animation: home-ray 0.9s linear infinite;
+}
+
+@keyframes home-ray {
+  to {
+    stroke-dashoffset: -9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-skeleton,
+  .home-caret,
+  .home-ray {
+    animation: none;
+  }
+}
