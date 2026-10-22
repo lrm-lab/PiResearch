@@ -639,7 +639,17 @@ html.home-doc {
   font-size: 17px;
   line-height: 1.55;
   caret-color: #7fe6ff;
-  scrollbar-width: thin;
+  /* One line is only slightly taller than the empty box, so the native
+     scrollbar thumb sits between the text and the launch button. Keep
+     wheel and keyboard scrolling; do not draw that thumb. */
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.home-composer-input::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .home-composer-input::placeholder {
