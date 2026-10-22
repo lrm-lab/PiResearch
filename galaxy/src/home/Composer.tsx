@@ -161,11 +161,15 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
           />
           <button ref={buttonRef} type="submit" className="home-launch" aria-label="开始研究" title="开始研究" disabled={busy}>
             <span className="home-launch-ring" aria-hidden="true" />
-            <svg viewBox="0 0 32 36" aria-hidden="true" className="home-launch-icon">
-              <path className="home-launch-flame" d="M16 21.5c-2.4 3.4-3.6 6.4-2.1 11 1.7-2.6 2.7-1.7 2.1.6 1.5-2.8 2.8-2.2 3.6 0C18.2 28.2 19.6 25 16 21.5Z" />
-              <path fill="currentColor" d="M16 1.4c3.6 3.8 5.2 7.6 5.2 12V22H10.8V13.4c0-4.4 1.6-8.2 5.2-12Z" />
-              <path fill="currentColor" d="M10.8 15.2 5.4 23.2h5.4zm10.4 0 5.4 8h-5.4Z" />
-              <circle cx="16" cy="12.4" r="1.85" fill="#dff8ff" />
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="home-launch-icon">
+              <path
+                d="M12 3.2c2.9 2.1 4.4 5.2 4.4 8.6 0 1.6-.4 3.1-1 4.4H8.6c-.6-1.3-1-2.8-1-4.4 0-3.4 1.5-6.5 4.4-8.6Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+              <circle cx="12" cy="10.2" r="1.7" fill="currentColor" />
+              <path d="M9.6 19.2 12 21l2.4-1.8M8.4 13.6l-2.6 2.2.6 2.4 2.6-1.4m6.6-3.2 2.6 2.2-.6 2.4-2.6-1.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         </div>
