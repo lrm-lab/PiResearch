@@ -230,22 +230,20 @@ export interface KeyInput {
 export interface KeyContext {
   tab: StudyTab;
   hasReport: boolean;
-  /** The 3D map can render (WebGL2). */
-  mapAvailable: boolean;
 }
 
 export type KeyAction =
   | { kind: "lens" }
-  | { kind: "core" }
-  | { kind: "overview" }
+  | { kind: "fit" }
   | { kind: "escape" }
   | { kind: "help" }
   | { kind: "tab"; tab: StudyTab }
   | { kind: "step"; delta: 1 | -1 };
 
 /**
- * Page shortcuts: V lens · F goal · R overview · Esc · ? help · 1/2/3 tabs · ↑/↓ (and J/K) in the
- * task list. Nothing fires while typing, composing (IME), or with Cmd/Ctrl/Alt held.
+ * Page shortcuts: V lens · F fit the map · Esc · ? help · 1/2/3 tabs · ↑/↓ (and J/K) in the task list.
+ * (Arrow keys on the map are handled by the map itself: they move between stars.) Nothing fires
+ * while typing, composing (IME), or with Cmd/Ctrl/Alt held.
  */
 export function keyAction(input: KeyInput, context: KeyContext): KeyAction | null {
   if (input.defaultPrevented || input.isComposing || input.typing) return null;
@@ -258,7 +256,6 @@ export function keyAction(input: KeyInput, context: KeyContext): KeyAction | nul
   if (input.repeat) return null;
   if (input.key === "?") return { kind: "help" };
   const key = input.key.toLowerCase();
-  const onMap = context.tab === "map" && context.mapAvailable;
   switch (key) {
     case "1":
       return { kind: "tab", tab: "map" };
@@ -269,9 +266,7 @@ export function keyAction(input: KeyInput, context: KeyContext): KeyAction | nul
     case "v":
       return context.tab === "report" ? null : { kind: "lens" };
     case "f":
-      return onMap ? { kind: "core" } : null;
-    case "r":
-      return onMap ? { kind: "overview" } : null;
+      return context.tab === "map" ? { kind: "fit" } : null;
     case "j":
       return context.tab === "tasks" ? { kind: "step", delta: 1 } : null;
     case "k":
@@ -299,11 +294,6 @@ export function searchWithTab(search: string, tab: StudyTab, defaultTab: StudyTa
   else params.set("tab", tab);
   const next = params.toString();
   return next ? `?${next}` : "";
-}
-
-/** `?nowebgl=1` forces the no-WebGL path (DESIGN.md §6). */
-export function noWebglFlag(search: string): boolean {
-  return new URLSearchParams(search).get("nowebgl") === "1";
 }
 
 // ---------------------------------------------------------------------------

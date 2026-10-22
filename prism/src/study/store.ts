@@ -1,4 +1,4 @@
-// Study-page state shared by the 3D scene (src/scene/**) and the page chrome (src/study/**).
+// Study-page state shared by the star map and the page chrome (src/study/**).
 // Data loading lives here; components only read state and call actions.
 
 import { create } from "zustand";
@@ -9,9 +9,6 @@ import type { Snapshot, Step, ViewNode } from "../types/api";
 export type LoadState = "loading" | "ready" | "error";
 /** Why the first load failed: the study does not exist (404), or anything else (still retrying). */
 export type LoadErrorKind = "missing" | "retry";
-export type Quality = "auto" | "high" | "low";
-export type QualityTier = "high" | "low";
-
 export interface NodeDetailEntry {
   /** `steps_revision` the steps belong to. */
   revision: string;
@@ -19,27 +16,11 @@ export interface NodeDetailEntry {
   state: LoadState;
 }
 
-/** What the camera should do. The scene reacts to each new `nonce`. */
-export type CameraIntent =
-  /** Fly to frame one body. */
-  | { kind: "focus"; id: string }
-  /** Fly back to the full overview (key R). */
-  | { kind: "overview" }
-  /** Fly to the goal prism (key F, 回到主问题). */
-  | { kind: "core" }
-  /** Zoom one step in (+1) or out (-1) around the current target (toolbar buttons). */
-  | { kind: "zoom"; step: 1 | -1 };
-
-export type CameraCommand = CameraIntent & { nonce: number };
-
-/** The page's three views (header tabs): 3D task map, task list, report. */
+/** The page's three views (header tabs): star map, task list, report. */
 export type StudyView = "map" | "tasks" | "report";
 
 export const FIRST_LOAD_FAILED = "研究服务没有返回数据，正在重试。";
 export const REFRESH_FAILED = "连接中断";
-
-/** The camera flight into the goal prism (key F). */
-export const CORE_DIVE_MS = 900;
 
 export interface StudyState {
   /** Study id from the URL, e.g. "sessions/20261020-101500/1". */
@@ -59,18 +40,14 @@ export interface StudyState {
   tab: StudyView;
   /** Agents hidden by the toolbar filter (empty = all shown). */
   hiddenAgents: Record<string, true>;
-  quality: Quality;
-  /** What the scene renders. With quality "auto" the scene's monitor sets it. */
-  effectiveQuality: QualityTier;
   /** Live `prefers-reduced-motion`. */
   reducedMotion: boolean;
   /** Lazily loaded steps by node id. */
   nodeDetails: Record<string, NodeDetailEntry>;
-  cameraCommand: CameraCommand | null;
 
   /** Start polling a study. Returns the cleanup (stops the poller). */
   startStudy(studyId: string): () => void;
-  /** Select a node (flies the camera to it and loads its steps) or clear with null. */
+  /** Select a node (loads its steps) or clear with null. */
   select(id: string | null): void;
   hover(id: string | null): void;
   /** Clear the hover only if `id` still holds it (another label or body may already have taken it). */
@@ -79,17 +56,12 @@ export interface StudyState {
   setTab(tab: StudyView): void;
   toggleAgent(agent: string): void;
   showAllAgents(): void;
-  setQuality(quality: Quality): void;
-  /** Used by the scene's frame-time monitor; ignored unless quality is "auto". */
-  setAutoTier(tier: QualityTier): void;
   /** Fetch a node's steps if they are not cached for its current steps_revision. */
   loadNode(id: string): Promise<void>;
   /** Drop a failed entry and load again. */
   retryNode(id: string): Promise<void>;
   /** Steps of one node for the trajectory export: the cached ones when current, else a GET /node. */
   fetchNodeSteps(id: string): Promise<Step[]>;
-  /** Emit a camera command (adds the nonce). */
-  emitCamera(intent: CameraIntent): void;
 }
 
 function initialReducedMotion(): boolean {
@@ -99,7 +71,6 @@ function initialReducedMotion(): boolean {
 }
 
 let poller: Poller | null = null;
-let nonce = 0;
 
 export const useStudy = create<StudyState>()((set, get) => {
   function applySnapshot(next: Snapshot) {
@@ -132,11 +103,8 @@ export const useStudy = create<StudyState>()((set, get) => {
     lens: false,
     tab: "map",
     hiddenAgents: {},
-    quality: "auto",
-    effectiveQuality: "high",
     reducedMotion: initialReducedMotion(),
     nodeDetails: {},
-    cameraCommand: null,
 
     startStudy(studyId) {
       poller?.stop();
@@ -149,8 +117,7 @@ export const useStudy = create<StudyState>()((set, get) => {
         selectedId: null,
         hoveredId: null,
         nodeDetails: {},
-        cameraCommand: null,
-        hiddenAgents: {},
+            hiddenAgents: {},
       });
       const own = createPoller({
         prefix: studyApiPrefix(studyId),
@@ -182,7 +149,6 @@ export const useStudy = create<StudyState>()((set, get) => {
         return;
       }
       set({ selectedId: id });
-      get().emitCamera({ kind: "focus", id });
       void get().loadNode(id);
     },
 
@@ -213,14 +179,6 @@ export const useStudy = create<StudyState>()((set, get) => {
 
     showAllAgents() {
       set({ hiddenAgents: {} });
-    },
-
-    setQuality(quality) {
-      set({ quality, effectiveQuality: quality === "auto" ? "high" : quality });
-    },
-
-    setAutoTier(tier) {
-      if (get().quality === "auto" && get().effectiveQuality !== tier) set({ effectiveQuality: tier });
     },
 
     async loadNode(id) {
@@ -267,10 +225,6 @@ export const useStudy = create<StudyState>()((set, get) => {
       return result.detail.steps || [];
     },
 
-    emitCamera(intent) {
-      nonce += 1;
-      set({ cameraCommand: { ...intent, nonce } });
-    },
   };
 });
 

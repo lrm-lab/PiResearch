@@ -1,7 +1,7 @@
 // Study page header (DESIGN.md §4): back, the question, phase + progress meta, centred tabs, and
-// the map actions (verification lens, recentre) plus the Galaxy / Prism / 2D and theme controls.
+// the verification lens, export, and the Galaxy / Prism / 2D and theme controls.
 
-import { ArrowLeft, Dataflow03, File06, Maximize02, Rows01, SearchRefraction } from "@untitledui/icons";
+import { ArrowLeft, Dataflow03, File06, Rows01, SearchRefraction } from "@untitledui/icons";
 import { goalActivity, phaseLabel, progress } from "../lib/activity";
 import { APP_BASE } from "../lib/api";
 import { Button } from "../ui/Button";
@@ -16,11 +16,9 @@ import { StudyTabs, type StudyTabItem } from "./StudyTabs";
 
 export function StudyHeader({
   studyId,
-  mapAvailable,
   taskCount,
 }: {
   studyId: string;
-  mapAvailable: boolean;
   taskCount: number;
 }) {
   const view = useStudy((state) => state.view);
@@ -30,7 +28,6 @@ export function StudyHeader({
   const setTab = useStudy((state) => state.setTab);
   const lens = useStudy((state) => state.lens);
   const toggleLens = useStudy((state) => state.toggleLens);
-  const emitCamera = useStudy((state) => state.emitCamera);
 
   const back = (
     <LinkButton href={APP_BASE} color="tertiary" icon={ArrowLeft} iconOnly className="-ml-2">
@@ -48,7 +45,7 @@ export function StudyHeader({
       title={question || undefined}
       className="block truncate @3xl:max-w-[calc(50cqw-14rem)] @6xl:max-w-[calc(50cqw-25.5rem)]"
     >
-      {question || "这份运行没有任务图"}
+      {question || (view.running === false ? "这份运行没有任务图" : "正在等待派发任务")}
     </span>
   ) : (
     <Skeleton className="h-5 w-[min(22rem,50vw)]" />
@@ -56,7 +53,7 @@ export function StudyHeader({
 
   const hasReport = Boolean(view?.report);
   const items: StudyTabItem<StudyTab>[] = [
-    { id: "map", label: "任务图", icon: Dataflow03, hint: "3D 任务图", shortcut: "1" },
+    { id: "map", label: "任务图", icon: Dataflow03, hint: "星图：任务与它们的关系", shortcut: "1" },
     { id: "tasks", label: "任务", icon: Rows01, badge: view ? taskCount : undefined, hint: "任务列表", shortcut: "2" },
     {
       id: "report",
@@ -68,7 +65,6 @@ export function StudyHeader({
     },
   ];
 
-  const mapActions = tab === "map" && mapAvailable && Boolean(view?.ok);
   const lensUsable = tab !== "report" && Boolean(view?.ok);
 
   return (
@@ -89,16 +85,6 @@ export function StudyHeader({
               disabled={!lensUsable}
               onClick={toggleLens}
               className={cx(lens && "bg-brand-primary! text-brand-secondary! ring-brand-300! dark:ring-brand-700!")}
-            />
-          </Tooltip>
-          <Tooltip label="回到全景" shortcut="R" align="end">
-            <Button
-              color="secondary"
-              iconLeading={Maximize02}
-              aria-label="回到全景"
-              aria-keyshortcuts="R"
-              disabled={!mapActions}
-              onClick={() => emitCamera({ kind: "overview" })}
             />
           </Tooltip>
           <ExportMenu />
