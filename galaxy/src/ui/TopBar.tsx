@@ -32,8 +32,7 @@ export function TopBar() {
 
   return (
     <header className="topbar glass hud-auto">
-      <a href="/galaxy/" title="回到主页" className="topbar-brand">
-        <span className="topbar-brand-mark" aria-hidden="true" />
+      <a href="/galaxy/" className="topbar-brand">
         <span className="topbar-brand-text">PiResearch</span>
       </a>
       <span className="topbar-divider" aria-hidden="true" />

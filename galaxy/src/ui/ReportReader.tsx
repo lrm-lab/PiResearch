@@ -137,7 +137,7 @@ function Dialog() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="galaxy-report-title"
-        className="report-panel glass glass-strong"
+        className="report-panel"
         initial={{ opacity: 0, scale: 0.965, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: 10, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
