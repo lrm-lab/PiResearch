@@ -97,9 +97,10 @@ export function RetryNotice({ message }: { message: string }) {
 
 const SHORTCUTS: [keys: string[], label: string][] = [
   [["1", "2", "3"], "切换任务图 / 任务 / 报告"],
-  [["V"], "核验透镜"],
-  [["F"], "飞向主问题"],
-  [["R"], "回到全景"],
+  [["←", "↑", "↓", "→"], "在星图中移动到相邻任务"],
+  [["Enter"], "选中任务，打开详情"],
+  [["V"], "核验透镜：显示所有审核、支持、挑战、错误"],
+  [["F"], "让星图适应屏幕"],
   [["↑", "↓"], "在任务列表中移动"],
   [["Esc"], "关闭面板 / 取消选择"],
   [["?"], "显示快捷键"],
@@ -134,8 +135,8 @@ export function ShortcutsCard({ raised }: { raised: boolean }) {
           exit={{ opacity: 0, y: 6, scale: 0.98, transition: { duration: 0.12 } }}
           transition={{ duration: 0.2, ease: EASE_OUT }}
           className={cx(
-            "absolute left-4 z-40 w-72 origin-bottom-left rounded-xl bg-primary p-1.5 shadow-lg ring-1 ring-border-secondary",
-            raised ? "bottom-16" : "bottom-4",
+            "absolute left-4 z-40 w-80 origin-bottom-left rounded-xl bg-primary p-1.5 shadow-lg ring-1 ring-border-secondary",
+            raised ? "bottom-24" : "bottom-4",
           )}
         >
           <div className="flex items-center justify-between px-2.5 pt-1.5 pb-1">

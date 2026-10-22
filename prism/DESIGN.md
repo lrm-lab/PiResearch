@@ -1,9 +1,9 @@
-# PiResearch Prism: a CoForge-native 3D frontend
+# PiResearch Prism: a CoForge-native frontend
 
-The third PiResearch frontend. It keeps the 3D spectacle of Galaxy but speaks CoForge's visual
+The third PiResearch frontend. It keeps Galaxy's star-map idea but speaks CoForge's visual
 language, so it can sit inside a CoForge content card without looking foreign. Galaxy is deep space
-(dark, bloom, neon); Prism is a **lit desk diorama on CoForge's white page**, with the dark theme
-following CoForge's own dark mode.
+(dark, bloom, neon); Prism is a **readable star map on CoForge's white page** (SVG + DOM, no WebGL on
+the study page), with the dark theme following CoForge's own dark mode.
 
 Ground rules (from the project owner):
 - `constellation/` (2D), `galaxy/`, every backend API, the Dockerfile, Caddy and deploy config stay
@@ -16,7 +16,8 @@ Ground rules (from the project owner):
 ## 1. Stack
 
 Vite + React 19 + TypeScript (strict), base `/prism/`. three.js + React Three Fiber v9 + drei +
-`@react-three/postprocessing`. Motion for DOM animation. Tailwind v4. zustand. react-markdown +
+`@react-three/postprocessing` (home page only: the hero gradient and the study minis; the study page
+uses none of it). Motion for DOM animation. Tailwind v4. zustand. react-markdown +
 remark-gfm. Vitest for pure logic. Fonts self-hosted with `@fontsource-variable` (Inter, Noto Sans SC,
 JetBrains Mono): no external requests. Icons: `@untitledui/icons` (MIT), the set CoForge uses.
 
@@ -26,7 +27,7 @@ Source: the CoForge repo, `apps/web/src/styles/coforge-theme.css` and `docs/desi
 
 - **Tokens, not hex.** `src/styles/tokens.css` defines CoForge's semantic tokens with CoForge's values;
   components use `bg-primary`, `bg-secondary`, `text-primary/secondary/tertiary/quaternary`,
-  `border-secondary`, `bg-brand-solid`, `text-brand-secondary`, `bg-terminal` etc. Three.js code reads
+  `border-secondary`, `bg-brand-solid`, `text-brand-secondary`, `bg-terminal` etc. Canvas / SVG code reads
   the mirrored constants in `src/lib/palette.ts`.
 - **Theme follows the host.** `.dark-mode` on `<html>` (CoForge's class). Source order: `?theme=`,
   then a parent `postMessage({type:"coforge:theme", theme})`, then `prefers-color-scheme`
@@ -55,89 +56,94 @@ Source: the CoForge repo, `apps/web/src/styles/coforge-theme.css` and `docs/desi
 Shared primitives (`src/ui/`): `Button`, `Badge`, `StatusIcon`, `AgentAvatar`, `Tabs`, `PageHeader`,
 `cx`. Use them; do not restyle them per page.
 
-## 3. Study page: the desk diorama (`src/scene/**`)
+## 3. Study page: the star map (`src/study/starmap/**`)
 
-The research is a miniature model on a desk, seen from above at an angle, lit like a product render.
+The research is a constellation, drawn flat. It is the server's own 2D layout (the one the classic
+page shows), so it stays readable; what Prism adds is CoForge styling, crisp DOM text and motion.
+There is no WebGL on this page: SVG for stars and lines, DOM for text, CSS for effects.
 
-**Ground.** An infinite plane in `bg-primary`, with a faint dot grid (`border-secondary` dots) and a
-soft radial tint under the centre (light `#f3f1ff`, dark `#21183b`), fading into fog of exactly the
-page colour, so the desk has **no horizon and no edge**: it melts into the page.
+**Layout.** Node `x`, `y`, `radius` as the server sends them, goal near the centre. A single
+transform `screen = world * k + (x, y)` fits the bounding box into the map area with padding
+(`fitTransform`, deterministic, capped so a one-node study is not enormous). No tilt, no
+perspective, text never skewed. Pan (drag, with momentum), zoom (wheel, pinch, `+` / `−` / fit
+buttons bottom-right, key `F` fits), clamped so the map can never be dragged away. Selecting a star
+glides it into the area the detail panel leaves free. The fit is followed on resize until the visitor
+takes the camera.
 
-**Layout.** The server's 2D layout (`x`, `y`, `radius`, goal near the centre) is lifted onto the
-desk: `X = (x - goal.x) * s`, `Z = (y - goal.y) * s`. One scale `s` per snapshot, chosen from the
-minimum pairwise centre distance so the widest card never overlaps a neighbour (≥ 15% gap), clamped.
-Positions depend only on the snapshot, never on status, so nothing reshuffles while a run progresses.
+**Stars.** Each node is a soft glowing orb in its agent tone (`agentTone`; the goal larger, brand
+violet, with a slow dashed halo) wrapped in a CoForge status ring in `TONE_HEX`: empty dashed =
+未开始, half arc (turning slowly) = 进行中, full arc + check = 已完成, grey + cross = 已取消, red +
+bang and a red pulse = an incoming error edge. The goal's ring shows `resolved / total`. Orb radius
+follows `radius` and the zoom, with a readable minimum. In-progress stars pulse and carry up to three
+small orbiting dots, one per live tool call.
 
-**Goal = a glass prism.** A triangular glass prism at the origin (transmission material with
-chromatic aberration) refracting a violet/lavender environment, slowly turning. From it, **spectrum
-rays** fan out across the desk to each agent's hub card, white at the prism turning into that agent's
-tone: the question is white light split into agents. While the run is planning or finalising
-(`goalActivity`), light pulses through the prism and along the rays. Above it floats the question as
-a CoForge card (DOM: `text-sm font-semibold`, phase chip with shimmer).
+**Labels** are DOM chips next to the stars (`T<n>` + title, at most 180px, two lines, `text-sm`,
+`bg-primary/90`, `border-secondary`; red border on errors, brand border on the selection). The goal's
+chip is the question in brand colours. In-progress chips end with a dark mono line holding the live
+call (typed with a caret; 思考 shimmers). Placement (`labels.ts`) is greedy by priority (goal,
+related to the hovered / selected star, in progress, error, hubs, size) over eight candidate spots
+around the orb, avoiding other chips and orbs; if the full chip does not fit it falls back to a
+compact `T<n>` chip, then hides. Hovered, focused and selected stars always show the full chip. On
+mobile only the compact chip shows, except for the hovered / selected star.
 
-**Tasks = 3D CoForge cards.** Thin rounded slabs, the top face drawn on a canvas texture in CoForge
-type: status ring + label, title (two lines), the agent avatar tile, `N 次调用` in mono. Under each
-card a **stack of paper sheets** whose height grows with `step_count` (instanced). By status:
+**Edges.** `parent` edges are the constellation lines: always drawn, thin, neutral, gently curved,
+with a slow dash flowing toward an in-progress child. Verification edges are hidden until asked for:
 
-| Status | Card |
-|---|---|
-| open | Ghost: translucent, dashed outline, resting on the desk |
-| in_progress | Floats above the desk and bobs; a **border beam** (blue → lavender) travels its edge |
-| resolved | Rests, crisp, soft contact shadow |
-| cancelled | Greyed, sunk, slightly tilted |
-| error (incoming error edge, not resolved) | Red edge glow, small shake every few seconds |
+| Relation | Colour (`RELATION_HEX`) | Label |
+|---|---|---|
+| parent (touching the active star) | neutral `#afbccb`, thicker | 子任务 / 上级任务 |
+| audit / fusion | indigo | 审核 |
+| support | green | 支持 |
+| challenge | orange | 挑战 |
+| error | red, heavier | 指出错误 |
 
-Live tool calls float above their card as small dark terminal chips (`【执行】calc ratio.py`, mono,
-typed with a caret); `【思考】` shows as a shimmering "正在想下一步".
+On hover or keyboard focus of a star, its edges are drawn on with arrowheads and labels, and
+unrelated stars dim. The selection keeps its edges drawn (hover adds to it). The 核验透镜 (`V`)
+draws every verification edge at once and dims the rest. Edge labels slide along their curve to
+avoid each other (`spreadEdgeLabels`).
 
-**Relations** are drawn on the desk as flat light ribbons; verification relations get semantic colour:
+**Backdrop and motion.** A faint twinkling star field (three CSS dot layers out of phase, a very
+slight parallax with the pan) over a drifting violet nebula; light theme lavender dots and the
+`#f3f1ff` haze on white, dark theme the `#21183b` to `#141720` sky. Intro: stars fade and pop in by
+parent depth from the goal outward while the constellation lines draw on. New stars twinkle in at
+once, a status change animates the ring (arc grows, mark pops). Reduced motion: everything static,
+camera moves are instant.
 
-| Relation | Look |
-|---|---|
-| parent | Thin neutral `#afbccb` curve; dashes flow toward a child that is in progress |
-| audit / fusion | Indigo, dotted, a bright scan sweeping from reviewer to target |
-| support | Green, solid, a travelling glow |
-| challenge | Orange arch lifted off the desk, a bead travelling along it |
-| error | Red, jagged, pulsing |
-
-**Light & post.** Light theme: soft key light + hemisphere, contact shadows, ambient occlusion, a
-gentle tilt-shift blur toward the top/bottom edges (the miniature look), SMAA. No bloom on white.
-Dark theme: same scene, cards in `#171717` with luminous edges, mild bloom on beams/rays.
-Quality `auto` drops AO / tilt-shift / bloom and DPR when frames are slow.
-
-**Motion.** Intro: camera eases down from above; cards drop onto the desk in id order with a spring
-and a ripple on landing, sheets fan in, relations draw on, the prism fades in last with a glint.
-Hover lifts a card and highlights its relations. Click selects (brand-violet outline) and the camera
-glides to frame it, offset for the detail panel. A new task drops in with a ripple; a status change
-**flips the card** to reveal its new face. Idle: a very slow orbit drift that stops on interaction.
-Reduced motion: no drift/bob/beam animation, transitions are instant.
-
-**Camera.** Narrow FOV (~30°) for a near-isometric diorama; orbit with damping, polar angle limited
-(looking down 35°–70°), zoom limits, right-drag pans. Keys: F goal, R overview, V lens, Esc deselect.
+**Keyboard.** Stars are a roving tab stop: arrows move to the nearest star in that direction
+(`nav.ts`), Enter selects, Esc clears, `V` lens, `F` fit, `1` / `2` / `3` tabs, `?` help. Shortcuts
+are ignored while typing, composing, or with a modifier held.
 
 ## 4. Study page chrome (`src/study/**`)
 
 - **Header**: back button → `/prism/`, the question as the title, meta = phase + `R/N 已完成`. Tabs
-  centred: 任务图 (3D) / 任务 (list, with count) / 报告 (disabled until a report exists). Actions:
-  verification-lens toggle, recentre, `经典视图` (2D page).
-- **Toolbar** (44px, map and list): agent filter chips (avatar + name, toggles), status counters
-  (ring icon + count), relation legend popover.
-- **Detail panel**: CoForge slideout, 400px on the right (`bg-primary border-l border-secondary
-  shadow-xl`, spring in). Header: status ring + title + close. Facts as CoForge field rows (label
-  `text-tertiary` left, value right): 状态, 负责 (avatar + name), 工具调用, 关联 (relation chips that
-  select the linked task), 子任务. 备注 as prose. **工具步骤 as a dark terminal**: one line per step
-  (`$ 【查询】…`, hint dimmed, detail expandable, errors red), live calls typed at the bottom with a
-  caret. The goal's panel: the question, phase, a segmented progress bar in status colours, the agent
-  roster, a button to the report.
-- **任务 tab**: CoForge Activity-style full-width rows grouped by status (sticky group headers): ring
-  icon, title, agent avatar + name, relation badges, call count in mono. Selecting a row opens the same
-  detail panel; at `lg` the list narrows to a 35rem column.
+  centred: 任务图 (star map) / 任务 (list, with count) / 报告 (disabled until a report exists).
+  Actions: verification-lens toggle, export, the Galaxy / Prism / 2D switcher and theme.
+- **Question strip** (任务图 tab, under the header): the full question clamped to two lines with
+  展开; the phase chip; a segmented progress bar in status colours; the agent roster (avatars,
+  hovering one lights its stars) with the count; one plain-language line
+  (`summaryLine`: "6 个智能体在研究 · 15/30 已完成 · 2 处有错误 · 5 个工具调用进行中"); a secondary
+  阅读报告 button when a report exists; and a small animated prism mark (SVG), the only remnant of the
+  old glass prism.
+- **Map overlays**: lens pill (top centre), zoom / fit group (bottom-right, moves with the panel or
+  sheet), legend of the five status rings plus a one-line interaction hint (bottom-left).
+- **Detail panel**: CoForge slideout, 400px on the right over the map (`bg-primary border-l
+  border-secondary shadow-xl`, spring in). Header: status ring + title + close. Facts as CoForge field
+  rows: 状态, 负责 (avatar + name), 工具调用, 关联 (relation chips that select the linked task),
+  子任务. 备注 as prose. **工具步骤 as a dark terminal**: one line per step, live calls typed at the
+  bottom with a caret. The goal's panel: the question, phase, progress bar, agent roster, report button.
+- **任务 tab**: CoForge Activity-style full-width rows grouped by status under sticky headers, with
+  the 44px toolbar (agent filter chips, status counters, legend). At `lg` the list narrows to a
+  35rem column beside the panel.
 - **报告 tab**: CoForge document typography, centred `max-w-3xl`, sticky table of contents on wide
   screens, a thin brand reading-progress bar, tables with `border-secondary` and `bg-secondary`
   headers. `react-markdown` loads lazily.
-- **States**: skeleton while loading; missing-study empty state; refresh-failed toast (CoForge toast:
-  white card, `shadow-lg`); no WebGL → the 任务 tab is the default and the map tab explains why.
-- **Mobile** (< `lg`): tabs drop to a second header row, the detail panel becomes a bottom sheet.
+- **States**: loading (skeleton strip over a faint sky); missing study (empty state); a run with no
+  graph yet ("正在等待派发任务", the strip alone over an empty sky); a goal-only or one-node study (the
+  goal star centred with a hint); refresh-failed toast (CoForge toast: white card, `shadow-lg`).
+  There is no WebGL branch on this page.
+- **Mobile** (< `lg`): tabs drop to a second header row; the same map with pinch zoom starting
+  fit-to-screen and compact `T<n>` chips; the detail panel becomes a bottom sheet and the selected
+  star is centred above it.
 
 ## 5. Home (`src/home/**`)
 

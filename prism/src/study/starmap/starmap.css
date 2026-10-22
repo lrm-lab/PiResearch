@@ -1,0 +1,258 @@
+/*
+ * Star map effects (DESIGN.md §3): twinkling star field, nebula haze, star pulses, orbiting live
+ * calls, draw-on edges. CSS only; everything stops under prefers-reduced-motion. Colours come from
+ * the theme tokens so light and dark both work.
+ */
+
+.sm-root {
+  --sm-star: var(--color-brand-300);
+  --sm-haze: var(--color-bg-brand-primary);
+  --sm-haze-2: var(--color-brand-100);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dark-mode .sm-root {
+  --sm-star: var(--color-brand-200);
+  --sm-haze: rgb(93 54 220 / 0.22);
+  --sm-haze-2: rgb(33 24 59 / 0.9);
+}
+
+/* Nebula: two soft blobs that drift very slowly. */
+.sm-nebula {
+  position: absolute;
+  inset: -10%;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 45% at 30% 38%, var(--sm-haze) 0%, transparent 70%),
+    radial-gradient(34% 40% at 72% 66%, var(--sm-haze-2) 0%, transparent 72%);
+  animation: sm-drift 40s ease-in-out infinite alternate;
+}
+
+.dark-mode .sm-nebula {
+  background:
+    radial-gradient(40% 45% at 30% 38%, rgb(33 24 59) 0%, transparent 70%),
+    radial-gradient(34% 40% at 72% 66%, var(--sm-haze) 0%, transparent 72%),
+    radial-gradient(70% 70% at 50% 50%, rgb(20 23 32 / 0.55) 0%, transparent 100%);
+}
+
+@keyframes sm-drift {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 1.5%, 0) scale(1.06);
+  }
+}
+
+/* Star field: three layers of dots on tiles; the layers twinkle out of phase. */
+.sm-stars {
+  position: absolute;
+  inset: -60px;
+  pointer-events: none;
+  color: var(--sm-star);
+}
+
+.sm-stars > i {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  animation: sm-twinkle 5s ease-in-out infinite;
+}
+
+.sm-stars > i:nth-child(1) {
+  background-image: radial-gradient(circle, currentColor 0.8px, transparent 1.2px);
+  background-size: 53px 47px;
+}
+.sm-stars > i:nth-child(2) {
+  background-image: radial-gradient(circle, currentColor 1.1px, transparent 1.6px);
+  background-size: 131px 113px;
+  background-position: 37px 21px;
+  animation-delay: -1.7s;
+  animation-duration: 7s;
+}
+.sm-stars > i:nth-child(3) {
+  background-image: radial-gradient(circle, currentColor 1.6px, transparent 2.2px);
+  background-size: 257px 211px;
+  background-position: 91px 67px;
+  animation-delay: -3.4s;
+  animation-duration: 9s;
+  opacity: 0.8;
+}
+
+@keyframes sm-twinkle {
+  0%, 100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* Stars -------------------------------------------------------------------------------------- */
+
+.sm-star {
+  transform-box: view-box;
+  animation: sm-star-in 0.7s var(--ease-out-quint) both;
+  animation-delay: var(--sm-delay, 0s);
+}
+
+@keyframes sm-star-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  72% {
+    opacity: 0.55;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sm-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.25s var(--ease-out-quint);
+}
+.sm-hit:hover .sm-core,
+.sm-hit:focus-visible .sm-core {
+  transform: scale(1.12);
+}
+
+.sm-hit {
+  outline: none;
+  cursor: pointer;
+}
+.sm-focus {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.sm-hit:focus-visible .sm-focus {
+  opacity: 1;
+}
+
+.sm-ring {
+  transition:
+    stroke-dasharray 0.7s var(--ease-out-quint),
+    stroke 0.4s,
+    opacity 0.3s;
+}
+
+.sm-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sm-pulse 3.2s ease-in-out infinite;
+}
+@keyframes sm-pulse {
+  0%, 100% {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+.sm-spin {
+  animation: sm-spin 9s linear infinite;
+}
+@keyframes sm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sm-orbit {
+  animation: sm-spin 5.5s linear infinite;
+}
+
+.sm-mark {
+  animation: sm-mark-in 0.5s var(--ease-spring) both;
+}
+@keyframes sm-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-60deg);
+  }
+}
+
+/* Edges -------------------------------------------------------------------------------------- */
+
+.sm-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: sm-draw 0.9s var(--ease-out-quint) both;
+  animation-delay: var(--sm-delay, 0s);
+}
+@keyframes sm-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+.sm-flow {
+  stroke-dasharray: 2 9;
+  animation: sm-flow 1.6s linear infinite;
+}
+@keyframes sm-flow {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+
+.sm-edge-label {
+  animation: sm-fade-in 0.35s 0.35s var(--ease-out-quint) both;
+}
+@keyframes sm-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}
+
+.sm-chip-in {
+  animation: sm-chip-in 0.35s var(--ease-out-quint) both;
+  animation-delay: var(--sm-delay, 0s);
+}
+@keyframes sm-chip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Prism mark in the question strip --------------------------------------------------------- */
+
+.sm-ray {
+  stroke-dasharray: 3 5;
+  animation: sm-flow 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-nebula,
+  .sm-stars > i,
+  .sm-star,
+  .sm-pulse,
+  .sm-spin,
+  .sm-orbit,
+  .sm-mark,
+  .sm-draw,
+  .sm-flow,
+  .sm-edge-label,
+  .sm-chip-in,
+  .sm-ray {
+    animation: none !important;
+  }
+  .sm-core,
+  .sm-ring {
+    transition: none !important;
+  }
+}

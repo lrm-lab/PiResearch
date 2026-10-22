@@ -1,5 +1,5 @@
 // The detail panel (DESIGN.md §4), one body in three shells:
-//   overlay — desktop map: a CoForge slideout, 400px on the right, springing in over the scene;
+//   overlay — desktop map: a CoForge slideout, 400px on the right, springing in over the star map;
 //   column  — desktop task list: the column beside the narrowed list, divided by a 1px border;
 //   sheet   — below `lg`: a draggable bottom sheet (peek / full, drag down to close).
 
@@ -115,7 +115,7 @@ function Sheet({
   const drag = useDragControls();
   const ref = useRef<HTMLElement>(null);
 
-  // Report the settled height (not every animation frame) so the scene can frame above it.
+  // Report the settled height (not every animation frame) so the star map can pan the selection above it.
   useEffect(() => {
     const element = ref.current;
     if (!element || !onHeight) return;
@@ -205,7 +205,7 @@ function PanelHeader({ node, onClose }: { node: ViewNode; onClose: () => void })
   );
 }
 
-/** A small triangular prism mark for the goal (the scene's glass prism). */
+/** A small triangular prism mark for the goal (the star map's prism mark). */
 function PrismGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className={className}>
@@ -358,7 +358,7 @@ function TaskBody({ node }: { node: ViewNode }) {
   );
 }
 
-/** A chip that selects another task; hovering it highlights that task in the scene. */
+/** A chip that selects another task; hovering it highlights that task on the map. */
 function LinkChip({ id, children }: { id: string; children: ReactNode }) {
   const select = useStudy((state) => state.select);
   const hover = useStudy((state) => state.hover);

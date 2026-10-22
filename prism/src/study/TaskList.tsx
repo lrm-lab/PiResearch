@@ -39,7 +39,7 @@ export function TaskList({ narrow }: { narrow: boolean }) {
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Keep the selected row in view (keyboard navigation, selection from the scene or the panel).
+  // Keep the selected row in view (keyboard navigation, selection from the map or the panel).
   useEffect(() => {
     if (!selectedId) return;
     const row = scrollRef.current?.querySelector<HTMLElement>(`[data-row="${CSS.escape(selectedId)}"]`);

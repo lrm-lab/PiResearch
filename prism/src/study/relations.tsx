@@ -1,6 +1,6 @@
-// Relation swatches in the scene's line language (DESIGN.md §3): parent a thin dashed neutral
+// Relation swatches in the star map's line language (DESIGN.md §3): parent a thin dashed neutral
 // curve, audit dotted indigo, support solid green, challenge an orange arch with a bead, error a
-// red zigzag. Colours come from RELATION_HEX so the chrome and the scene always agree.
+// red zigzag. Colours come from RELATION_HEX so the chrome and the map always agree.
 
 import { RELATION_HEX } from "../lib/palette";
 import { cx } from "../ui/cx";

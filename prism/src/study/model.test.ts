@@ -6,7 +6,6 @@ import {
   isVisible,
   keyAction,
   listOrder,
-  noWebglFlag,
   progressSegments,
   readingMeta,
   relationCounts,
@@ -140,12 +139,11 @@ describe("relations", () => {
 });
 
 describe("keyAction", () => {
-  const map = { tab: "map" as const, hasReport: true, mapAvailable: true };
+  const map = { tab: "map" as const, hasReport: true };
 
   it("maps the page shortcuts", () => {
     expect(keyAction({ key: "v" }, map)).toEqual({ kind: "lens" });
-    expect(keyAction({ key: "F" }, map)).toEqual({ kind: "core" });
-    expect(keyAction({ key: "r" }, map)).toEqual({ kind: "overview" });
+    expect(keyAction({ key: "F" }, map)).toEqual({ kind: "fit" });
     expect(keyAction({ key: "?" }, map)).toEqual({ kind: "help" });
     expect(keyAction({ key: "Escape" }, map)).toEqual({ kind: "escape" });
     expect(keyAction({ key: "2" }, map)).toEqual({ kind: "tab", tab: "tasks" });
@@ -155,15 +153,14 @@ describe("keyAction", () => {
   it("ignores typing, IME composition, modifiers and repeats", () => {
     expect(keyAction({ key: "v", typing: true }, map)).toBe(null);
     expect(keyAction({ key: "v", isComposing: true }, map)).toBe(null);
-    expect(keyAction({ key: "r", metaKey: true }, map)).toBe(null);
+    expect(keyAction({ key: "v", metaKey: true }, map)).toBe(null);
     expect(keyAction({ key: "v", repeat: true }, map)).toBe(null);
     expect(keyAction({ key: "Escape", defaultPrevented: true }, map)).toBe(null);
   });
 
   it("respects the tab and the report", () => {
     expect(keyAction({ key: "3" }, { ...map, hasReport: false })).toBe(null);
-    expect(keyAction({ key: "r" }, { ...map, tab: "tasks" })).toBe(null);
-    expect(keyAction({ key: "f" }, { ...map, mapAvailable: false })).toBe(null);
+    expect(keyAction({ key: "f" }, { ...map, tab: "tasks" })).toBe(null);
     expect(keyAction({ key: "v" }, { ...map, tab: "report" })).toBe(null);
     expect(keyAction({ key: "ArrowDown" }, map)).toBe(null);
     expect(keyAction({ key: "ArrowDown" }, { ...map, tab: "tasks" })).toEqual({ kind: "step", delta: 1 });
@@ -179,8 +176,6 @@ describe("url", () => {
     expect(searchWithTab("?theme=dark", "tasks", "map")).toBe("?theme=dark&tab=tasks");
     expect(searchWithTab("?tab=tasks&theme=dark", "map", "map")).toBe("?theme=dark");
     expect(searchWithTab("?tab=report", "tasks", "tasks")).toBe("");
-    expect(noWebglFlag("?nowebgl=1")).toBe(true);
-    expect(noWebglFlag("?nowebgl=0")).toBe(false);
   });
 });
 
