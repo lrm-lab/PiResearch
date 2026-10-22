@@ -99,6 +99,8 @@ float cracks(vec3 p) {
   return sqrt(d2) - sqrt(d1);
 }
 
+float fxMotion(float t, float seed) { return sin(t * 2.4 + seed * 6.283); }
+
 void main() {
   vec3 N = normalize(vN);
   vec3 V = normalize(cameraPosition - vWorld);
@@ -111,7 +113,7 @@ void main() {
   if (vKind < 0.5) {
     // open: tiny protostar core, breathing
     float breath = 0.75 + 0.25 * sin(t * 1.0472 + vSeed * 6.283);
-    col = mix(vTone * 0.7, white * 1.15, pow(mu, 2.0)) * breath + vTone * pow(fres, 2.0) * 0.6;
+    col = mix(vTone * 0.7, mix(vTone, white, 0.25) * 0.95, pow(mu, 2.0)) * breath + vTone * pow(fres, 2.0) * 0.6;
   } else if (vKind < 1.5) {
     // in progress: accretion vortex around the disc axis
     vec3 ax = normalize(vAxis);
@@ -126,9 +128,9 @@ void main() {
     float bands = smoothstep(0.3, 0.95, arms + warp * 0.3);
     float fine = 0.5 + 0.5 * sin(swirl * 3.0 - t * 0.8);
     vec3 dark = vTone * 0.05;
-    vec3 bright = mix(vTone * 0.95, white, 0.18);
+    vec3 bright = mix(vTone * 0.95, white, 0.05);
     col = mix(dark, bright, bands) * (0.75 + 0.35 * fine);
-    col += mix(vTone, white, 0.5) * pow(abs(lat), 26.0) * 0.8;
+    col += mix(vTone, white, 0.2) * pow(abs(lat), 26.0) * 0.4;
     float pulse = 0.5 + 0.5 * sin(t * 3.927 + vSeed * 6.283);
     col *= 0.78 + 0.32 * pulse;
     col += vTone * pow(fres, 2.6) * (0.7 + 0.9 * pulse);
@@ -136,7 +138,7 @@ void main() {
     // resolved: stable glowing star with soft granulation
     float g = snoise(p * 5.5 + vec3(t * 0.07, 0.0, vSeed * 13.0)) * 0.5 + 0.5;
     float tw = 1.0 + 0.06 * sin(t * 2.3 + vSeed * 40.0);
-    col = mix(vTone * 0.62, mix(vTone, white, 0.5) * 1.18, pow(mu, 1.4)) * (0.86 + 0.24 * g) * tw;
+    col = mix(vTone * 0.62, mix(vTone, white, 0.1) * 0.98, pow(mu, 1.4)) * (0.86 + 0.24 * g) * tw;
     col += vTone * pow(fres, 2.2) * 0.55;
   } else {
     // cancelled: cooled grey ember with faint glowing cracks
@@ -150,12 +152,21 @@ void main() {
   }
   if (vErr > 0.5) {
     float flick = 0.55 + 0.45 * sin(t * 6.981) + 0.3 * (hash11(floor(t * 16.0) + vSeed * 91.0) - 0.5);
-    col += uErrColor * pow(fres, 1.5) * flick * 2.6;
+    col += uErrColor * pow(fres, 1.5) * flick * 1.6;
   }
-  float sel = clamp(vFx.r - 1.0, 0.0, 1.0);
-  col *= min(vFx.r, 1.0) * (1.0 + 0.25 * vFx.a);
-  col += vTone * pow(fres, 2.0) * (sel * 1.6 + vFx.a * 0.5);
-  col += mix(vTone, white, 0.5) * vFx.b * 1.6;
+  // Selection: emphasis 1..1.2 -> sel 0..1. A crisp tone-coloured rim, a small lift and a
+  // gentle pulse; the surface stays visible (no extra HDR).
+  float sel = clamp((vFx.r - 1.0) * 5.0, 0.0, 1.0);
+  float calm = fxMotion(t, vSeed);
+  col *= min(vFx.r, 1.0) * (1.0 + 0.1 * vFx.a + 0.1 * sel);
+  float rim = smoothstep(0.58, 0.92, fres);
+  col += vTone * rim * (sel * (0.5 + 0.12 * calm) + vFx.a * 0.3);
+  col += mix(vTone, white, 0.25) * vFx.b * 0.9;
+  // Soft knee: keep the brightest channel near 1 so bodies stay saturated and bloom only
+  // catches small highlights.
+  float peak = max(col.r, max(col.g, col.b));
+  float knee = peak > 0.9 ? (0.9 + (peak - 0.9) * 0.2) / peak : 1.0;
+  col *= knee;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -180,7 +191,7 @@ varying float vErr;
 varying vec4 vFx;
 void main() {
   vec4 fx = nodeFx(aNode);
-  float half_ = aRadius * aSpan * max(fx.g, 0.0) * (0.8 + 0.2 * min(fx.r, 1.5)) * (1.0 + 0.12 * fx.a);
+  float half_ = aRadius * aSpan * max(fx.g, 0.0) * (0.85 + 0.15 * min(fx.r, 1.2)) * (1.0 + 0.08 * fx.a);
   vUv = position.xy * 2.0;
   vSpan = aSpan;
   vTone = aTone;
@@ -220,7 +231,7 @@ void main() {
     float cloud = smoothstep(-0.3, 0.7, n + 0.3 * n2) * exp(-u * u * 4.0);
     col = vTone * cloud * 0.5 * breath;
     col += vTone * exp(-u * u * 16.0) * 0.22 * breath;
-    col += white * exp(-d * d * 0.7) * 0.35 * breath;
+    col += mix(vTone, white, 0.4) * exp(-d * d * 0.7) * 0.22 * breath;
   } else if (vKind < 1.5) {
     // in progress: pulsing rim light
     float pulse = 0.5 + 0.5 * sin(t * 3.927 + vSeed * 6.283);
@@ -233,9 +244,9 @@ void main() {
     float x = max(d - 0.95, 0.0);
     float glow = exp(-x * 1.45);
     float streak = snoise(vec3(cos(a) * 2.5, sin(a) * 2.5, t * 0.1 + vSeed * 9.0)) * 0.5 + 0.5;
-    float rays = pow(abs(cos(a * 2.0 + vSeed * 6.283)), 70.0) * exp(-x * 0.6) * 0.65;
-    rays += pow(abs(cos(a * 2.0 + vSeed * 6.283 + 0.785)), 110.0) * exp(-x * 1.0) * 0.3;
-    col = mix(vTone, white, 0.12) * (glow * 0.34 * (0.75 + 0.5 * streak) + rays * 0.45 * tw) * tw;
+    float rays = pow(abs(cos(a * 2.0 + vSeed * 6.283)), 90.0) * exp(-x * 2.2) * 0.5;
+    rays += pow(abs(cos(a * 2.0 + vSeed * 6.283 + 0.785)), 130.0) * exp(-x * 2.6) * 0.2;
+    col = mix(vTone, white, 0.04) * (glow * 0.28 * (0.75 + 0.5 * streak) + rays * 0.1 * tw) * tw;
   } else {
     col = vec3(0.42, 0.40, 0.38) * exp(-max(d - 1.0, 0.0) * 3.0) * 0.2;
   }
@@ -245,12 +256,13 @@ void main() {
     col += uErrColor * exp(-pow(abs((d - ringD) * 5.0), 2.0)) * flick * 1.2;
     col += uErrColor * exp(-max(d - ringD + 0.2, 0.0) * 2.4) * 0.22 * flick;
   }
-  float sel = clamp(vFx.r - 1.0, 0.0, 1.0);
-  col *= min(vFx.r, 1.0) * (1.0 + 0.5 * vFx.a + 0.9 * sel);
-  col += vTone * exp(-pow(abs((d - 1.35 - 0.1 * sin(t * 2.0)) * 7.0), 2.0)) * sel * 0.7;
+  float sel = clamp((vFx.r - 1.0) * 5.0, 0.0, 1.0);
+  col *= min(vFx.r, 1.0) * (1.0 + 0.25 * vFx.a + 0.2 * sel);
+  // Crisp outline ring just outside the body with a slow, gentle pulse.
+  col += vTone * exp(-pow(abs((d - 1.28 - 0.03 * sin(t * 2.0)) * 16.0), 2.0)) * sel * (0.4 + 0.1 * sin(t * 2.4 + vSeed * 6.283));
   float f = vFx.b;
   float ring = exp(-pow(abs((u - (1.0 - f) * 0.95) * 9.0), 2.0));
-  col += mix(vTone, white, 0.55) * f * (exp(-u * u * 6.0) * 1.2 + ring * 0.9);
+  col += mix(vTone, white, 0.25) * f * (exp(-u * u * 6.0) * 0.6 + ring * 0.5);
   gl_FragColor = vec4(col * edge, 1.0);
 }
 `;

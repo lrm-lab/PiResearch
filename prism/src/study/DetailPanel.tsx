@@ -3,7 +3,7 @@
 //   column  — desktop task list: the column beside the narrowed list, divided by a 1px border;
 //   sheet   — below `lg`: a draggable bottom sheet (peek / full, drag down to close).
 
-import { BookOpen01, ChevronRight, XClose } from "@untitledui/icons";
+import { BookOpen01, ChevronRight, Download01, XClose } from "@untitledui/icons";
 import { AnimatePresence, motion, useDragControls, type PanInfo } from "motion/react";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { goalActivity, isErroneous, phaseLabel, progress, stateText, toolCount } from "../lib/activity";
@@ -19,6 +19,7 @@ import { agentRoster, nodeTone, progressSegments, relationsOf, TONE_LABEL } from
 import { EASE_OUT, Tooltip } from "./primitives";
 import { RelationDot } from "./relations";
 import { findNode, useNodeDetail, useSelectedNode, useStudy } from "./store";
+import { exportTask } from "./exportRun";
 import { ToolTerminal } from "./ToolTerminal";
 import { PANEL_WIDTH, useStudyUi } from "./ui";
 
@@ -329,7 +330,21 @@ function TaskBody({ node }: { node: ViewNode }) {
         </Section>
       )}
 
-      <Section title="工具步骤" count={calls}>
+      <Section
+        title="工具步骤"
+        count={calls}
+        aside={
+          <Button
+            size="xs"
+            color="secondary"
+            iconLeading={Download01}
+            disabled={!detail?.steps.length && !node.live.length}
+            onClick={() => exportTask(node.id)}
+          >
+            导出此任务轨迹
+          </Button>
+        }
+      >
         <ToolTerminal
           title={`${node.agents[0] ?? "agent"} — ${node.id}`}
           steps={detail?.steps ?? []}

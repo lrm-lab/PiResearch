@@ -8,6 +8,7 @@ import { MotionConfig } from "motion/react";
 import { useEffect } from "react";
 import { useGalaxy } from "../store";
 import { DetailPanel } from "./DetailPanel";
+import { ExportToast } from "./ExportToast";
 import { useShortcuts } from "./hooks";
 import { Legend } from "./Legend";
 import { Notices } from "./Notices";
@@ -32,6 +33,7 @@ export function Hud() {
         <div className="hud-chrome" inert={reportOpen} aria-hidden={reportOpen || undefined}>
           <TopBar />
           <Notices />
+          <ExportToast />
           <Legend />
           <DetailPanel />
           <ReportCta />

@@ -74,6 +74,8 @@ export interface GalaxyState {
   loadNode(id: string): Promise<void>;
   /** Drop a failed entry and load again. */
   retryNode(id: string): Promise<void>;
+  /** Steps of one node for the trajectory export: the cached ones when current, else a GET /node. */
+  fetchNodeSteps(id: string): Promise<Step[]>;
   /** Emit a camera command (adds the nonce). */
   emitCamera(intent: CameraIntent): void;
 }
@@ -222,6 +224,15 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
         return { nodeDetails: rest };
       });
       await get().loadNode(id);
+    },
+
+    async fetchNodeSteps(id) {
+      const node = findNode(get().view, id);
+      const cached = get().nodeDetails[id];
+      if (cached && cached.state === "ready" && cached.revision === (node?.steps_revision ?? "")) return cached.steps;
+      if (!poller) throw new Error("study not started");
+      const result = await poller.fetchNode(id);
+      return result.detail.steps || [];
     },
 
     emitCamera(intent) {

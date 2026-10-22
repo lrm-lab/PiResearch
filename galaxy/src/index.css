@@ -713,6 +713,10 @@
 
 /* ----------------------------------------------------------- detail panel */
 .detail {
+  /* Readable ink on the dark glass (AA, >= 4.5:1 even over bright stars); no glow on text. */
+  --g-ink: #dde1e8;
+  --g-ink-dim: #b4bccb;
+  --g-ink-faint: #9aa3b6;
   position: absolute;
   top: 76px;
   right: 12px;
@@ -752,7 +756,7 @@
 }
 .detail-heading {
   margin: 0 0 12px;
-  color: #fff;
+  color: #eceef3;
   font: 600 18px/1.45 var(--font-ui);
   overflow-wrap: anywhere;
 }
@@ -1067,24 +1071,28 @@
   min-height: 20px;
 }
 .trace-tool {
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--tool) 38%, transparent);
+  background: color-mix(in srgb, var(--tool) 12%, transparent);
   color: var(--tool);
-  font: 600 11.5px/1 var(--font-ui);
+  font: 600 12px/1 var(--font-ui);
   letter-spacing: 0.04em;
 }
 .trace-badge {
   padding: 2px 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.09);
   color: var(--g-ink-dim);
-  font: 600 10.5px/1.2 var(--font-tool);
+  font: 600 11px/1.2 var(--font-tool);
 }
 .trace-fail {
   padding: 2px 6px;
   border-radius: 999px;
   border: 1px solid rgba(255, 90, 106, 0.4);
   background: rgba(255, 90, 106, 0.12);
-  color: #ff8794;
-  font: 600 10.5px/1.2 var(--font-ui);
+  color: #ff9ca6;
+  font: 600 11px/1.2 var(--font-ui);
 }
 .trace-live-tag {
   display: inline-flex;
@@ -1097,7 +1105,7 @@
 }
 .trace-label {
   margin: 4px 0 0;
-  color: #eef0f5;
+  color: #dfe3ea;
   font: 500 12.5px/1.55 var(--font-tool);
   overflow-wrap: anywhere;
 }
@@ -1105,14 +1113,52 @@
   margin: 2px 0 0;
   overflow: hidden;
   color: var(--g-ink-dim);
-  font: 400 11.5px/1.5 var(--font-tool);
+  font: 400 12px/1.5 var(--font-tool);
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.trace-row.is-open .trace-hint {
+  overflow: visible;
+  white-space: pre-wrap;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.trace-row.is-open .trace-detail {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  white-space: pre-wrap;
+}
+.trace-cap {
+  margin: 3px 0 0;
+  color: var(--g-ink-faint);
+  font: 400 11.5px/1.4 var(--font-ui);
+}
+.trace-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.trace-tool-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-color: var(--g-hairline-strong);
+  font-size: 12px;
+}
+.trace-tool-btn svg {
+  width: 13px;
+  height: 13px;
+}
+.trace-tool-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .trace-detail {
   margin: 4px 0 0;
   color: var(--g-ink-faint);
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -1124,10 +1170,10 @@
   --tool: #ff5a6a;
 }
 .trace-row.is-error .trace-label {
-  color: #ff8794;
+  color: #ffa0aa;
 }
 .trace-row.is-error .trace-detail {
-  color: rgba(255, 135, 148, 0.75);
+  color: #ff9ca6;
 }
 .trace-row.is-live {
   margin-bottom: 2px;
@@ -1208,6 +1254,13 @@
 }
 
 /* ---------------------------------------------------------------- notices */
+.toast-stack.is-export {
+  top: 128px;
+}
+.toast-text {
+  min-width: 0;
+  flex: 1;
+}
 .toast-stack {
   position: absolute;
   top: 76px;

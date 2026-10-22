@@ -1,12 +1,13 @@
 // 工具步骤 as a vertical signal trace: a glowing line with one node per step.
 // Live calls sit on top with a travelling signal; errors are red with 失败.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TOOL } from "../lib/activity";
 import { ERROR_RED } from "../lib/palette";
+import { capNote, DETAIL_CAP, HINT_CAP } from "../lib/trajectory";
 import type { LoadState } from "../store";
 import type { LiveCall, Step } from "../types/api";
-import { IconRetry, ToolGlyph } from "./icons";
+import { IconDownload, IconRetry, ToolGlyph } from "./icons";
 import { toolColor } from "./tokens";
 
 interface Row {
@@ -22,12 +23,17 @@ export function SignalTrace({
   steps,
   state,
   onRetry,
+  onExport,
 }: {
   live: LiveCall[];
   steps: Step[];
   state: LoadState;
   onRetry: () => void;
+  /** Markdown export of this task from the steps already loaded. */
+  onExport?: () => void;
 }) {
+  // `all` is what 全部展开 / 全部收起 last asked for; `tick` re-applies it to rows the reader toggled.
+  const [expand, setExpand] = useState({ all: false, tick: 0 });
   const rows: Row[] = [
     ...live.map((step, index) => ({ key: `live:${index}:${step.tool}:${step.label}`, step, live: true })),
     ...steps.map((step, index) => ({ key: `step:${index}:${step.tool}:${step.label}`, step, live: false })),
@@ -37,13 +43,31 @@ export function SignalTrace({
   return (
     <div aria-busy={state === "loading"}>
       {rows.length > 0 && (
+        <div className="trace-tools">
+          <button
+            type="button"
+            className="g-btn trace-tool-btn"
+            aria-pressed={expand.all}
+            onClick={() => setExpand((previous) => ({ all: !previous.all, tick: previous.tick + 1 }))}
+          >
+            {expand.all ? "全部收起" : "全部展开"}
+          </button>
+          {onExport && (
+            <button type="button" className="g-btn trace-tool-btn" disabled={!steps.length && !live.length} onClick={onExport}>
+              <IconDownload />
+              导出此任务轨迹
+            </button>
+          )}
+        </div>
+      )}
+      {rows.length > 0 && (
         <div style={{ position: "relative" }}>
           {live.length > 0 && (
             <span className="trace-signal" aria-hidden="true" style={{ ["--signal-travel" as string]: `${live.length * LIVE_ROW_PX - 20}px` }} />
           )}
           <ol className="trace">
             {rows.map((row) => (
-              <TraceRow key={row.key} step={row.step} live={row.live} />
+              <TraceRow key={row.key} step={row.step} live={row.live} expand={expand} />
             ))}
           </ol>
         </div>
@@ -79,14 +103,19 @@ export function SignalTrace({
   );
 }
 
-function TraceRow({ step, live }: { step: Step | LiveCall; live: boolean }) {
+function TraceRow({ step, live, expand }: { step: Step | LiveCall; live: boolean; expand: { all: boolean; tick: number } }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (expand.tick) setOpen(expand.all);
+  }, [expand]);
   const thinking = step.tool === "思考";
   const color = step.error ? ERROR_RED : toolColor(step.tool);
   const detail = "detail" in step ? step.detail : undefined;
   const count = step.count ?? 1;
-  const long = Boolean(detail && Array.from(detail).length > 70);
-  const classes = ["trace-row", live ? "is-live" : "", step.error ? "is-error" : "", thinking ? "is-thinking" : ""].join(" ");
+  const hintNote = capNote(step.hint, HINT_CAP);
+  const detailNote = capNote(detail, DETAIL_CAP);
+  const long = Boolean((detail && Array.from(detail).length > 70) || (step.hint && Array.from(step.hint).length > 40) || hintNote || detailNote);
+  const classes = ["trace-row", open ? "is-open" : "", live ? "is-live" : "", step.error ? "is-error" : "", thinking ? "is-thinking" : ""].join(" ");
 
   return (
     <li className={classes} style={{ ["--tool" as string]: color }}>
@@ -118,25 +147,22 @@ function TraceRow({ step, live }: { step: Step | LiveCall; live: boolean }) {
           <>
             {step.label && <p className="trace-label">{step.label}</p>}
             {step.hint && (
-              <p className="trace-hint" title={step.hint}>
+              <p className="trace-hint" title={open ? undefined : step.hint}>
                 {step.hint}
               </p>
             )}
+            {open && hintNote && <p className="trace-cap">{hintNote}</p>}
           </>
         )}
         {detail && (
-          <p
-            className="trace-detail"
-            style={open ? { WebkitLineClamp: "unset", display: "block" } : undefined}
-          >
-            {detail}
-          </p>
+          <p className="trace-detail">{detail}</p>
         )}
+        {open && detailNote && <p className="trace-cap">{detailNote}</p>}
         {long && (
           <button
             type="button"
             className="g-btn"
-            style={{ height: 22, padding: "0 6px", marginTop: 2, marginLeft: -6, fontSize: 11.5, color: "var(--g-ink-faint)" }}
+            style={{ height: 22, padding: "0 6px", marginTop: 2, marginLeft: -6, fontSize: 12, color: "var(--g-ink-dim)" }}
             aria-expanded={open}
             onClick={() => setOpen(!open)}
           >

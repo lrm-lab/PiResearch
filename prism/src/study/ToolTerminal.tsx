@@ -13,6 +13,7 @@ import { TOOL } from "../lib/activity";
 import type { LoadState } from "./store";
 import type { LiveCall, Step } from "../types/api";
 import { cx } from "../ui/cx";
+import { capNote, DETAIL_CAP, HINT_CAP } from "../lib/trajectory";
 import { TERMINAL_TAIL } from "./model";
 
 export function ToolTerminal({
@@ -33,6 +34,8 @@ export function ToolTerminal({
   const scrollRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const [showAll, setShowAll] = useState(false);
+  // 全部展开 / 全部收起: `tick` re-applies `all` to rows the reader toggled by hand.
+  const [expand, setExpand] = useState({ all: false, tick: 0 });
   const hiddenCount = showAll ? 0 : Math.max(0, steps.length - TERMINAL_TAIL);
   const shown = hiddenCount ? steps.slice(hiddenCount) : steps;
   const loadingEmpty = state === "loading" && !steps.length;
@@ -52,7 +55,17 @@ export function ToolTerminal({
           <span className="size-2.5 rounded-full bg-green-500" />
         </span>
         <span className="min-w-0 flex-1 truncate text-center text-white/45">{title}</span>
-        <span className={cx("inline-flex w-12 items-center justify-end gap-1.5", live.length ? "text-green-400/90" : "text-white/30")}>
+        {steps.length > 0 && (
+          <button
+            type="button"
+            aria-pressed={expand.all}
+            onClick={() => setExpand((previous) => ({ all: !previous.all, tick: previous.tick + 1 }))}
+            className="shrink-0 rounded-md px-2 py-0.5 text-white/70 outline-none ring-1 ring-white/15 hover:bg-white/8 hover:text-white focus-visible:ring-white/50"
+          >
+            {expand.all ? "全部收起" : "全部展开"}
+          </button>
+        )}
+        <span className={cx("inline-flex w-12 items-center justify-end gap-1.5", live.length ? "text-green-400/90" : "text-white/50")}>
           {live.length > 0 ? (
             <>
               <span aria-hidden="true" className="size-1.5 animate-pulse rounded-full bg-green-400" />
@@ -87,7 +100,7 @@ export function ToolTerminal({
         {shown.length > 0 && (
           <ol className="space-y-0.5">
             {shown.map((step, index) => (
-              <StepLine key={`${hiddenCount + index}:${step.tool}:${step.label}`} step={step} />
+              <StepLine key={`${hiddenCount + index}:${step.tool}:${step.label}`} step={step} expand={expand} />
             ))}
           </ol>
         )}
@@ -142,9 +155,16 @@ function toolName(tool: string): string {
   return TOOL[tool] ?? tool;
 }
 
-function StepLine({ step }: { step: Step }) {
+function StepLine({ step, expand }: { step: Step; expand: { all: boolean; tick: number } }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (expand.tick) setOpen(expand.all);
+  }, [expand]);
   const detail = step.detail?.trim();
+  const hintNote = capNote(step.hint, HINT_CAP);
+  const detailNote = capNote(detail, DETAIL_CAP);
+  // Expandable when there is a result, or the one-line hint is long enough to be cut.
+  const expandable = Boolean(detail) || Array.from(step.hint ?? "").length > 48;
   const count = step.count ?? 1;
   const body = (
     <>
@@ -152,11 +172,11 @@ function StepLine({ step }: { step: Step }) {
         <span aria-hidden="true" className={step.error ? "text-red-400" : "text-brand-300"}>
           {step.error ? "✗" : "$"}
         </span>
-        <span className={cx("shrink-0", step.error ? "text-red-300/80" : "text-white/40")}>{toolName(step.tool)}</span>
+        <span className={cx("shrink-0", step.error ? "text-red-300/80" : "text-white/55")}>{toolName(step.tool)}</span>
         <span className={cx("min-w-0 flex-1 truncate", step.error ? "text-red-300" : "text-white/90")}>{step.label || step.tool}</span>
         {count > 1 && <span className="shrink-0 rounded bg-white/10 px-1 text-[0.6875rem] text-white/60 tabular">×{count}</span>}
         {step.error && <span className="shrink-0 rounded bg-red-500/15 px-1 text-[0.6875rem] text-red-300">失败</span>}
-        {detail && (
+        {expandable && (
           <ChevronRight
             aria-hidden="true"
             className={cx("size-3.5 shrink-0 self-center text-white/30 transition-transform duration-150", open && "rotate-90")}
@@ -164,7 +184,10 @@ function StepLine({ step }: { step: Step }) {
         )}
       </span>
       {step.hint && (
-        <span className="block truncate pl-[1.1rem] text-white/35" title={step.hint}>
+        <span
+          className={cx("block pl-[1.1rem] text-white/55", open ? "break-words whitespace-pre-wrap" : "truncate")}
+          title={open ? undefined : step.hint}
+        >
           {step.hint}
         </span>
       )}
@@ -172,7 +195,7 @@ function StepLine({ step }: { step: Step }) {
   );
   return (
     <li>
-      {detail ? (
+      {expandable ? (
         <button
           type="button"
           aria-expanded={open}
@@ -184,6 +207,7 @@ function StepLine({ step }: { step: Step }) {
       ) : (
         <div className="py-1">{body}</div>
       )}
+      {open && hintNote && <p className="mb-1 ml-[1.1rem] pl-2.5 text-[0.6875rem] text-white/55">{hintNote}</p>}
       {detail && open && (
         <motion.p
           initial={{ opacity: 0, height: 0 }}
@@ -191,12 +215,13 @@ function StepLine({ step }: { step: Step }) {
           transition={{ duration: 0.18 }}
           className={cx(
             "mb-1 ml-[1.1rem] overflow-hidden border-l pl-2.5 break-words whitespace-pre-wrap",
-            step.error ? "border-red-400/40 text-red-300" : "border-white/15 text-white/65",
+            step.error ? "border-red-400/40 text-red-300" : "border-white/15 text-white/75",
           )}
         >
           {detail}
         </motion.p>
       )}
+      {detail && open && detailNote && <p className="mb-1 ml-[1.1rem] pl-2.5 text-[0.6875rem] text-white/55">{detailNote}</p>}
     </li>
   );
 }

@@ -13,6 +13,7 @@ import { SHEET_QUERY } from "./hooks";
 import { IconCheck, IconChevron, IconClose, IconCore } from "./icons";
 import { SignalTrace } from "./SignalTrace";
 import { stateColor } from "./tokens";
+import { exportTask } from "./exportRun";
 import { useUi } from "./uiStore";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -150,6 +151,7 @@ function Body({ node }: { node: ViewNode }) {
             steps={detail?.steps ?? []}
             state={detail?.state ?? (node.step_count ? "loading" : "ready")}
             onRetry={() => void retryNode(node.id)}
+            onExport={() => exportTask(node.id)}
           />
         </Section>
       )}

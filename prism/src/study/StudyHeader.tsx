@@ -8,6 +8,7 @@ import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { HeaderControls } from "../ui/HeaderControls";
 import { PageHeader } from "../ui/PageHeader";
+import { ExportMenu } from "./ExportMenu";
 import type { StudyTab } from "./model";
 import { LinkButton, Skeleton, Tooltip } from "./primitives";
 import { useStudy } from "./store";
@@ -100,6 +101,7 @@ export function StudyHeader({
               onClick={() => emitCamera({ kind: "overview" })}
             />
           </Tooltip>
+          <ExportMenu />
           <HeaderControls studyId={studyId} />
         </>
       }
