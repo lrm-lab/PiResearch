@@ -1,6 +1,6 @@
 // Launch sequence after a successful submit: a new star is born at the
 // composer's launch button, rises along an arc into the first 调研中 slot
-// (the row makes room), ignites into a proto-galaxy with a shock ring, and
+// (the section makes room and scrolls to the top), ignites into a proto-galaxy with a shock ring, and
 // hands over to the director, which dives in and navigates.
 
 import { useFrame, useThree } from "@react-three/fiber";
@@ -22,7 +22,7 @@ import {
 import { TONE_COLOR } from "../../lib/palette";
 import { splitRows } from "../format";
 import { buildGalaxy } from "../geometry";
-import { slotPose, slotX } from "../layout";
+import { slotPose } from "../layout";
 import { gallery, updateGalleryLayout } from "../motion";
 import { useHome, type Launch } from "../store";
 import { fx } from "./fx";
@@ -157,17 +157,17 @@ function Star({ launch }: { launch: Launch }) {
     [assets],
   );
 
-  // Make room in the 调研中 row and bring its first slot into view.
+  // Make room at the start of 调研中 and scroll to the top to show it.
   useEffect(() => {
     const rows = splitRows(useHome.getState().rows ?? []);
     gallery.launchSlot = true;
-    updateGalleryLayout(gallery.width, gallery.height, Math.max(rows.running.length + 1, rows.done.length));
+    updateGalleryLayout(gallery.width, gallery.height, [rows.running.length + 1, rows.done.length]);
     gallery.velocity = 0;
     gallery.target = gallery.bounds.min;
     return () => {
       gallery.launchSlot = false;
       const now = splitRows(useHome.getState().rows ?? []);
-      updateGalleryLayout(gallery.width, gallery.height, Math.max(now.running.length, now.done.length));
+      updateGalleryLayout(gallery.width, gallery.height, [now.running.length, now.done.length]);
     };
   }, []);
 
@@ -183,8 +183,8 @@ function Star({ launch }: { launch: Launch }) {
     }
     const t = now - start.current;
     const params = gallery.params;
-    const rows = splitRows(useHome.getState().rows ?? []);
-    const pose = slotPose(slotX(0, rows.running.length + 1, params.spacing, gallery.bounds.fits) - gallery.scroll, 0, params);
+    const first = gallery.layout.slots[0][0] ?? { x: 0, y: 0 };
+    const pose = slotPose(first.x, gallery.bounds.top + first.y + gallery.scroll, params);
     slot.set(pose.x, pose.y, pose.z + 0.4);
     control.set(origin.current.x * 0.4 + slot.x * 0.6, slot.y + 2.6, 3.4);
 

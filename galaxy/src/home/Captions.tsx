@@ -1,5 +1,5 @@
 // DOM layer over the scene: one caption per study (a real, focusable link
-// plus a delete control), the row headings and the empty notes. The scene
+// plus a delete control), the section headings and the empty notes. The scene
 // positions them every frame (motion.ts registries); DOM order is the Tab order.
 
 import { memo, useCallback, useMemo, type KeyboardEvent, type MouseEvent } from "react";
@@ -7,7 +7,7 @@ import { galaxyStudyHref } from "../lib/api";
 import type { HistoryRow } from "../types/api";
 import { IconTrash } from "../ui/icons";
 import { captionLine, rowTitle, splitRows, thumbStats } from "./format";
-import { neighbour, type ArrowKey } from "./layout";
+import { galleryLines, neighbour, type ArrowKey } from "./layout";
 import { emptyEls, gallery, registerCaption, rowLabelEls } from "./motion";
 import { useHome } from "./store";
 
@@ -25,7 +25,8 @@ export function Captions() {
       const target = event.target as HTMLElement;
       const id = target.closest<HTMLElement>("[data-study]")?.dataset.study;
       if (!id) return;
-      const next = neighbour(ids, id, event.key as ArrowKey, gallery.bounds.fits, gallery.params.spacing);
+      // Lines as currently laid out (the column count follows the viewport).
+      const next = neighbour(galleryLines(ids, gallery.layout.cols), id, event.key as ArrowKey);
       event.preventDefault();
       if (!next) return;
       const link = document.querySelector<HTMLElement>(`[data-study-link][data-id="${CSS.escape(next)}"]`);

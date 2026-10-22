@@ -45,21 +45,39 @@ function Effects({ quality }: { quality: Quality }) {
   );
 }
 
-/** Drag / wheel / pointer sway on the stage (not the page, so the composer still scrolls). */
+/** Whether a key press belongs to a text field (or other control that uses it). */
+function typing(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return target.closest("input, textarea, select, [role='dialog']") !== null;
+}
+
+/**
+ * Vertical scroll by drag (touch or mouse), wheel and keys, plus the pointer
+ * sway. Bound to the stage (not the page), so the composer keeps its own scroll.
+ */
 function useStageInput(stage: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const element = stage.current;
     if (!element) return;
-    let downX = 0;
-    let lastX = 0;
+    let downY = 0;
+    let lastY = 0;
     let lastT = 0;
     let pointerId: number | null = null;
-    const unitsPerPx = () => (gallery.params.halfWidth * 2) / Math.max(1, gallery.width);
+    const busy = () => {
+      const state = useHome.getState();
+      return Boolean(state.flight || state.launch);
+    };
+    const scrollBy = (units: number) => {
+      gallery.velocity = 0;
+      const { min, max } = gallery.bounds;
+      gallery.target = Math.min(max, Math.max(min, gallery.target + units));
+    };
 
     const onDown = (event: PointerEvent) => {
-      if (event.button !== 0 || useHome.getState().flight || useHome.getState().launch) return;
+      if (event.button !== 0 || busy()) return;
       pointerId = event.pointerId;
-      downX = lastX = event.clientX;
+      downY = lastY = event.clientY;
       lastT = performance.now();
       gallery.dragged = false;
       gallery.velocity = 0;
@@ -68,8 +86,8 @@ function useStageInput(stage: React.RefObject<HTMLDivElement | null>) {
       gallery.pointer.x = (event.clientX / Math.max(1, innerWidth)) * 2 - 1;
       gallery.pointer.y = -((event.clientY / Math.max(1, innerHeight)) * 2 - 1);
       if (pointerId !== event.pointerId) return;
-      const dx = event.clientX - lastX;
-      if (!gallery.dragging && Math.abs(event.clientX - downX) > DRAG_THRESHOLD) {
+      const dy = event.clientY - lastY;
+      if (!gallery.dragging && Math.abs(event.clientY - downY) > DRAG_THRESHOLD && !gallery.bounds.fits) {
         gallery.dragging = true;
         gallery.dragged = true;
         useHome.getState().hover(null);
@@ -77,16 +95,17 @@ function useStageInput(stage: React.RefObject<HTMLDivElement | null>) {
       }
       if (gallery.dragging) {
         const now = performance.now();
-        const step = dx * unitsPerPx();
+        // The content follows the finger: dragging down lowers it (scroll decreases).
+        const step = -dy / gallery.ppu;
         const { min, max } = gallery.bounds;
         // Resist beyond the ends.
         const outside = gallery.target < min || gallery.target > max;
-        gallery.target -= outside ? step * 0.35 : step;
+        gallery.target += outside ? step * 0.35 : step;
         const dt = Math.max(1, now - lastT) / 1000;
-        gallery.velocity = gallery.velocity * 0.6 + (-step / dt) * 0.4;
+        gallery.velocity = gallery.velocity * 0.6 + (step / dt) * 0.4;
         lastT = now;
       }
-      lastX = event.clientX;
+      lastY = event.clientY;
     };
     const onUp = (event: PointerEvent) => {
       if (pointerId !== event.pointerId) return;
@@ -100,25 +119,61 @@ function useStageInput(stage: React.RefObject<HTMLDivElement | null>) {
       }
     };
     const onWheel = (event: WheelEvent) => {
-      if (useHome.getState().flight || useHome.getState().launch || gallery.bounds.fits) return;
+      if (busy() || gallery.bounds.fits) return;
       event.preventDefault();
-      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
       const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
       gallery.velocity = 0;
       const { min, max } = gallery.bounds;
-      gallery.target = Math.min(max + 0.8, Math.max(min - 0.8, gallery.target + delta * scale * unitsPerPx() * 0.9));
+      const over = 40 / gallery.ppu;
+      gallery.target = Math.min(max + over, Math.max(min - over, gallery.target + (event.deltaY * scale) / gallery.ppu));
+    };
+    // Page keys scroll the gallery; arrows on a caption move focus instead (Captions.tsx).
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || busy() || typing(event.target)) return;
+      if (useHome.getState().deleteTarget || gallery.bounds.fits) return;
+      const page = (gallery.band.top - gallery.band.bottom) * 0.85;
+      const line = 80 / gallery.ppu;
+      const onCaption = event.target instanceof HTMLElement && event.target.closest(".home-captions") !== null;
+      const onControl = event.target instanceof HTMLElement && event.target.closest("a, button") !== null;
+      switch (event.key) {
+        case "PageDown":
+          scrollBy(page);
+          break;
+        case "PageUp":
+          scrollBy(-page);
+          break;
+        case " ":
+          if (onControl) return;
+          scrollBy(event.shiftKey ? -page : page);
+          break;
+        case "ArrowDown":
+        case "ArrowUp":
+          if (onCaption) return;
+          scrollBy(event.key === "ArrowDown" ? line : -line);
+          break;
+        case "Home":
+        case "End":
+          if (onCaption) return;
+          scrollBy(event.key === "Home" ? -Infinity : Infinity);
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
     };
     element.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     element.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKey);
     return () => {
       element.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
       element.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
     };
   }, [stage]);
 }

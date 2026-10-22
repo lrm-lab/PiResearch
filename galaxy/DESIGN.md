@@ -5,7 +5,7 @@ A research run is a living galaxy you can fly into. As the agents work, the gala
 Ground rules (from the project owner):
 - `constellation/` (2D pages, server, layout) and every backend API stay unchanged. The galaxy is purely additive and lives in `galaxy/`.
 - It reads the existing API only: `/api/history`, `/api/studies/<id>/{thumbnail,snapshot,node,report}`, `POST /api/questions`, `DELETE /api/studies/<id>`.
-- It is served by its own small server (`galaxy/serve.py`) that serves the built bundle under `/galaxy/*` and forwards every other path (`/api/*`, plus the 2D pages `/` and `/study/*`) unchanged to the existing `constellation.serve`.
+- It is served by its own small server (`galaxy/serve.py`) that serves the built bundle under `/galaxy/*` and forwards every other path (`/api/*`, plus the 2D pages `/` and `/study/*`) to the existing `constellation.serve`. Responses pass through unchanged, except that the 2D HTML pages get a small "切换到 3D" switch (and their links to `/` point at `/index.html`, since production redirects `/` to `/galaxy/`); see `serve.py`.
 
 Reference for the data and the 2D behaviour: `notes/2d-frontend-spec.md` (handoff spec, outside the repo) and `constellation/index.html`.
 
@@ -38,7 +38,7 @@ Bodies by status:
 
 | Status | Body | Motion |
 |---|---|---|
-| goal | Core star: plasma fbm surface shader in white→tone, fresnel corona sprite, point light. Strongest bloom. | Surface flows. When `goalActivity` gives `planning`/`finalizing`, an equatorial ring of light orbits it. |
+| goal | Core star: plasma fbm surface shader in tone→warm white, kept below white-hot so the texture stays readable; a soft corona with rays and a short faint glint (no screen-wide streak). The clear focal point, not blinding; the disc haze thins out around it. | Surface flows. When `goalActivity` gives `planning`/`finalizing`, an equatorial ring of light orbits it. |
 | `open` | Dim protostar: soft noise nebula sprite in the tone colour at 35% alpha, tiny core. | Slow breathing (6 s). |
 | `in_progress` | Accretion vortex: planet with a swirling spiral shader, a thin tilted particle disc, rim light in the tone colour. | Disc spins; brightness pulses at 1.6 s. |
 | `resolved` | Stable star: smooth glowing sphere with a soft corona. | Gentle twinkle. |
@@ -75,10 +75,11 @@ Typography: system fonts only. The question uses `"Songti SC","STSong","Noto Ser
 
 Glass panels: `rgba(12,14,24,.55)` with `backdrop-filter: blur(18px) saturate(140%)`, a 1px hairline `rgba(255,255,255,.08)`, and an animated conic glow border on the active panel.
 
-- Top bar: `PiResearch` brand (links to `/galaxy/`), the question (serif, one line, ellipsis), a phase chip (调研中 / 拆解问题中 / 整理报告中 / 汇总结果中 / 已结束), progress `已完成 R / N`, and buttons 报告 · 核验透镜 · 画质.
+- Top bar: `PiResearch` brand (links to `/galaxy/`), the question (serif, one line, ellipsis), a phase chip (调研中 / 拆解问题中 / 整理报告中 / 汇总结果中 / 已结束), progress `已完成 R / N`, and buttons 报告 · 2D 视图 (to `/study/<id>`) · 核验透镜 · 画质. 报告 and 2D 视图 stay visible at every width; ≤900px the other scene controls fold into 更多操作.
 - Legend (bottom left): relation glyphs 子节点 审核 支持 挑战 错误, each a small animated swatch.
 - Detail panel (right, 380px; a bottom sheet of `min(56dvh,480px)` at ≤900px): kicker 研究主问题/研究任务, heading (`selectionHeading`), a collapsible 完整问题/完整内容 pane with the character count, 状态, Agent, 备注, 子任务 (each clickable to fly there), 工具步骤 as a vertical signal trace (tool glyph, label, hint, detail, error in red, `×count` badge). Live calls pulse at the top of the trace.
-- Report: 报告 starts a "landing": the camera dives into the core (0.9 s), the canvas fades to white, and a warm paper reader (`#f5f0e6`, ink `#1d1c1a`) rises in. Markdown supports GFM tables in horizontal scroll regions with sticky headers. Esc or × lands back in space.
+- Report: a dialog over the study page (short scale/fade, no camera move). The galaxy stays visible and alive behind a dimmed, blurred backdrop; the panel (about 1040px, a full-height sheet ≤640px) uses the HUD glass tokens. TOC with active-section tracking, numbered chapters, reading time, a progress line, focus trap, Esc/×/backdrop to close, and the scroll position is kept per study. GFM tables fit the column when they can (cells wrap, words stay whole); otherwise they scroll sideways in their own region with an edge fade and a chevron, and sticky headers.
+- Once a study has finished with a report (`running === false`, `report === true`), a bottom prompt "研究已完成 · 阅读报告" opens it (dismissable; opening the report retires it for the session) and the 报告 button glows softly.
 - Empty or missing graph: the core shows alone with the message from the API (`没有星图` …). The galaxy never infers relations from trajectories.
 
 All Chinese strings follow the 2D inventory (spec section 4.11).
@@ -99,5 +100,5 @@ All Chinese strings follow the 2D inventory (spec section 4.11).
 ## 8. Phases
 
 1. Study page (this phase): scene, HUD, detail panel, report reader, polling, standalone server, and a minimal home list.
-2. 3D home: each study a small floating galaxy, built from `/thumbnail`; the composer launches a new star and the camera flies into it in the same scene.
+2. 3D home: each study a small floating galaxy, built from `/thumbnail`; the composer launches a new star and the camera flies into it in the same scene. The gallery has two sections (调研中, then 已完成); each wraps into centred lines of as many galaxies as fit the viewport (about 5 on 1920px, 2 on phones), and the page scrolls vertically (wheel, drag/touch, PageUp/PageDown/Space/Home/End, arrow-key neighbours across lines), with captions fading under the header and composer.
 3. Optional, needs an owner decision: richer verification evidence, which would require API additions.

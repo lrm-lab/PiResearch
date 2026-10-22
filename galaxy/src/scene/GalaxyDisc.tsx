@@ -1,6 +1,8 @@
 // The galaxy disc around the core: ~18k dust points in a two-arm log spiral
 // (6k on the low tier, via drawRange) over a faint spiral haze plane.
 // Positions are generated once in unit space; the radius is a uniform.
+// Both thin out right around the core star, so the disc plane does not cut a
+// bright band across the (no longer blown-out) goal sphere.
 
 import { useEffect, useMemo } from "react";
 import { AdditiveBlending, BufferAttribute, BufferGeometry, DoubleSide, PlaneGeometry, ShaderMaterial } from "three";
@@ -71,6 +73,7 @@ const DUST_VERTEX = /* glsl */ `
 ${PALETTE}
 uniform float uTime;
 uniform float uRadius;
+uniform float uCore;
 uniform vec2 uViewport;
 attribute vec3 aExtra;
 varying vec3 vColor;
@@ -86,7 +89,7 @@ void main() {
   gl_PointSize = clamp(px, 1.0, 7.0 * uViewport.y / 1800.0 + 2.0);
   float twinkle = 0.72 + 0.28 * sin(uTime * (0.6 + aExtra.y * 2.2) + aExtra.y * 60.0);
   float near = smoothstep(2.5, 12.0, -mv.z);
-  float coreDim = mix(0.4, 1.0, smoothstep(0.0, 0.16, r));
+  float coreDim = mix(0.4, 1.0, smoothstep(0.0, 0.16, r)) * mix(0.15, 1.0, smoothstep(uCore * 1.05, uCore * 2.4, r));
   float outer = 1.0 - smoothstep(0.95, 1.3, r);
   vAlpha = (0.32 + 0.3 * aExtra.z) * twinkle * near * coreDim * outer * clamp(px, 0.25, 1.0);
   vColor = discColor(r) * (1.0 + 0.6 * (1.0 - smoothstep(0.0, 0.2, r)));
@@ -118,6 +121,7 @@ ${NOISE}
 ${PALETTE}
 uniform float uTime;
 uniform float uRadius;
+uniform float uCore;
 varying vec2 vPlane;
 void main() {
   vec2 p = vPlane;
@@ -130,20 +134,24 @@ void main() {
   float bulge = exp(-r * r * 60.0) * 1.4 + exp(-r * 7.0) * 0.5;
   float disc = arms * exp(-r * 1.9) * smoothstep(0.02, 0.18, r) * (0.45 + 0.9 * n);
   float edge = 1.0 - smoothstep(0.9, 1.35, r);
-  vec3 col = discColor(r) * (bulge + disc * 0.75) * edge * 0.16;
+  float clear = mix(0.12, 1.0, smoothstep(uCore * 1.05, uCore * 2.8, r));
+  vec3 col = discColor(r) * (bulge + disc * 0.75) * edge * clear * 0.16;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
 
-export function GalaxyDisc({ fx, extent }: { fx: SceneFx; extent: number }) {
+export function GalaxyDisc({ fx, extent, coreRadius }: { fx: SceneFx; extent: number; coreRadius: number }) {
   const high = useGalaxy((state) => state.effectiveQuality === "high");
   const dust = useMemo(dustGeometry, []);
   const plane = useMemo(() => new PlaneGeometry(2.7, 2.7).rotateX(-Math.PI / 2), []);
   const radius = useMemo(() => ({ value: 1 }), []);
+  const core = useMemo(() => ({ value: 0 }), []);
   radius.value = extent * 1.3;
+  // Goal radius in the disc's unit space.
+  core.value = coreRadius / radius.value;
 
   const materials = useMemo(() => {
-    const shared = { uTime: fx.uniforms.uTime, uViewport: fx.uniforms.uViewport, uRadius: radius };
+    const shared = { uTime: fx.uniforms.uTime, uViewport: fx.uniforms.uViewport, uRadius: radius, uCore: core };
     return {
       dust: new ShaderMaterial({
         uniforms: shared,
@@ -163,7 +171,7 @@ export function GalaxyDisc({ fx, extent }: { fx: SceneFx; extent: number }) {
         side: DoubleSide,
       }),
     };
-  }, [fx, radius]);
+  }, [fx, radius, core]);
 
   useEffect(() => {
     dust.setDrawRange(0, high ? HIGH : LOW);

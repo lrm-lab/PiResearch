@@ -27,7 +27,7 @@ export function Header() {
             {split.running.length} 项调研中 · {split.done.length} 项已完成
           </p>
         )}
-        <a href="/" className="home-classic">
+        <a href="/index.html" className="home-classic">
           经典 2D 版
         </a>
       </div>

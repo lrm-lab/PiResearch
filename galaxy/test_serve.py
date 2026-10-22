@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import http.client
 import json
 import socket
@@ -19,6 +20,19 @@ import serve  # noqa: E402
 ETAG = 'W/"abc123"'
 SNAPSHOT = json.dumps({"ok": True, "revision": "r1", "nodes": ["x" * 2000]}).encode("utf-8")
 GZIPPED = gzip.compress(SNAPSHOT)
+HOME_HTML = (
+    '<!doctype html><html><body><header><a class="brand" href="/" title="回到主页">PiResearch</a></header>'
+    '<main>开始研究</main><a href="/study/s/1">s</a>' + "x" * 2000 + "</body></html>"
+).encode("utf-8")
+STUDY_HTML = (
+    '<!doctype html><html><body><header class="top"><a class="brand" href="/">PiResearch</a>'
+    '<button id="open-report">报告</button></header>主页' + "y" * 2000 + "</body></html>"
+).encode("utf-8")
+PLAIN_HTML = b"<!doctype html><html><body>other</body></html>" + b" " * 2000
+
+
+def page_etag(body: bytes) -> str:
+    return 'W/"' + hashlib.sha256(body).hexdigest() + '"'
 
 
 class FakeUpstream(BaseHTTPRequestHandler):
@@ -58,11 +72,20 @@ class FakeUpstream(BaseHTTPRequestHandler):
                 return
             self._reply(200, SNAPSHOT, {"Content-Type": "application/json; charset=utf-8", "ETag": ETAG})
             return
-        if self.path == "/":
-            self._reply(200, "<html>开始研究</html>".encode("utf-8"), {"Content-Type": "text/html; charset=utf-8"})
+        if self.path.startswith("/study/plain/"):
+            self._reply(200, b"not a page </body>", {"Content-Type": "text/plain; charset=utf-8"})
+            return
+        if self.path.split("?")[0] in ("/", "/index.html"):
+            self._page(HOME_HTML)
             return
         if self.path.startswith("/study/"):
-            self._reply(200, "<html>主页</html>".encode("utf-8"), {"Content-Type": "text/html; charset=utf-8"})
+            self._page(STUDY_HTML)
+            return
+        if self.path == "/other.html":
+            self._page(PLAIN_HTML)
+            return
+        if self.path == "/api/history":
+            self._reply(200, b'{"rows":["</body>"]}', {"Content-Type": "application/json; charset=utf-8", "ETag": ETAG})
             return
         if self.path == "/moved":
             self._reply(302, b"", {"Location": "/elsewhere"})
@@ -71,6 +94,20 @@ class FakeUpstream(BaseHTTPRequestHandler):
             self._reply(500, b'{"error":"boom"}', {"Content-Type": "application/json"})
             return
         self._reply(404, b"not found", {"Content-Type": "text/plain; charset=utf-8"})
+
+    def _page(self, body):
+        """Like constellation's ResponseHandler: weak sha256 ETag, 304, gzip when accepted."""
+        tag = page_etag(body)
+        tokens = [token.strip() for token in (self.headers.get("If-None-Match") or "").split(",")]
+        common = {"ETag": tag, "Cache-Control": "private, no-cache", "Vary": "Accept-Encoding"}
+        if tag in tokens:
+            self._reply(304, headers=common)
+            return
+        headers = {"Content-Type": "text/html; charset=utf-8", **common}
+        if "gzip" in (self.headers.get("Accept-Encoding") or ""):
+            headers["Content-Encoding"] = "gzip"
+            body = gzip.compress(body, mtime=0)
+        self._reply(200, body, headers)
 
     def do_HEAD(self):
         self.do_GET()
@@ -200,10 +237,111 @@ class GalaxyServeTest(unittest.TestCase):
         self.assertEqual(headers.get("Location"), "/elsewhere")
 
     def test_head_is_proxied_without_body(self):
-        status, headers, body = self.request("HEAD", "/")
+        status, headers, body = self.request("HEAD", "/api/studies/s/1/snapshot")
         self.assertEqual(status, 200)
         self.assertEqual(body, b"")
+        self.assertEqual(headers.get("Content-Length"), str(len(SNAPSHOT)))
         self.assertEqual(FakeUpstream.seen[-1]["method"], "HEAD")
+
+    # -- 3D switch on the 2D pages -----------------------------------------
+
+    def test_switch_is_injected_on_the_2d_home(self):
+        for path in ("/index.html", "/", "/index.html?x=1"):
+            status, headers, body = self.request("GET", path, headers={"Accept-Encoding": "gzip, br"})
+            self.assertEqual(status, 200, path)
+            self.assertNotIn("Content-Encoding", headers, path)
+            self.assertEqual(headers["Content-Length"], str(len(body)), path)
+            text = body.decode("utf-8")
+            self.assertIn('id="pr-galaxy-switch" href="/galaxy/"', text, path)
+            self.assertIn("切换到 ", text, path)
+            self.assertEqual(text.count("pr-galaxy-switch-style"), 1, path)
+            # Injected just before </body>, and the brand link stays in 2D.
+            self.assertTrue(text.endswith("</script>\n</body></html>"), path)
+            self.assertIn('class="brand" href="/index.html"', text, path)
+            self.assertNotIn(' href="/"', text, path)
+            self.assertIn('href="/study/s/1"', text, path)
+            # Upstream was asked for an uncompressed body.
+            self.assertIn(FakeUpstream.seen[-1]["headers"].get("Accept-Encoding", "identity"), ("identity", ""), path)
+
+    def test_switch_is_injected_on_the_2d_study_page(self):
+        status, headers, body = self.request("GET", "/study/x/1", headers={"Accept-Encoding": "gzip"})
+        self.assertEqual(status, 200)
+        text = body.decode("utf-8")
+        self.assertIn('id="pr-galaxy-switch" href="/galaxy/study/x/1"', text)
+        self.assertIn("主页", text)
+        self.assertEqual(headers["Content-Length"], str(len(body)))
+        status, _, body = self.request("GET", "/study/sessions/20261020-101500/1/?entry-preview=1")
+        self.assertIn('href="/galaxy/study/sessions/20261020-101500/1"', body.decode("utf-8"))
+
+    def test_switch_target_is_escaped(self):
+        status, _, body = self.request("GET", '/study/a"b<c>/1')
+        text = body.decode("utf-8")
+        self.assertIn('href="/galaxy/study/a&quot;b&lt;c&gt;/1"', text)
+        self.assertNotIn('a"b<c>', text)
+
+    def test_no_switch_for_json_or_non_html(self):
+        status, headers, body = self.request("GET", "/api/history", headers={"Accept-Encoding": "gzip"})
+        self.assertEqual((status, body), (200, b'{"rows":["</body>"]}'))
+        self.assertEqual(headers.get("ETag"), ETAG)
+        self.assertEqual(FakeUpstream.seen[-1]["headers"].get("Accept-Encoding"), "gzip")
+        status, headers, body = self.request("GET", "/study/plain/1")
+        self.assertEqual((status, body), (200, b"not a page </body>"))
+        status, headers, body = self.request("GET", "/nope")
+        self.assertEqual((status, body), (404, b"not found"))
+
+    def test_gzip_html_is_untouched_off_the_2d_pages(self):
+        status, headers, body = self.request("GET", "/other.html", headers={"Accept-Encoding": "gzip"})
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("Content-Encoding"), "gzip")
+        self.assertEqual(headers.get("ETag"), page_etag(PLAIN_HTML))
+        self.assertEqual(body, gzip.compress(PLAIN_HTML, mtime=0))
+        self.assertEqual(gzip.decompress(body), PLAIN_HTML)
+        self.assertEqual(FakeUpstream.seen[-1]["headers"].get("Accept-Encoding"), "gzip")
+
+    def test_switch_etag_and_304(self):
+        status, headers, body = self.request("GET", "/index.html")
+        tag = headers["ETag"]
+        upstream_tag = page_etag(HOME_HTML)
+        self.assertEqual(tag, upstream_tag[:-1] + serve.SWITCH_ETAG_SUFFIX + '"')
+        # Revalidating with our tag: upstream sees its own tag and the 304 carries ours.
+        status, headers, body = self.request("GET", "/index.html", headers={"If-None-Match": tag})
+        self.assertEqual((status, body), (304, b""))
+        self.assertEqual(headers["ETag"], tag)
+        self.assertEqual(FakeUpstream.seen[-1]["headers"].get("If-None-Match"), upstream_tag)
+        # A tag for an uninjected copy (cached before the switch existed) never 304s.
+        status, headers, body = self.request("GET", "/index.html", headers={"If-None-Match": upstream_tag})
+        self.assertEqual(status, 200)
+        self.assertIn(b"pr-galaxy-switch", body)
+        self.assertEqual(headers["ETag"], tag)
+        self.assertNotIn("If-None-Match", FakeUpstream.seen[-1]["headers"])
+        # Mixed lists keep only our tags.
+        status, _, _ = self.request("GET", "/index.html", headers={"If-None-Match": f'{upstream_tag}, W/"zzz", {tag}'})
+        self.assertEqual(status, 304)
+        self.assertEqual(FakeUpstream.seen[-1]["headers"].get("If-None-Match"), upstream_tag)
+        # The study page uses the same scheme.
+        _, headers, _ = self.request("GET", "/study/x/1")
+        status, headers2, _ = self.request("GET", "/study/x/1", headers={"If-None-Match": headers["ETag"]})
+        self.assertEqual(status, 304)
+        self.assertEqual(headers2["ETag"], headers["ETag"])
+
+    def test_head_on_2d_page_matches_injected_get(self):
+        _, get_headers, body = self.request("GET", "/study/x/1")
+        status, headers, head_body = self.request("HEAD", "/study/x/1")
+        self.assertEqual((status, head_body), (200, b""))
+        self.assertEqual(headers["Content-Length"], str(len(body)))
+        self.assertEqual(headers["ETag"], get_headers["ETag"])
+        self.assertEqual(FakeUpstream.seen[-1]["method"], "GET")
+
+    def test_switch_helpers(self):
+        self.assertEqual(serve.switch_target("/"), "/galaxy/")
+        self.assertEqual(serve.switch_target("/index.html"), "/galaxy/")
+        self.assertEqual(serve.switch_target("/study/a/b/1/"), "/galaxy/study/a/b/1")
+        for path in ("/study", "/study/", "/api/history", "/index.htm", "/galaxy/"):
+            self.assertIsNone(serve.switch_target(path), path)
+        self.assertEqual(serve.inject_switch(b"<p>no body tag</p>", "/galaxy/")[:18], b"<p>no body tag</p>")
+        self.assertIsNone(serve.tag_etag(None))
+        self.assertIsNone(serve.tag_etag("unquoted"))
+        self.assertIsNone(serve.untag_if_none_match('W/"abc", *'))
 
     def test_keep_alive_serves_several_requests(self):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)

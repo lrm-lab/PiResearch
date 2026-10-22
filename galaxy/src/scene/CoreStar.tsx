@@ -1,5 +1,7 @@
-// The goal as a core star: plasma surface, corona with rays, anamorphic flare,
-// and an equatorial ring of light while the goal is planning or finalising.
+// The goal as a core star: plasma surface, corona with rays, a short faint
+// glint, and an equatorial ring of light while the goal is planning or
+// finalising. Kept below white-hot so the plasma stays readable through Bloom:
+// it is the focal point, not a lamp.
 // Renders at the origin even without a goal node (empty / missing graph).
 
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -56,13 +58,15 @@ void main() {
   float gran = snoise(p * 16.0 + w * 2.5 + vec3(t * 4.0));
   float heat = clamp(0.5 + 0.55 * n + 0.12 * gran, 0.0, 1.0);
   vec3 hot = vec3(1.0, 0.97, 0.9);
-  vec3 col = mix(uTone * 0.5, uTone * 1.5, smoothstep(0.15, 0.6, heat));
-  col = mix(col, hot * 1.6, smoothstep(0.5, 0.95, heat) * (0.3 + 0.7 * mu));
-  col = mix(col, hot * 2.1, pow(mu, 3.2) * 0.6);
-  col += uTone * pow(1.0 - mu, 2.0) * 1.6;
-  float pulse = 1.0 + uLive * 0.22 * (0.5 + 0.5 * sin(uTime * 3.927));
-  col *= pulse * vFx.r * (1.0 + 0.25 * vFx.a) * mix(0.62, 1.0, uGlare);
-  col += hot * vFx.b * 2.0;
+  // Dark lanes stay in the tone, granules lift toward warm white; the peak
+  // stays near 1.0 before tone mapping so the texture survives Bloom.
+  vec3 col = mix(uTone * 0.32, uTone * 0.95, smoothstep(0.15, 0.6, heat));
+  col = mix(col, hot * 1.0, smoothstep(0.55, 0.98, heat) * (0.25 + 0.55 * mu));
+  col = mix(col, hot * 1.08, pow(mu, 4.0) * 0.28);
+  col += uTone * pow(1.0 - mu, 2.0) * 0.75;
+  float pulse = 1.0 + uLive * 0.12 * (0.5 + 0.5 * sin(uTime * 3.927));
+  col *= pulse * vFx.r * (1.0 + 0.2 * vFx.a) * mix(0.8, 1.12, uGlare);
+  col += hot * vFx.b * 1.2;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -101,12 +105,12 @@ void main() {
   float t = uTime;
   float rays = snoise(vec3(cos(a + t * 0.012) * 3.2, sin(a + t * 0.012) * 3.2, t * 0.07)) * 0.5 + 0.5;
   float fine = snoise(vec3(cos(a - t * 0.02) * 9.0, sin(a - t * 0.02) * 9.0, t * 0.15)) * 0.5 + 0.5;
-  float streamers = pow(max(rays, 0.0), 3.0) * 1.1 + pow(max(fine, 0.0), 4.0) * 0.5;
+  float streamers = pow(max(rays, 0.0), 3.0) * 0.9 + pow(max(fine, 0.0), 4.0) * 0.35;
   vec3 hot = vec3(1.0, 0.97, 0.92);
-  float glow = exp(-x * 1.25);
-  float inner = exp(-x * 5.5);
-  vec3 col = uTone * (glow * 0.5 + streamers * exp(-x * 0.8) * 0.6) + hot * inner * 0.8;
-  float pulse = 1.0 + uLive * 0.3 * (0.5 + 0.5 * sin(t * 3.927));
+  float glow = exp(-x * 1.6);
+  float inner = exp(-x * 6.5);
+  vec3 col = uTone * (glow * 0.42 + streamers * exp(-x * 1.1) * 0.42) + mix(uTone, hot, 0.5) * inner * 0.45;
+  float pulse = 1.0 + uLive * 0.18 * (0.5 + 0.5 * sin(t * 3.927));
   col *= pulse * vFx.r * smoothstep(1.0, 0.6, u) * uGlare;
   gl_FragColor = vec4(col, 1.0);
 }
@@ -120,14 +124,15 @@ uniform vec3 uTone;
 varying vec2 vUv;
 varying vec4 vFx;
 void main() {
+  // A short, faint glint across the core (no screen-wide anamorphic streak).
   vec2 q = vUv;
-  float streak = exp(-pow(abs(q.y * 7.0), 2.0)) * pow(max(1.0 - abs(q.x), 0.0), 2.4);
-  float thin = exp(-pow(abs(q.y * 26.0), 2.0)) * pow(max(1.0 - abs(q.x), 0.0), 1.2);
-  float core = exp(-dot(q * vec2(4.0, 9.0), q * vec2(4.0, 9.0)));
+  float fall = max(1.0 - abs(q.x), 0.0);
+  float thin = exp(-pow(abs(q.y * 22.0), 2.0)) * fall * fall * fall;
+  float core = exp(-dot(q * vec2(3.0, 7.0), q * vec2(3.0, 7.0)));
   float shimmer = 0.85 + 0.15 * sin(uTime * 1.3);
   vec3 hot = vec3(1.0, 0.98, 0.95);
-  vec3 col = mix(uTone, hot, 0.4) * streak * 0.3 + hot * thin * 0.42 + hot * core * 0.3;
-  col *= shimmer * (1.0 + 0.25 * uLive) * vFx.r * uGlare * uGlare;
+  vec3 col = mix(uTone, hot, 0.6) * (thin * 0.16 + core * 0.08);
+  col *= shimmer * (1.0 + 0.15 * uLive) * vFx.r * uGlare * uGlare;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -198,13 +203,13 @@ export function CoreStar({ graph, fx }: { graph: SceneGraph; fx: SceneFx }) {
     return {
       surface: new ShaderMaterial({ uniforms: base, vertexShader: SURFACE_VERTEX, fragmentShader: SURFACE_FRAGMENT }),
       corona: new ShaderMaterial({
-        uniforms: { ...base, uSize: { value: [4.2, 4.2] }, uLift: { value: 0 } },
+        uniforms: { ...base, uSize: { value: [3.6, 3.6] }, uLift: { value: 0 } },
         vertexShader: SPRITE_VERTEX,
         fragmentShader: CORONA_FRAGMENT,
         ...additive,
       }),
       flare: new ShaderMaterial({
-        uniforms: { ...base, uSize: { value: [11, 1.6] }, uLift: { value: 1.08 } },
+        uniforms: { ...base, uSize: { value: [3.4, 0.7] }, uLift: { value: 1.08 } },
         vertexShader: SPRITE_VERTEX,
         fragmentShader: FLARE_FRAGMENT,
         ...additive,

@@ -6,7 +6,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { AdditiveBlending, BufferAttribute, BufferGeometry, MathUtils, ShaderMaterial, Vector3, type LineSegments, type PerspectiveCamera } from "three";
 import { flags, navigate } from "../flags";
-import { FOV, scrollToReveal, slotX } from "../layout";
+import { EXPAND_PX, FOV, scrollToReveal } from "../layout";
 import { gallery } from "../motion";
 import { useHome } from "../store";
 import { splitRows } from "../format";
@@ -79,18 +79,22 @@ export function Director() {
     [streaks],
   );
 
-  // Keyboard focus pans the gallery so the focused study is on screen.
+  // Keyboard focus scrolls the gallery so the focused study is in view.
   useEffect(
     () =>
       useHome.subscribe((state, previous) => {
         if (!state.focused || state.focused === previous.focused) return;
         const { running, done } = splitRows(state.rows ?? []);
-        const row = running.some((r) => r.id === state.focused) ? running : done;
-        const index = row.findIndex((r) => r.id === state.focused);
+        const section = running.some((r) => r.id === state.focused) ? 0 : 1;
+        const index = (section === 0 ? running : done).findIndex((r) => r.id === state.focused);
         if (index < 0) return;
-        const x = slotX(index, row.length, gallery.params.spacing, gallery.bounds.fits);
+        const shift = section === 0 && gallery.launchSlot ? 1 : 0;
+        const slot = gallery.layout.slots[section][index + shift];
+        if (!slot) return;
         gallery.velocity = 0;
-        gallery.target = scrollToReveal(gallery.target, x, gallery.params, gallery.bounds);
+        // The focused caption expands; keep that in view too.
+        const extra = EXPAND_PX / gallery.ppu;
+        gallery.target = scrollToReveal(gallery.target, slot.y, gallery.params, gallery.layout, gallery.band, gallery.bounds, extra);
       }),
     [],
   );

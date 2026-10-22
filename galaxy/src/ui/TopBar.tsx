@@ -1,14 +1,17 @@
 // Top bar: brand, question, phase chip, progress and the scene controls.
-// ≤1180 px the secondary buttons drop their labels; ≤600 px they fold into a menu.
+// 报告 and 2D 视图 stay visible (with labels) at every width; ≤1180 px the
+// quality label shortens and ≤900 px the other scene controls fold into a menu.
 
 import { useCallback, useRef } from "react";
 import { goalActivity, phaseLabel, progress } from "../lib/activity";
+import { classicStudyHref } from "../lib/api";
 import { useDismiss } from "../lib/hooks";
 import { TITLE_LOADING, TITLE_NO_GRAPH } from "../lib/report";
 import { type Quality, useGalaxy } from "../store";
 import {
   IconCheck,
   IconCore,
+  IconFlat,
   IconHelp,
   IconLens,
   IconMore,
@@ -99,6 +102,7 @@ function StudyMeta() {
 
 function Actions() {
   const view = useGalaxy((state) => state.view);
+  const studyId = useGalaxy((state) => state.studyId);
   const lens = useGalaxy((state) => state.lens);
   const toggleLens = useGalaxy((state) => state.toggleLens);
   const emitCamera = useGalaxy((state) => state.emitCamera);
@@ -114,6 +118,7 @@ function Actions() {
   useDismiss(ref, menu !== null, close);
 
   const hasReport = Boolean(view?.report);
+  const finished = hasReport && view?.ok === true && view.running === false;
   const hasGoal = Boolean(view?.ok && view.nodes.some((node) => node.goal));
   const qualityHint = quality === "auto" ? `自动 · ${QUALITY_LABEL[effective]}` : QUALITY_LABEL[quality];
 
@@ -142,8 +147,9 @@ function Actions() {
       <button
         id={REPORT_BUTTON_ID}
         type="button"
-        className="g-btn g-btn-accent g-tip"
+        className={`g-btn g-btn-accent g-tip topbar-report${finished ? " is-ready" : ""}`}
         aria-disabled={!hasReport}
+        aria-haspopup="dialog"
         data-tip={hasReport ? undefined : "这份运行还没有报告"}
         data-tip-align="end"
         onClick={() => hasReport && beginReport()}
@@ -152,6 +158,21 @@ function Actions() {
         <span className="btn-label">报告</span>
         {!hasReport && <span className="sr-only">（这份运行还没有报告）</span>}
       </button>
+
+      {studyId && (
+        <a
+          className="g-btn g-tip topbar-classic"
+          href={classicStudyHref(studyId)}
+          aria-label="切换到 2D 视图"
+          data-tip="在平面星图中查看这项研究"
+          data-tip-align="end"
+        >
+          <IconFlat />
+          <span className="topbar-classic-label">
+            2D<span className="topbar-classic-word"> 视图</span>
+          </span>
+        </a>
+      )}
 
       <span className="wide-only topbar-actions">
         <button

@@ -11,14 +11,15 @@ import { DetailPanel } from "./DetailPanel";
 import { useShortcuts } from "./hooks";
 import { Legend } from "./Legend";
 import { Notices } from "./Notices";
-import { ReportReader } from "./ReportReader";
+import { ReportCta, ReportReader } from "./ReportReader";
 import { TopBar } from "./TopBar";
 import { useUi } from "./uiStore";
 
 export function Hud() {
   const goalTitle = useGalaxy((state) => (state.view?.ok ? state.view.goal?.title : null));
-  const stage = useUi((state) => state.reportStage);
-  const reportOpen = stage === "open";
+  // While the report dialog is up (and until its exit finishes) the chrome
+  // stays visible under the backdrop but is inert.
+  const reportOpen = useUi((state) => state.reportStage !== "closed");
   useShortcuts();
 
   useEffect(() => {
@@ -28,11 +29,12 @@ export function Hud() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="hud">
-        <div className="hud-chrome" data-landing={stage === "diving" || stage === "open"} inert={reportOpen} aria-hidden={reportOpen || undefined}>
+        <div className="hud-chrome" inert={reportOpen} aria-hidden={reportOpen || undefined}>
           <TopBar />
           <Notices />
           <Legend />
           <DetailPanel />
+          <ReportCta />
         </div>
         <ReportReader />
       </div>
