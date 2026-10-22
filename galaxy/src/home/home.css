@@ -447,43 +447,13 @@ html.home-doc {
   border-radius: 10px;
 }
 
-.home-brand-mark {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  color: #9fe9ff;
-  filter: drop-shadow(0 0 8px rgba(72, 211, 228, 0.65));
-}
-
-.home-brand-mark svg {
-  width: 30px;
-  height: 30px;
-  animation: g-spin 24s linear infinite;
-}
-
 .home-brand-word {
-  font-size: 19px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  background: linear-gradient(100deg, #e8ebf3 0%, #e8ebf3 38%, #a9f0ff 47%, #ffffff 50%, #c6b4ff 54%, #e8ebf3 62%, #e8ebf3 100%);
-  background-size: 260% 100%;
-  background-position: 100% 0;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: home-shimmer 7s ease-in-out infinite;
-}
-
-.home-brand-tag {
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(159, 233, 255, 0.25);
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: #9fe9ff;
-  background: rgba(72, 211, 228, 0.07);
+  font-family: "Savoye LET", "Snell Roundhand", "Segoe Script", "Bradley Hand", cursive;
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: #f4f4f5;
 }
 
 .home-header-side {
@@ -1137,13 +1107,12 @@ body.home-confirm-open .home-composer-dock {
     padding-right: max(16px, env(safe-area-inset-right));
   }
 
-  .home-header-stats,
-  .home-brand-tag {
+  .home-header-stats {
     display: none;
   }
 
   .home-brand-word {
-    font-size: 17px;
+    font-size: 32px;
   }
 
   .home-cap-link {
