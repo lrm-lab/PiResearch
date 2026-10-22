@@ -1,0 +1,135 @@
+/*
+ * Shared DOM effects in CoForge's vocabulary: the avatar's gradient hairline, magicui's border beam,
+ * spell's shimmer text. Ported as CSS (the originals are MIT, in the CoForge repo under
+ * components/magicui and components/spell). All motion stops under prefers-reduced-motion.
+ */
+
+/* Avatar frame: light violet top-left → brand violet 50% bottom-right, 1.5px. */
+.prism-avatar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid transparent;
+  background: linear-gradient(135deg, var(--color-avatar-border-start) 0%, var(--color-avatar-border-end) 100%) border-box;
+  mask:
+    linear-gradient(#fff 0 0) padding-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Border beam: a short bright arc travelling around a rounded box's edge. Put `.prism-beam` on a
+   positioned element with a border radius; set --beam-from / --beam-to / --beam-duration. */
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.prism-beam {
+  --beam-from: var(--color-brand-400);
+  --beam-to: var(--color-brand-600);
+  --beam-duration: 4s;
+  --beam-width: 1.5px;
+}
+
+.prism-beam::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--beam-width);
+  background: conic-gradient(
+    from var(--beam-angle),
+    transparent 0deg,
+    transparent 280deg,
+    var(--beam-from) 320deg,
+    var(--beam-to) 350deg,
+    transparent 360deg
+  );
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: prism-beam var(--beam-duration) linear infinite;
+  pointer-events: none;
+}
+
+@keyframes prism-beam {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+
+/* Shimmer text: a light band sweeping across muted text (spell ShimmerText). */
+.prism-shimmer {
+  --shimmer-contrast: var(--color-text-primary);
+  background: linear-gradient(
+      100deg,
+      transparent 30%,
+      var(--shimmer-contrast) 50%,
+      transparent 70%
+    )
+    0 0 / 250% 100% no-repeat,
+    linear-gradient(currentColor, currentColor);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: prism-shimmer 2.2s linear infinite;
+}
+
+@keyframes prism-shimmer {
+  from {
+    background-position: 150% 0, 0 0;
+  }
+  to {
+    background-position: -100% 0, 0 0;
+  }
+}
+
+/* Status ring pie, slowly turning while a task is in progress. */
+@keyframes prism-pie {
+  to {
+    transform: rotate(270deg);
+  }
+}
+
+/* Blinking terminal caret. */
+@keyframes prism-caret {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.prism-caret::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: -0.2em;
+  background: currentColor;
+  animation: prism-caret 1s steps(1) infinite;
+}
+
+/* Indeterminate progress segment (CoForge --animate-progress-indeterminate). */
+@keyframes prism-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prism-beam::before,
+  .prism-shimmer,
+  .prism-caret::after {
+    animation: none;
+  }
+}

@@ -1,0 +1,72 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/effects.css";
+
+/* Self-hosted, as CoForge does: no external font requests. Noto Sans SC ships unicode-range
+   slices that the browser fetches on demand; never preload it. */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/noto-sans-sc";
+@import "@fontsource-variable/jetbrains-mono";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html,
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: contextual;
+  font-kerning: normal;
+}
+
+@layer base {
+  body {
+    @apply bg-primary text-primary;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-brand-200);
+    color: var(--color-brand-950);
+  }
+}
+
+@utility scrollbar-hide {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  scrollbar-width: none;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Theme changes cross-fade instead of snapping (only colours, never layout). */
+html.theme-transition,
+html.theme-transition * {
+  transition:
+    background-color 240ms var(--ease-out-quint),
+    border-color 240ms var(--ease-out-quint),
+    color 240ms var(--ease-out-quint) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-transition,
+  html.theme-transition * {
+    transition: none !important;
+  }
+}

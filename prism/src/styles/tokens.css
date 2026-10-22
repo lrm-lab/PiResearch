@@ -1,0 +1,250 @@
+/*
+ * Prism's design tokens: CoForge's semantic names and values (apps/web/src/styles/coforge-theme.css
+ * and docs/design/color-palette.md in the CoForge repo), written out here so the page reads as a
+ * native CoForge surface when it is embedded. Components use the semantic utilities only
+ * (`bg-primary`, `text-tertiary`, `border-secondary`, `bg-brand-solid` …), never hex.
+ *
+ * Theme switch: `.dark-mode` on <html> (CoForge's class name, not Tailwind's `.dark`). The host
+ * owns the switch; see src/lib/theme.ts.
+ *
+ * Brand violet is for selection, focus, links and the one primary action only. Task status has its
+ * own colours (CoForge's TASK_STATUS_COLOR), agents take the avatar tones.
+ */
+
+@custom-variant dark (&:where(.dark-mode, .dark-mode *));
+
+@theme {
+  --font-body:
+    "Inter Variable", "Noto Sans SC Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans", Arial, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Noto Color Emoji";
+  --font-sans: var(--font-body);
+  --font-display: var(--font-body);
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* CoForge's eight type steps (docs/design/typography.md). Size and line height go together. */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.875rem;
+  --text-display-xs: 1.5rem;
+  --text-display-xs--line-height: 2rem;
+  --text-display-sm: 1.875rem;
+  --text-display-sm--line-height: 2.375rem;
+  --text-display-md: 2.25rem;
+  --text-display-md--line-height: 2.75rem;
+
+  /* CoForge brand ramp (violet, hue ~254°). 600 is the brand solid. */
+  --color-brand-50: #f8f5ff;
+  --color-brand-100: #efe8ff;
+  --color-brand-200: #ded1ff;
+  --color-brand-300: #c9b3ff;
+  --color-brand-400: #a993ff;
+  --color-brand-500: #8f6ff2;
+  --color-brand-600: #5d36dc;
+  --color-brand-700: #4c2ab8;
+  --color-brand-800: #3d2295;
+  --color-brand-900: #332073;
+  --color-brand-950: #21134d;
+
+  /* Semantic tokens, light values. Re-pointed under `.dark-mode` below. */
+  --color-bg-primary: #ffffff;
+  --color-bg-primary_hover: var(--color-neutral-50);
+  --color-bg-secondary: var(--color-neutral-50);
+  --color-bg-secondary_hover: var(--color-neutral-100);
+  --color-bg-tertiary: var(--color-neutral-100);
+  --color-bg-quaternary: var(--color-neutral-200);
+  --color-bg-active: var(--color-neutral-50);
+  --color-bg-overlay: var(--color-neutral-950);
+  --color-bg-brand-primary: #f3f1ff;
+  --color-bg-brand-secondary: var(--color-brand-100);
+  --color-bg-brand-solid: var(--color-brand-600);
+  --color-bg-brand-solid_hover: var(--color-brand-700);
+  --color-bg-error-primary: var(--color-red-50);
+  --color-bg-error-solid: var(--color-red-600);
+  --color-bg-error-solid_hover: var(--color-red-700);
+  --color-bg-success-primary: #f6ffed;
+
+  --color-text-primary: #101319;
+  --color-text-secondary: var(--color-neutral-700);
+  --color-text-tertiary: var(--color-neutral-600);
+  --color-text-quaternary: var(--color-neutral-500);
+  --color-text-brand-secondary: var(--color-brand-700);
+  --color-text-brand-tertiary: var(--color-brand-600);
+  --color-text-error-primary: var(--color-red-600);
+  --color-text-success-primary: var(--color-green-600);
+
+  --color-border-primary: var(--color-neutral-300);
+  --color-border-secondary: #e0e5f1;
+  --color-border-tertiary: var(--color-neutral-100);
+  --color-border-brand: var(--color-brand-500);
+  --color-border-error: var(--color-red-500);
+
+  --color-fg-primary: #101319;
+  --color-fg-secondary: var(--color-neutral-700);
+  --color-fg-tertiary: var(--color-neutral-600);
+  --color-fg-quaternary: var(--color-neutral-400);
+  --color-fg-brand-primary: var(--color-brand-600);
+  --color-fg-error-primary: var(--color-red-600);
+  --color-fg-success-primary: var(--color-green-600);
+  --color-focus-ring: var(--color-brand-500);
+
+  /* CoForge-only tokens. */
+  --color-sidebar: #f8f7fe;
+  --color-sidebar-accent: #ebeaf7;
+  --color-chat-selected-bg: #f4f6fa;
+  --color-chat-selected-border: #e0e5f1;
+  --color-message-hover: #f7f8fb;
+  --color-nav-icon: #777d8d;
+  /* Terminal / command blocks stay dark in both themes. */
+  --color-terminal: #171b23;
+  --color-terminal-fg: #f4f6fb;
+  --color-avatar-border-start: #c5bafe;
+  --color-avatar-border-end: rgb(93 54 220 / 50%);
+  --color-online: #1bb618;
+  --color-offline: #afbccb;
+
+  /* Agent identity tones: CoForge's avatar placeholder backgrounds, in this order. */
+  --color-agent-1: #7556b9;
+  --color-agent-2: #d18a38;
+  --color-agent-3: #b65757;
+  --color-agent-4: #5268b7;
+  --color-agent-5: #497665;
+  --color-agent-6: #ba5937;
+
+  /* Task status (CoForge TASK_STATUS_COLOR): todo orange, in progress blue, in review indigo,
+     done green, closed grey. Only for task status. */
+  --color-status-todo: var(--color-orange-500);
+  --color-status-progress: var(--color-blue-500);
+  --color-status-review: var(--color-indigo-500);
+  --color-status-done: var(--color-green-500);
+  --color-status-closed: var(--color-neutral-400);
+  --color-status-error: var(--color-red-500);
+
+  --shadow-xs: 0 1px 2px rgb(10 13 18 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(10 13 18 / 0.1), 0 1px 2px -1px rgb(10 13 18 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(10 13 18 / 0.1), 0 2px 4px -2px rgb(10 13 18 / 0.06);
+  --shadow-lg: 0 12px 16px -4px rgb(10 13 18 / 0.08), 0 4px 6px -2px rgb(10 13 18 / 0.03);
+  --shadow-xl: 0 20px 24px -4px rgb(10 13 18 / 0.08), 0 8px 8px -4px rgb(10 13 18 / 0.03);
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:root {
+  /* Light: a faint brand tint over white (CoForge `--sidebar-gradient`). */
+  --sidebar-gradient: linear-gradient(161.7deg, rgba(197, 186, 254, 0.15) 0.5%, rgba(197, 186, 254, 0.05) 78.18%);
+  /* The landing page's Prism gradient colours, used by the hero shader in both themes. */
+  --prism-ground: #0a0912;
+  --prism-violet: #5d36dc;
+  --prism-lavender: #c5bafe;
+  color-scheme: light;
+}
+
+.dark-mode {
+  color-scheme: dark;
+
+  --color-bg-primary: var(--color-neutral-950);
+  --color-bg-primary_hover: var(--color-neutral-900);
+  --color-bg-secondary: var(--color-neutral-900);
+  --color-bg-secondary_hover: var(--color-neutral-800);
+  --color-bg-tertiary: var(--color-neutral-800);
+  --color-bg-quaternary: var(--color-neutral-700);
+  --color-bg-active: var(--color-neutral-800);
+  --color-bg-overlay: var(--color-neutral-800);
+  --color-bg-brand-primary: rgb(93 54 220 / 0.18);
+  --color-bg-brand-secondary: var(--color-brand-600);
+  --color-bg-brand-solid_hover: var(--color-brand-500);
+  --color-bg-error-primary: var(--color-red-950);
+  --color-bg-success-primary: var(--color-green-950);
+
+  --color-text-primary: var(--color-neutral-50);
+  --color-text-secondary: var(--color-neutral-300);
+  --color-text-tertiary: var(--color-neutral-400);
+  --color-text-quaternary: var(--color-neutral-400);
+  --color-text-brand-secondary: var(--color-brand-300);
+  --color-text-brand-tertiary: var(--color-brand-400);
+  --color-text-error-primary: var(--color-red-400);
+  --color-text-success-primary: var(--color-green-400);
+
+  --color-border-primary: var(--color-neutral-700);
+  --color-border-secondary: var(--color-neutral-800);
+  --color-border-tertiary: var(--color-neutral-800);
+  --color-border-brand: var(--color-brand-400);
+
+  --color-fg-primary: #ffffff;
+  --color-fg-secondary: var(--color-neutral-300);
+  --color-fg-tertiary: var(--color-neutral-400);
+  --color-fg-quaternary: var(--color-neutral-600);
+  --color-fg-brand-primary: var(--color-brand-400);
+  --color-fg-error-primary: var(--color-red-500);
+  --color-fg-success-primary: var(--color-green-500);
+  --color-focus-ring: var(--color-brand-400);
+
+  --color-sidebar: #141720;
+  --color-sidebar-accent: #3a3160;
+  --color-chat-selected-bg: #3a3160;
+  --color-chat-selected-border: #4c4081;
+  --color-message-hover: var(--color-neutral-900);
+  --color-nav-icon: #a4a9b8;
+  --color-online: #42c83f;
+  --color-offline: #778393;
+
+  --sidebar-gradient: linear-gradient(155deg, #21183b 0%, #171421 52%, #141720 100%);
+}
+
+/* Utility namespaces, as in Untitled UI: `bg-primary`, `text-tertiary`, `border-secondary`,
+   `fg-*` via `text-fg-*`. `inline` keeps the var() so `.dark-mode` re-resolves them. */
+@theme inline {
+  --background-color-primary: var(--color-bg-primary);
+  --background-color-primary_hover: var(--color-bg-primary_hover);
+  --background-color-secondary: var(--color-bg-secondary);
+  --background-color-secondary_hover: var(--color-bg-secondary_hover);
+  --background-color-tertiary: var(--color-bg-tertiary);
+  --background-color-quaternary: var(--color-bg-quaternary);
+  --background-color-active: var(--color-bg-active);
+  --background-color-overlay: var(--color-bg-overlay);
+  --background-color-brand-primary: var(--color-bg-brand-primary);
+  --background-color-brand-secondary: var(--color-bg-brand-secondary);
+  --background-color-brand-solid: var(--color-bg-brand-solid);
+  --background-color-brand-solid_hover: var(--color-bg-brand-solid_hover);
+  --background-color-error-primary: var(--color-bg-error-primary);
+  --background-color-error-solid: var(--color-bg-error-solid);
+  --background-color-error-solid_hover: var(--color-bg-error-solid_hover);
+  --background-color-success-primary: var(--color-bg-success-primary);
+  --background-color-sidebar: var(--color-sidebar);
+  --background-color-sidebar-accent: var(--color-sidebar-accent);
+  --background-color-chat-selected: var(--color-chat-selected-bg);
+  --background-color-message-hover: var(--color-message-hover);
+  --background-color-terminal: var(--color-terminal);
+
+  --text-color-primary: var(--color-text-primary);
+  --text-color-secondary: var(--color-text-secondary);
+  --text-color-tertiary: var(--color-text-tertiary);
+  --text-color-quaternary: var(--color-text-quaternary);
+  --text-color-brand-secondary: var(--color-text-brand-secondary);
+  --text-color-brand-tertiary: var(--color-text-brand-tertiary);
+  --text-color-error-primary: var(--color-text-error-primary);
+  --text-color-success-primary: var(--color-text-success-primary);
+  --text-color-terminal: var(--color-terminal-fg);
+  --text-color-nav-icon: var(--color-nav-icon);
+
+  --border-color-primary: var(--color-border-primary);
+  --border-color-secondary: var(--color-border-secondary);
+  --border-color-tertiary: var(--color-border-tertiary);
+  --border-color-brand: var(--color-border-brand);
+  --border-color-error: var(--color-border-error);
+  --border-color-chat-selected: var(--color-chat-selected-border);
+
+  --ring-color-primary: var(--color-border-primary);
+  --ring-color-secondary: var(--color-border-secondary);
+  --ring-color-tertiary: var(--color-border-tertiary);
+  --ring-color-brand: var(--color-border-brand);
+  --ring-color-error: var(--color-border-error);
+}

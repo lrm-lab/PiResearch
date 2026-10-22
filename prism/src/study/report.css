@@ -1,0 +1,246 @@
+/*
+ * Report document typography, after CoForge's prose rules
+ * (apps/web/src/features/records/report-editor/styles/prose.css): token colours, the eight type
+ * steps, brand links with a 40% underline, border-secondary tables with bg-secondary header cells,
+ * mono code. Tuned up one step for long-form reading (16px body, roomier line height for CJK).
+ * Loaded with the report chunk only.
+ */
+
+.prism-doc {
+  counter-reset: chapter;
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+  line-height: 1.85;
+  overflow-wrap: break-word;
+}
+
+.prism-doc > :first-child {
+  margin-top: 0;
+}
+
+.prism-doc h1,
+.prism-doc h2 {
+  margin: 3rem 0 1rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--color-border-secondary);
+  color: var(--color-text-primary);
+  font-size: var(--text-display-xs);
+  line-height: var(--text-display-xs--line-height);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  scroll-margin-top: 1rem;
+}
+
+.prism-doc > h2:first-child,
+.prism-doc > h1:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.prism-doc h2 {
+  counter-increment: chapter;
+}
+
+.prism-doc h2::before {
+  content: counter(chapter, decimal-leading-zero);
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-brand-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.prism-doc h3 {
+  margin: 2rem 0 0.5rem;
+  color: var(--color-text-primary);
+  font-size: var(--text-lg);
+  line-height: var(--text-lg--line-height);
+  font-weight: 600;
+  scroll-margin-top: 1rem;
+}
+
+.prism-doc h4,
+.prism-doc h5,
+.prism-doc h6 {
+  margin: 1.5rem 0 0.5rem;
+  color: var(--color-text-primary);
+  font-size: var(--text-md);
+  line-height: var(--text-md--line-height);
+  font-weight: 600;
+}
+
+.prism-doc p {
+  margin: 0.875rem 0;
+}
+
+.prism-doc strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.prism-doc a {
+  color: var(--color-text-brand-secondary);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 120ms linear;
+}
+
+.prism-doc a:hover {
+  text-decoration-color: currentColor;
+}
+
+.prism-doc .prism-doc-ext {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-left: 0.2em;
+  vertical-align: -0.05em;
+  opacity: 0.6;
+}
+
+.prism-doc ul,
+.prism-doc ol {
+  margin: 0.75rem 0;
+  padding-inline-start: 1.5rem;
+}
+
+.prism-doc ul {
+  list-style: disc;
+}
+
+.prism-doc ol {
+  list-style: decimal;
+}
+
+.prism-doc li {
+  margin: 0.375rem 0;
+  padding-left: 0.125rem;
+}
+
+.prism-doc li::marker {
+  color: var(--color-text-quaternary);
+}
+
+.prism-doc li > p {
+  margin: 0.25rem 0;
+}
+
+/* Callouts: the report's 判断 / 相反证据 / 分歧 lines arrive as blockquotes. */
+.prism-doc blockquote {
+  margin: 1.25rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid color-mix(in srgb, var(--color-text-tertiary) 30%, transparent);
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+}
+
+.prism-doc blockquote > :first-child {
+  margin-top: 0;
+}
+
+.prism-doc blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.prism-doc code {
+  padding: 0.1em 0.35em;
+  border-radius: 0.375rem;
+  background: var(--color-bg-secondary);
+  box-shadow: inset 0 0 0 1px var(--color-border-secondary);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.prism-doc pre {
+  margin: 1.25rem 0;
+  padding: 1rem 1.125rem;
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  background: var(--color-terminal);
+  color: var(--color-terminal-fg);
+  font-size: var(--text-xs);
+  line-height: 1.7;
+}
+
+.prism-doc pre code {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font-size: inherit;
+}
+
+.prism-doc hr {
+  margin: 2rem 0;
+  border: 0;
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.prism-doc img {
+  max-width: 100%;
+  border-radius: 0.75rem;
+}
+
+/* Tables: scroll inside a rounded border-secondary frame; header cells on bg-secondary. */
+.prism-doc .prism-doc-table {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-xs);
+  outline: none;
+}
+
+.prism-doc .prism-doc-table:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.prism-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.prism-doc th {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.prism-doc td {
+  padding: 0.625rem 0.875rem;
+  border-top: 1px solid var(--color-border-secondary);
+  color: var(--color-text-secondary);
+  vertical-align: top;
+}
+
+.prism-doc tbody tr:first-child td {
+  border-top: 0;
+}
+
+.prism-doc tbody tr:hover td {
+  background: var(--color-bg-primary_hover);
+}
+
+.prism-doc th + th,
+.prism-doc td + td {
+  border-left: 1px solid var(--color-border-secondary);
+}
