@@ -1,11 +1,12 @@
 // Study page header (DESIGN.md §4): back, the question, phase + progress meta, centred tabs, and
-// the map actions (verification lens, recentre) plus the 2D page link.
+// the map actions (verification lens, recentre) plus the Galaxy / Prism / 2D and theme controls.
 
-import { ArrowLeft, Dataflow03, File06, LinkExternal01, Maximize02, Rows01, SearchRefraction } from "@untitledui/icons";
+import { ArrowLeft, Dataflow03, File06, Maximize02, Rows01, SearchRefraction } from "@untitledui/icons";
 import { goalActivity, phaseLabel, progress } from "../lib/activity";
-import { APP_BASE, classicStudyHref } from "../lib/api";
+import { APP_BASE } from "../lib/api";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
+import { HeaderControls } from "../ui/HeaderControls";
 import { PageHeader } from "../ui/PageHeader";
 import type { StudyTab } from "./model";
 import { LinkButton, Skeleton, Tooltip } from "./primitives";
@@ -37,7 +38,7 @@ export function StudyHeader({
   );
 
   if (!view && loadState === "error" && errorKind === "missing") {
-    return <PageHeader leading={back} title="找不到这项研究" />;
+    return <PageHeader leading={back} title="找不到这项研究" actions={<HeaderControls studyId={studyId} />} />;
   }
 
   const question = view?.ok ? (view.goal?.title ?? "").trim() : "";
@@ -99,9 +100,7 @@ export function StudyHeader({
               onClick={() => emitCamera({ kind: "overview" })}
             />
           </Tooltip>
-          <LinkButton href={classicStudyHref(studyId)} icon={LinkExternal01} className="max-sm:w-9 max-sm:px-0" aria-label="经典视图">
-            <span className="max-sm:sr-only">经典视图</span>
-          </LinkButton>
+          <HeaderControls studyId={studyId} />
         </>
       }
     />

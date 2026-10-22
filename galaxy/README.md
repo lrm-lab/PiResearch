@@ -4,7 +4,8 @@
 
 - `/galaxy/`：3D 首页。每项研究是一颗漂浮的小星系，可以在这里提交新问题或删除研究。
 - `/galaxy/study/<id>`：3D 研究详情。包括星图、详情面板、核验透镜和报告阅读。
-- 2D 与 3D 互相切换：3D 首页的「经典 2D 版」指向 `/index.html`（生产环境 `/` 会被 Caddy 重定向回 `/galaxy/`），3D 研究页顶栏的「2D 视图」指向 `/study/<id>`；2D 页面上由 `serve.py` 注入「切换到 3D」按钮。
+- 三套前端互相切换：首页顶栏和研究页顶栏都有「Galaxy 星系 · Prism 棱镜 · 2D 经典」分段开关（2D 页面上由 `serve.py` 注入同样的开关）。选择会写入 `localStorage` 的 `piresearch-ui`（`"galaxy" | "prism" | "2d"`，同源共用）并跳到另一套前端的同一页面（研究页保持同一项研究）。映射：首页 `/galaxy/`、`/prism/`、`/index.html`；研究页 `/galaxy/study/<id>`、`/prism/study/<id>`、`/study/<id>`。代码在 `src/lib/uiSwitch.ts`（Prism 有同样的一份），`serve.py` 的注入片段和两个 `index.html` 里的入口脚本也要保持一致。
+- 入口遵循偏好，不需要改 Caddy：`/galaxy/` 首页（研究页深链不跳）加载时，如果偏好是 `prism` 或 `2d`，`index.html` 里的内联脚本会在渲染前 `location.replace` 到对应首页；没有偏好时不变。从 Galaxy 内部点「回到主页」不会被弹走（同源 referrer 在 `/galaxy/` 下时不跳）。
 
 ## 运行
 
@@ -27,7 +28,7 @@
 
 3. 访问 <http://127.0.0.1:8766/galaxy/>。
 
-`serve.py` 托管 `dist/` 下的 `/galaxy/*`，其余请求（`/api/*`、2D 页面 `/` 和 `/study/*`）转发给 `--upstream`，包括 ETag/304 和 gzip。只有 2D 页面的 HTML（`/`、`/index.html`、`/study/<id>`）会被改动：以不压缩的方式取回，在 `</body>` 前注入一个「切换到 3D」按钮，并把指向 `/` 的链接改为 `/index.html`，让 2D 内部导航留在 2D；这些页面的 ETag 加上后缀（随注入片段变化），304 也按此后缀判断。其他响应逐字节不变。带哈希的静态资源长期缓存，`index.html` 每次重新验证。可以放在现有反向代理后面，也可以交给 systemd 管理。
+`serve.py` 托管 `dist/` 下的 `/galaxy/*`；`--prism-dist`（默认 `<仓库>/prism/dist`，即 `galaxy/` 旁边的 `prism/dist`）里有 `index.html` 时，同样的静态、SPA 回退和缓存规则也托管 `/prism/*`（`/prism` 重定向到 `/prism/`），没有时 `/prism/*` 照旧转发给上游。生产环境只需改 Dockerfile：构建 `prism/`，再把 `prism/dist` 复制到 `galaxy/dist` 旁边。其余请求（`/api/*`、2D 页面 `/` 和 `/study/*`）转发给 `--upstream`，包括 ETag/304 和 gzip。只有 2D 页面的 HTML（`/`、`/index.html`、`/study/<id>`）会被改动：以不压缩的方式取回，在 `</body>` 前注入「Galaxy · Prism · 2D」开关（2D 为当前项），并把指向 `/` 的链接改为 `/index.html`，让 2D 内部导航留在 2D；这些页面的 ETag 加上后缀（随注入片段变化），304 也按此后缀判断。其他响应逐字节不变。带哈希的静态资源长期缓存，`index.html` 每次重新验证。可以放在现有反向代理后面，也可以交给 systemd 管理。
 
 ## 开发
 

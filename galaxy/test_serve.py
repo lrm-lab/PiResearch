@@ -155,15 +155,24 @@ class GalaxyServeTest(unittest.TestCase):
         (dist / "assets" / "draco.wasm").write_bytes(b"\0asm")
         (dist / "robots.txt").write_text("ok", encoding="utf-8")
         cls.dist = dist
+        prism = Path(cls.tmp.name) / "prism-dist"
+        (prism / "assets").mkdir(parents=True)
+        (prism / "index.html").write_text("<!doctype html><div id=prism-root></div>", encoding="utf-8")
+        (prism / "assets" / "prism-9f8e7d.js").write_text("console.log('prism')", encoding="utf-8")
+        cls.prism_dist = prism
         cls.upstream = start(serve.GalaxyServer(("127.0.0.1", 0), FakeUpstream))
         upstream_url = f"http://127.0.0.1:{cls.upstream.server_address[1]}"
-        cls.proxy = start(serve.make_server(upstream_url, "127.0.0.1", 0, dist, quiet=True))
+        cls.proxy = start(serve.make_server(upstream_url, "127.0.0.1", 0, dist, quiet=True, prism_dist=prism))
         cls.port = cls.proxy.server_address[1]
+        cls.bare = start(serve.make_server(upstream_url, "127.0.0.1", 0, dist, quiet=True))  # no Prism dist
+        cls.bare_port = cls.bare.server_address[1]
 
     @classmethod
     def tearDownClass(cls):
         cls.proxy.shutdown()
         cls.proxy.server_close()
+        cls.bare.shutdown()
+        cls.bare.server_close()
         cls.upstream.shutdown()
         cls.upstream.server_close()
         cls.tmp.cleanup()
@@ -245,6 +254,13 @@ class GalaxyServeTest(unittest.TestCase):
 
     # -- 3D switch on the 2D pages -----------------------------------------
 
+    def assert_switcher(self, text, galaxy, prism, two_d, label=""):
+        self.assertIn(f'<nav class="pr-ui-switch" id="pr-ui-switch" aria-label="切换界面"><a href="{galaxy}" data-ui="galaxy"', text, label)
+        self.assertIn(f'<a href="{prism}" data-ui="prism"', text, label)
+        self.assertIn(f'<a href="{two_d}" data-ui="2d" title="2D 经典" aria-current="page">', text, label)
+        self.assertEqual(text.count('aria-current="page"'), 1, label)  # 2D is the current frontend
+        self.assertIn('localStorage.setItem("piresearch-ui"', text, label)
+
     def test_switch_is_injected_on_the_2d_home(self):
         for path in ("/index.html", "/", "/index.html?x=1"):
             status, headers, body = self.request("GET", path, headers={"Accept-Encoding": "gzip, br"})
@@ -252,9 +268,8 @@ class GalaxyServeTest(unittest.TestCase):
             self.assertNotIn("Content-Encoding", headers, path)
             self.assertEqual(headers["Content-Length"], str(len(body)), path)
             text = body.decode("utf-8")
-            self.assertIn('id="pr-galaxy-switch" href="/galaxy/"', text, path)
-            self.assertIn("切换到 ", text, path)
-            self.assertEqual(text.count("pr-galaxy-switch-style"), 1, path)
+            self.assert_switcher(text, "/galaxy/", "/prism/", "/index.html", path)
+            self.assertEqual(text.count("pr-ui-switch-style"), 1, path)
             # Injected just before </body>, and the brand link stays in 2D.
             self.assertTrue(text.endswith("</script>\n</body></html>"), path)
             self.assertIn('class="brand" href="/index.html"', text, path)
@@ -267,16 +282,17 @@ class GalaxyServeTest(unittest.TestCase):
         status, headers, body = self.request("GET", "/study/x/1", headers={"Accept-Encoding": "gzip"})
         self.assertEqual(status, 200)
         text = body.decode("utf-8")
-        self.assertIn('id="pr-galaxy-switch" href="/galaxy/study/x/1"', text)
+        self.assert_switcher(text, "/galaxy/study/x/1", "/prism/study/x/1", "/study/x/1")
         self.assertIn("主页", text)
         self.assertEqual(headers["Content-Length"], str(len(body)))
         status, _, body = self.request("GET", "/study/sessions/20261020-101500/1/?entry-preview=1")
-        self.assertIn('href="/galaxy/study/sessions/20261020-101500/1"', body.decode("utf-8"))
+        self.assert_switcher(body.decode("utf-8"), "/galaxy/study/sessions/20261020-101500/1", "/prism/study/sessions/20261020-101500/1", "/study/sessions/20261020-101500/1")
 
     def test_switch_target_is_escaped(self):
         status, _, body = self.request("GET", '/study/a"b<c>/1')
         text = body.decode("utf-8")
-        self.assertIn('href="/galaxy/study/a&quot;b&lt;c&gt;/1"', text)
+        for prefix in ("/galaxy/study/", "/prism/study/", "/study/"):
+            self.assertIn(f'href="{prefix}a&quot;b&lt;c&gt;/1"', text)
         self.assertNotIn('a"b<c>', text)
 
     def test_no_switch_for_json_or_non_html(self):
@@ -311,7 +327,7 @@ class GalaxyServeTest(unittest.TestCase):
         # A tag for an uninjected copy (cached before the switch existed) never 304s.
         status, headers, body = self.request("GET", "/index.html", headers={"If-None-Match": upstream_tag})
         self.assertEqual(status, 200)
-        self.assertIn(b"pr-galaxy-switch", body)
+        self.assertIn(b"pr-ui-switch", body)
         self.assertEqual(headers["ETag"], tag)
         self.assertNotIn("If-None-Match", FakeUpstream.seen[-1]["headers"])
         # Mixed lists keep only our tags.
@@ -333,12 +349,16 @@ class GalaxyServeTest(unittest.TestCase):
         self.assertEqual(FakeUpstream.seen[-1]["method"], "GET")
 
     def test_switch_helpers(self):
-        self.assertEqual(serve.switch_target("/"), "/galaxy/")
-        self.assertEqual(serve.switch_target("/index.html"), "/galaxy/")
-        self.assertEqual(serve.switch_target("/study/a/b/1/"), "/galaxy/study/a/b/1")
-        for path in ("/study", "/study/", "/api/history", "/index.htm", "/galaxy/"):
-            self.assertIsNone(serve.switch_target(path), path)
-        self.assertEqual(serve.inject_switch(b"<p>no body tag</p>", "/galaxy/")[:18], b"<p>no body tag</p>")
+        home = {"galaxy": "/galaxy/", "prism": "/prism/", "2d": "/index.html"}
+        self.assertEqual(serve.switch_targets("/"), home)
+        self.assertEqual(serve.switch_targets("/index.html"), home)
+        self.assertEqual(
+            serve.switch_targets("/study/a/b/1/"),
+            {"galaxy": "/galaxy/study/a/b/1", "prism": "/prism/study/a/b/1", "2d": "/study/a/b/1"},
+        )
+        for path in ("/study", "/study/", "/api/history", "/index.htm", "/galaxy/", "/prism/"):
+            self.assertIsNone(serve.switch_targets(path), path)
+        self.assertEqual(serve.inject_switch(b"<p>no body tag</p>", home)[:18], b"<p>no body tag</p>")
         self.assertIsNone(serve.tag_etag(None))
         self.assertIsNone(serve.tag_etag("unquoted"))
         self.assertIsNone(serve.untag_if_none_match('W/"abc", *'))
@@ -386,6 +406,65 @@ class GalaxyServeTest(unittest.TestCase):
             self.assertEqual(headers["Content-Type"], "text/html; charset=utf-8")
             self.assertEqual(headers["Cache-Control"], "no-cache")
         self.assertEqual(FakeUpstream.seen, [])
+
+    # -- Prism bundle ------------------------------------------------------
+
+    def test_prism_spa_fallback_and_cache_rules_match_galaxy(self):
+        for path in ("/prism/", "/prism/study/sessions/20261020-101500/1", "/prism/anything?q=1"):
+            status, headers, body = self.request("GET", path)
+            self.assertEqual(status, 200, path)
+            self.assertEqual(body, b"<!doctype html><div id=prism-root></div>", path)
+            self.assertEqual(headers["Content-Type"], "text/html; charset=utf-8")
+            self.assertEqual(headers["Cache-Control"], "no-cache")
+        status, headers, body = self.request("GET", "/prism/assets/prism-9f8e7d.js")
+        self.assertEqual((status, body), (200, b"console.log('prism')"))
+        self.assertEqual(headers["Cache-Control"], "public, max-age=31536000, immutable")
+        self.assertEqual(headers["Content-Type"], "text/javascript; charset=utf-8")
+        status, _, body = self.request("GET", "/prism/assets/missing-000.js")
+        self.assertEqual(status, 404)
+        self.assertNotIn(b"root", body)
+        status, headers, body = self.request("HEAD", "/prism/assets/prism-9f8e7d.js")
+        self.assertEqual((status, body), (200, b""))
+        self.assertEqual(headers["Content-Length"], str(len(b"console.log('prism')")))
+        # Galaxy's assets are not visible under /prism/ and the other way round.
+        status, _, _ = self.request("GET", "/prism/assets/index-abc123.js")
+        self.assertEqual(status, 404)
+        status, _, _ = self.request("GET", "/galaxy/assets/prism-9f8e7d.js")
+        self.assertEqual(status, 404)
+        self.assertEqual(FakeUpstream.seen, [])
+
+    def test_bare_prism_redirects(self):
+        status, headers, _ = self.request("GET", "/prism")
+        self.assertEqual(status, 301)
+        self.assertEqual(headers["Location"], "/prism/")
+        status, headers, _ = self.request("GET", "/prism?x=1")
+        self.assertEqual(headers["Location"], "/prism/?x=1")
+        self.assertEqual(FakeUpstream.seen, [])
+
+    def test_prism_path_escape_is_rejected(self):
+        secret = Path(self.tmp.name) / "secret.txt"
+        secret.write_text("secret", encoding="utf-8")
+        for path in ("/prism/../secret.txt", "/prism/%2e%2e/secret.txt", "/prism/assets/../../secret.txt", "/prism/assets/%00.js"):
+            status, _, body = self.request("GET", path)
+            self.assertNotIn(b"secret", body, path)
+
+    def test_prism_falls_through_to_upstream_without_a_dist(self):
+        for path in ("/prism/", "/prism/study/x/1", "/prism"):
+            FakeUpstream.seen = []
+            status, _, body = self.request("GET", path, port=self.bare_port)
+            self.assertEqual(status, 404, path)
+            self.assertEqual(body, b"not found", path)
+            self.assertEqual(FakeUpstream.seen[-1]["path"], path)
+        # A prism dist without an index.html counts as missing.
+        empty = Path(self.tmp.name) / "empty-prism"
+        empty.mkdir()
+        server = start(serve.make_server(f"http://127.0.0.1:{self.upstream.server_address[1]}", "127.0.0.1", 0, self.dist, quiet=True, prism_dist=empty))
+        try:
+            status, _, body = self.request("GET", "/prism/", port=server.server_address[1])
+            self.assertEqual((status, body), (404, b"not found"))
+        finally:
+            server.shutdown()
+            server.server_close()
 
     def test_bare_galaxy_redirects(self):
         status, headers, _ = self.request("GET", "/galaxy")

@@ -1,7 +1,8 @@
-// Brand (with a slow shimmer), live counts and the link to the classic 2D home.
+// Brand (with a slow shimmer), live counts and the Galaxy / Prism / 2D switch.
 
 import { useMemo } from "react";
 import { splitRows } from "./format";
+import { UiSwitch } from "../ui/UiSwitch";
 import { useHome } from "./store";
 
 export function Header() {
@@ -27,9 +28,7 @@ export function Header() {
             {split.running.length} 项调研中 · {split.done.length} 项已完成
           </p>
         )}
-        <a href="/index.html" className="home-classic">
-          经典 2D 版
-        </a>
+        <UiSwitch />
       </div>
     </header>
   );

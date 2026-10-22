@@ -5,6 +5,9 @@
 - `/prism/`：首页。顶部是 CoForge 首页的紫色丝绸渐变和提问框，下面每项研究是一张卡片，里面有一个 3D 迷你模型。
 - `/prism/study/<id>`：研究详情。包括 3D 桌面模型（中间的玻璃棱镜是主问题，周围的 3D 卡片是任务）、任务列表、详情面板和报告。
 
+- 三套前端互相切换：首页和研究页页头有「Galaxy 星系 · Prism 棱镜 · 2D 经典」开关，选择写入 `localStorage` 的 `piresearch-ui`（与 Galaxy 和 2D 页面共用），并跳到同一页面（研究页保持同一项研究）。`/prism/` 首页（研究页深链不跳）在偏好为 `galaxy` 或 `2d` 时由 `index.html` 里的内联脚本在渲染前跳走。映射见 `src/lib/uiSwitch.ts`，与 Galaxy 的那份保持一致；`?theme`、`?tab` 不会带到别的前端。
+- 主题开关：页头的 亮色 / 暗色 / 跟随系统，选择存在 `localStorage` 的 `prism-theme-choice`。
+
 ## 运行
 
 需要 Node 20+ 和 pnpm；服务端只用 Python 3.9+ 标准库。
@@ -26,7 +29,7 @@
 
 3. 访问 <http://127.0.0.1:8767/prism/>。
 
-`serve.py` 和 `galaxy/serve.py` 是同一套写法：托管 `dist/` 下的 `/prism/*`，其余请求（`/api/*`、2D 页面）原样转发给 `--upstream`，包括 ETag/304 和 gzip。
+生产环境由 `galaxy/serve.py` 一并托管 `/prism/*`（`--prism-dist`，默认 `<仓库>/prism/dist`），只需改 Dockerfile：构建 `prism/`，把 `prism/dist` 复制到 `galaxy/dist` 旁边。这里的 `serve.py` 仍可单独使用，和 `galaxy/serve.py` 是同一套写法：托管 `dist/` 下的 `/prism/*`，其余请求（`/api/*`、2D 页面）原样转发给 `--upstream`，包括 ETag/304 和 gzip。
 
 ## 嵌入 CoForge
 
@@ -36,7 +39,7 @@
 iframe.contentWindow.postMessage({ type: "coforge:theme", theme: "dark" }, "*");
 ```
 
-没有 `?theme=` 参数也没有收到消息时，跟随系统的明暗设置。页面没有自己的侧栏，高度撑满 iframe。
+主题优先级：URL 的 `?theme=` > 宿主的 `coforge:theme` 消息 > 用户在页头保存的选择 > 系统明暗设置。由 URL 或宿主决定主题时，页头的主题开关会隐藏。页面没有自己的侧栏，高度撑满 iframe。
 
 ## 开发
 

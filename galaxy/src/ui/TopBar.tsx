@@ -1,17 +1,15 @@
 // Top bar: brand, question, phase chip, progress and the scene controls.
-// 报告 and 2D 视图 stay visible (with labels) at every width; ≤1180 px the
+// 报告 and the Galaxy / Prism / 2D switch stay visible at every width; ≤1180 px the
 // quality label shortens and ≤900 px the other scene controls fold into a menu.
 
 import { useCallback, useRef } from "react";
 import { goalActivity, phaseLabel, progress } from "../lib/activity";
-import { classicStudyHref } from "../lib/api";
 import { useDismiss } from "../lib/hooks";
 import { TITLE_LOADING, TITLE_NO_GRAPH } from "../lib/report";
 import { type Quality, useGalaxy } from "../store";
 import {
   IconCheck,
   IconCore,
-  IconFlat,
   IconHelp,
   IconLens,
   IconMore,
@@ -20,6 +18,7 @@ import {
   IconReset,
 } from "./icons";
 import { MenuPopover } from "./Menu";
+import { UiSwitch } from "./UiSwitch";
 import { REPORT_BUTTON_ID, useUi } from "./uiStore";
 
 const QUALITY_LABEL: Record<Quality, string> = { auto: "自动", high: "高", low: "低" };
@@ -159,20 +158,7 @@ function Actions() {
         {!hasReport && <span className="sr-only">（这份运行还没有报告）</span>}
       </button>
 
-      {studyId && (
-        <a
-          className="g-btn g-tip topbar-classic"
-          href={classicStudyHref(studyId)}
-          aria-label="切换到 2D 视图"
-          data-tip="在平面星图中查看这项研究"
-          data-tip-align="end"
-        >
-          <IconFlat />
-          <span className="topbar-classic-label">
-            2D<span className="topbar-classic-word"> 视图</span>
-          </span>
-        </a>
-      )}
+      {studyId && <UiSwitch studyId={studyId} className="topbar-ui-switch" />}
 
       <span className="wide-only topbar-actions">
         <button

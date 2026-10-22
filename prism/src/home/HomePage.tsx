@@ -7,6 +7,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { LayoutGroup, MotionConfig, motion } from "motion/react";
 import { useMediaQuery, REDUCED_MOTION_QUERY } from "../lib/media";
 import { hasWebGL2 } from "../lib/webgl";
+import { HeaderControls } from "../ui/HeaderControls";
 import { PageHeader } from "../ui/PageHeader";
 import { DeleteDialog } from "./DeleteDialog";
 import { flags, resetNavigation } from "./flags";
@@ -72,7 +73,11 @@ export function HomePage() {
     <MotionConfig reducedMotion="user">
       <LayoutGroup>
         <div className="flex h-full flex-col bg-primary">
-          <PageHeader title="深度研究" meta={runningCount === null ? undefined : `${runningCount} 项进行中`} />
+          <PageHeader
+            title="深度研究"
+            meta={runningCount === null ? undefined : `${runningCount} 项进行中`}
+            actions={<HeaderControls />}
+          />
           <div className="relative min-h-0 flex-1">
             {webgl && (
               <CanvasBoundary onError={() => setCanvasFailed(true)}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTheme, themeFromMessage } from "./theme";
+import { getTheme, isThemeChoice, resolveTheme, themeFromMessage } from "./theme";
 
 describe("theme", () => {
   it("reads CoForge's theme message and the short form", () => {
@@ -17,5 +17,21 @@ describe("theme", () => {
 
   it("defaults to light without a browser", () => {
     expect(getTheme()).toBe("light");
+  });
+
+  it("resolves the precedence: host > saved choice > system", () => {
+    expect(resolveTheme("dark", "light", "light")).toBe("dark");
+    expect(resolveTheme("light", "dark", "dark")).toBe("light");
+    expect(resolveTheme(null, "dark", "light")).toBe("dark");
+    expect(resolveTheme(null, "light", "dark")).toBe("light");
+    expect(resolveTheme(null, "system", "dark")).toBe("dark");
+    expect(resolveTheme(null, "system", "light")).toBe("light");
+  });
+
+  it("accepts only the three choices", () => {
+    expect(isThemeChoice("system")).toBe(true);
+    expect(isThemeChoice("dark")).toBe(true);
+    expect(isThemeChoice("auto")).toBe(false);
+    expect(isThemeChoice(null)).toBe(false);
   });
 });
