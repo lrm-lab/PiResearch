@@ -88,10 +88,11 @@ export function Backdrop({ quality }: { quality: "high" | "low" }) {
 
   useFrame(() => {
     const t = shared.uTime.value * shared.uMotion.value;
-    far.current.rotation.y = t * 0.0035 - gallery.scroll * 0.004;
-    far.current.rotation.x = 0.12;
-    near.current.rotation.y = t * 0.008 - gallery.scroll * 0.016;
-    near.current.rotation.x = 0.1 + gallery.pointer.y * 0.01;
+    // Gentle parallax with the vertical scroll.
+    far.current.rotation.y = t * 0.0035;
+    far.current.rotation.x = 0.12 + gallery.scroll * 0.003;
+    near.current.rotation.y = t * 0.008;
+    near.current.rotation.x = 0.1 + gallery.pointer.y * 0.01 + gallery.scroll * 0.012;
   });
 
   return (

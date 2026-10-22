@@ -25,8 +25,8 @@ import { hash01 } from "../../lib/space";
 import type { HistoryRow } from "../../types/api";
 import { navigate } from "../flags";
 import { buildGalaxy, hexToRgb } from "../geometry";
-import { slotPose, slotX } from "../layout";
-import { captionEls, captionSizes, gallery } from "../motion";
+import { slotPose } from "../layout";
+import { bandOpacity, captionEls, captionSizes, gallery } from "../motion";
 import { setThumbVisible } from "../polling";
 import { useHome } from "../store";
 import { fx } from "./fx";
@@ -36,6 +36,8 @@ const RADIUS = 1.25;
 const IMPLODE_S = 1.05;
 /** Minimum gap (CSS px) between a caption and the viewport edge. */
 const CAPTION_GUTTER = 8;
+/** Caption height at rest (date line + two title lines): it fades by this part. */
+const CAPTION_TITLE_PX = 92;
 const RING_POINTS = 240;
 const HIT = new CircleGeometry(RADIUS * 1.15, 32);
 const HIT_MATERIAL = new MeshBasicMaterial({ colorWrite: false, depthWrite: false, transparent: true, opacity: 0 });
@@ -43,9 +45,10 @@ const RING_COLOR = new Color("#7fe6ff");
 
 interface GalaxyProps {
   row: HistoryRow;
+  /** Section: 调研中 (0) or 已完成 (1). */
   rowIndex: 0 | 1;
+  /** Position within the section (reading order). */
   index: number;
-  rowLen: number;
 }
 
 function ringGeometry(): BufferGeometry {
@@ -69,7 +72,7 @@ function ringGeometry(): BufferGeometry {
 const projected = new Vector3();
 const goal = new Vector3();
 
-export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: GalaxyProps) {
+export const Galaxy = memo(function Galaxy({ row, rowIndex, index }: GalaxyProps) {
   const id = row.id;
   const thumb = useHome((state) => state.thumbs[id]);
   const removing = useHome((state) => Boolean(state.removing[id]));
@@ -204,13 +207,13 @@ export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: Gal
     const params = gallery.params;
     const motion = store.reducedMotion ? 0 : 1;
     const shift = rowIndex === 0 && gallery.launchSlot ? 1 : 0;
-    const x = slotX(index + shift, rowLen + shift, params.spacing, gallery.bounds.fits) - gallery.scroll;
-    const pose = slotPose(x, rowIndex, params);
+    const slot = gallery.layout.slots[rowIndex][index + shift] ?? { x: 0, y: 0 };
+    const pose = slotPose(slot.x, gallery.bounds.top + slot.y + gallery.scroll, params);
     const active = !store.launch && (store.hovered === id || store.focused === id);
     const l = live.current;
     l.lift = MathUtils.damp(l.lift, active ? 1 : 0, 7, dt);
     const bob = Math.sin(state.clock.elapsedTime * 0.45 + seed.bob) * 0.09 * motion;
-    const target = goal.set(pose.x, pose.y + bob + l.lift * (rowIndex === 1 ? 0.75 : 0.22), pose.z + l.lift * 1.6);
+    const target = goal.set(pose.x, pose.y + bob + l.lift * 0.3, pose.z + l.lift * 1.6);
     const group = outer.current;
     if (!l.placed) {
       group.position.copy(target);
@@ -254,20 +257,26 @@ export const Galaxy = memo(function Galaxy({ row, rowIndex, index, rowLen }: Gal
       let px = (projected.x * 0.5 + 0.5) * gallery.width;
       let py = (-projected.y * 0.5 + 0.5) * gallery.height;
       const depthScale = MathUtils.clamp(params.camDist / Math.max(1, params.camDist - group.position.z), 0.7, 1.25);
-      // Keep the (scaled) caption inside the viewport and above the composer;
-      // the expanded caption of a hovered/focused galaxy grows downward.
+      // Keep the (scaled) caption inside the viewport horizontally. Vertically
+      // it scrolls with its galaxy and fades out under the header / composer;
+      // the expanded caption of a hovered/focused galaxy lifts (up to 60 px)
+      // to stay clear of the composer.
       const size = captionSizes.get(id);
+      const height = (size?.height ?? CAPTION_TITLE_PX) * depthScale;
       if (size) {
         const half = (size.width * depthScale) / 2;
         if (gallery.width > half * 2 + CAPTION_GUTTER * 2) px = MathUtils.clamp(px, half + CAPTION_GUTTER, gallery.width - half - CAPTION_GUTTER);
-        if (gallery.composerReserve > 0) py = Math.min(py, gallery.height - gallery.composerReserve - size.height * depthScale);
       }
-      const opacity = (1 - MathUtils.smoothstep(edge, 0.8, 0.98)) * (1 - l.implode) * l.fade * (store.flight || store.launch ? 0 : 1);
+      if (active) py = Math.max(py - 60, Math.min(py, gallery.height - gallery.composerReserve - height));
+      const visibleTo = py + Math.min(height, CAPTION_TITLE_PX * depthScale);
+      const opacity =
+        (1 - MathUtils.smoothstep(edge, 0.8, 0.98)) * bandOpacity(py, visibleTo) * (1 - l.implode) * l.fade * (store.flight || store.launch ? 0 : 1);
       el.style.transform = `translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0) translateX(-50%) scale(${depthScale.toFixed(3)})`;
       el.style.opacity = opacity.toFixed(3);
       el.dataset.hidden = opacity < 0.05 ? "true" : "false";
     }
-    const visible = edge < 1.25;
+    // Thumbnails poll only for galaxies on (or just off) screen.
+    const visible = edge < 1.25 && Math.abs(projected.y) < 1.35;
     if (visible !== l.visible) {
       l.visible = visible;
       setThumbVisible(id, visible);

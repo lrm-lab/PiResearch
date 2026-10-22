@@ -28,6 +28,17 @@ export const IconReport = (p: P) => (
     <path d="M14 3.5V8h5M9 12h7M9 15.5h7M9 9h3" />
   </Icon>
 );
+/** Flat star map (the 2D view). */
+export const IconFlat = (p: P) => (
+  <Icon {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
+    <circle cx="8.5" cy="10" r="1.3" />
+    <circle cx="15.5" cy="9" r="1.3" />
+    <circle cx="12.5" cy="15" r="1.3" />
+    <path d="m9.7 10.6 1.9 3.3M13.6 14l1.4-3.8" />
+  </Icon>
+);
+
 export const IconLens = (p: P) => (
   <Icon {...p}>
     <circle cx="11" cy="11" r="6.5" />

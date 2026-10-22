@@ -102,10 +102,11 @@ html.home-doc {
   list-style: none;
 }
 
-/* Row headings, pinned to the left edge at the row's height. */
+/* Section headings above each section, aligned with its leftmost column
+   (the scene sets both x and y every frame). */
 .home-row-label {
   position: absolute;
-  left: max(28px, env(safe-area-inset-left));
+  left: env(safe-area-inset-left, 0px);
   top: 0;
   margin: 0;
   display: flex;
@@ -199,11 +200,12 @@ html.home-doc {
 /* --------------------------------------------------------------------------
    Study captions */
 
+/* --home-cap-w follows the column spacing (motion.ts), so neighbours never touch. */
 .home-cap {
   position: absolute;
   left: 0;
   top: 0;
-  width: 264px;
+  width: var(--home-cap-w, 264px);
   transform-origin: 50% 0;
   will-change: transform, opacity;
   pointer-events: auto;
@@ -1132,15 +1134,6 @@ body.home-confirm-open .home-composer-dock {
 
   .home-brand-word {
     font-size: 17px;
-  }
-
-  .home-row-label {
-    left: max(16px, env(safe-area-inset-left));
-  }
-
-  /* Two columns of galaxies sit ~52vw apart: keep neighbouring captions apart. */
-  .home-cap {
-    width: min(224px, calc(50vw - 16px));
   }
 
   .home-cap-link {

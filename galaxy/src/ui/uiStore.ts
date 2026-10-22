@@ -1,13 +1,13 @@
-// UI-only state for the HUD (menus, legend, report landing). App data lives in src/store.ts.
+// UI-only state for the HUD (menus, legend, report dialog). App data lives in src/store.ts.
 
 import { create } from "zustand";
-import { CORE_DIVE_MS, useGalaxy } from "../store";
+import { useGalaxy } from "../store";
 
 /**
- * Report "landing": closed → diving (camera flies into the core, ~0.9 s)
- * → open (wash + paper) → leaving (paper sinks, wash fades) → closed.
+ * Report dialog over the study page (the galaxy keeps running behind it):
+ * closed → open (short scale/fade in) → leaving (fade out) → closed.
  */
-export type ReportStage = "closed" | "diving" | "open" | "leaving";
+export type ReportStage = "closed" | "open" | "leaving";
 export type MenuId = "quality" | "more" | "help" | null;
 
 export const REPORT_BUTTON_ID = "galaxy-report-button";
@@ -17,20 +17,44 @@ interface UiState {
   menu: MenuId;
   sheetExpanded: boolean;
   reportStage: ReportStage;
+  /** The "研究已完成 · 阅读报告" prompt was dismissed or acted on (per study, this session). */
+  reportCtaDismissed: boolean;
   setLegendOpen(open: boolean): void;
   setMenu(menu: MenuId): void;
   toggleMenu(menu: Exclude<MenuId, null>): void;
   setSheetExpanded(expanded: boolean): void;
   /** Clear the selection, collapse the sheet and return focus to the node's label (`id` defaults to the selection). */
   closeDetail(id?: string): void;
-  /** Start the landing sequence (no-op unless closed). */
+  /** Open the report dialog (no-op unless closed). */
   beginReport(): void;
-  /** Reverse the landing; the reader calls `reportClosed` when its exit finishes. */
+  /** Start closing; the reader calls `reportClosed` when its exit finishes. */
   endReport(): void;
   reportClosed(): void;
+  /** Hide the report prompt for this study. */
+  dismissReportCta(): void;
+  /** Re-read the prompt's dismissed flag for a study (on study change). */
+  syncReportCta(studyId: string | null): void;
 }
 
-let diveTimer: ReturnType<typeof setTimeout> | null = null;
+const CTA_KEY = "galaxy-report-cta:";
+
+function ctaDismissed(studyId: string | null): boolean {
+  if (!studyId) return false;
+  try {
+    return sessionStorage.getItem(CTA_KEY + studyId) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberCtaDismissed(studyId: string | null) {
+  if (!studyId) return;
+  try {
+    sessionStorage.setItem(CTA_KEY + studyId, "1");
+  } catch {
+    // Private mode: the prompt just comes back on reload.
+  }
+}
 
 function initialLegend(): boolean {
   return typeof window === "undefined" || window.innerWidth > 600;
@@ -41,6 +65,7 @@ export const useUi = create<UiState>()((set, get) => ({
   menu: null,
   sheetExpanded: false,
   reportStage: "closed",
+  reportCtaDismissed: false,
 
   setLegendOpen(open) {
     set({ legendOpen: open });
@@ -64,34 +89,29 @@ export const useUi = create<UiState>()((set, get) => ({
 
   beginReport() {
     if (get().reportStage !== "closed") return;
-    const galaxy = useGalaxy.getState();
-    set({ reportStage: "diving", menu: null });
-    galaxy.emitCamera({ kind: "core" });
-    if (diveTimer) clearTimeout(diveTimer);
-    diveTimer = setTimeout(
-      () => {
-        diveTimer = null;
-        if (get().reportStage !== "diving") return;
-        set({ reportStage: "open" });
-      },
-      galaxy.reducedMotion ? 0 : CORE_DIVE_MS,
-    );
+    rememberCtaDismissed(useGalaxy.getState().studyId);
+    set({ reportStage: "open", menu: null, reportCtaDismissed: true });
   },
 
   endReport() {
-    const stage = get().reportStage;
-    if (stage === "closed" || stage === "leaving") return;
-    if (diveTimer) clearTimeout(diveTimer);
-    diveTimer = null;
-    useGalaxy.getState().emitCamera({ kind: "overview" });
-    set({ reportStage: stage === "diving" ? "closed" : "leaving" });
-    if (stage === "diving") focusReportButton();
+    if (get().reportStage !== "open") return;
+    set({ reportStage: "leaving" });
   },
 
   reportClosed() {
     if (get().reportStage !== "leaving") return;
     set({ reportStage: "closed" });
     focusReportButton();
+  },
+
+  dismissReportCta() {
+    rememberCtaDismissed(useGalaxy.getState().studyId);
+    set({ reportCtaDismissed: true });
+  },
+
+  syncReportCta(studyId) {
+    const dismissed = ctaDismissed(studyId);
+    if (get().reportCtaDismissed !== dismissed) set({ reportCtaDismissed: dismissed });
   },
 }));
 

@@ -1,8 +1,19 @@
-// Report reader with the "landing": the camera dives into the core, the screen
-// washes to warm white and a paper sheet rises in. Closing reverses it.
+// Report dialog over the study page: the galaxy keeps running behind a dimmed,
+// blurred backdrop and the report opens in a HUD glass panel (short scale/fade).
+// Also the "研究已完成 · 阅读报告" prompt shown once a study has finished.
 
-import { AnimatePresence, motion, useScroll } from "motion/react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type MouseEvent, type RefObject } from "react";
+import { AnimatePresence, motion, useMotionValue, type MotionValue } from "motion/react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { fetchReport, studyApiPrefix } from "../lib/api";
@@ -10,7 +21,7 @@ import { selectionHeading } from "../lib/heading";
 import { useFocusTrap } from "../lib/hooks";
 import { isUsableTitle, prepareUserReport } from "../lib/report";
 import { useGalaxy } from "../store";
-import { IconClose, IconExternal } from "./icons";
+import { IconChevron, IconClose, IconExternal, IconReport } from "./icons";
 import { alignNumericColumns, stripLeadingTitle } from "./reportTables";
 import { useUi } from "./uiStore";
 
@@ -19,26 +30,15 @@ const REMARK_PLUGINS = [remarkGfm];
 
 type Loaded = { kind: "loading" } | { kind: "ready"; markdown: string } | { kind: "message"; text: string };
 
+/** Per study (API prefix): the last report text and where the reader left off. */
+const memory = new Map<string, { markdown?: string; scroll: number }>();
+
 export function ReportReader() {
   const stage = useUi((state) => state.reportStage);
   const reportClosed = useUi((state) => state.reportClosed);
-  const reduced = useGalaxy((state) => state.reducedMotion);
 
   return (
-    <div className="report-layer">
-      <AnimatePresence>
-        {stage === "diving" && !reduced && (
-          <motion.div
-            key="flare"
-            className="report-flare"
-            aria-hidden="true"
-            initial={{ opacity: 0, scale: 0.2 }}
-            animate={{ opacity: 1, scale: 1.6 }}
-            exit={{ opacity: 0, transition: { duration: 0.5 } }}
-            transition={{ duration: 0.95, ease: [0.45, 0, 0.85, 0.6] }}
-          />
-        )}
-      </AnimatePresence>
+    <div className="report-layer" data-open={stage !== "closed"}>
       <AnimatePresence onExitComplete={reportClosed}>{stage === "open" && <Dialog key="dialog" />}</AnimatePresence>
     </div>
   );
@@ -57,23 +57,31 @@ function readingMeta(markdown: string): string {
   return `${chapters ? `${chapters} 章 · ` : ""}约 ${minutes} 分钟`;
 }
 
+function prepare(markdown: string, title: string): string {
+  return alignNumericColumns(stripLeadingTitle(prepareUserReport(markdown, title), title));
+}
+
 function Dialog() {
   const studyId = useGalaxy((state) => state.studyId);
   const prefix = studyId ? studyApiPrefix(studyId) : null;
   const goalTitle = useGalaxy((state) => (state.view?.ok ? state.view.goal?.title : undefined));
   const endReport = useUi((state) => state.endReport);
   const [title] = useState(() => reportTitle(goalTitle));
-  const [loaded, setLoaded] = useState<Loaded>({ kind: "loading" });
+  const [loaded, setLoaded] = useState<Loaded>(() => {
+    const cached = prefix ? memory.get(prefix)?.markdown : undefined;
+    return cached ? { kind: "ready", markdown: cached } : { kind: "loading" };
+  });
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ container: scrollRef });
+  const progress = useReadProgress(scrollRef);
   useFocusTrap(dialogRef, true);
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
   }, []);
 
+  // Fetch (again) on every open; a cached copy shows at once meanwhile.
   useEffect(() => {
     if (!prefix) return;
     const controller = new AbortController();
@@ -81,81 +89,135 @@ function Dialog() {
       .then((result) => {
         if (controller.signal.aborted) return;
         if (result.kind === "missing") return setLoaded({ kind: "message", text: result.message });
-        const markdown = alignNumericColumns(stripLeadingTitle(prepareUserReport(result.markdown, title), title));
-        setLoaded(markdown.trim() ? { kind: "ready", markdown } : { kind: "message", text: "这份运行还没有报告。" });
+        const markdown = prepare(result.markdown, title);
+        if (!markdown.trim()) return setLoaded({ kind: "message", text: "这份运行还没有报告。" });
+        const entry = memory.get(prefix) ?? { scroll: 0 };
+        memory.set(prefix, { ...entry, markdown });
+        setLoaded((current) => (current.kind === "ready" && current.markdown === markdown ? current : { kind: "ready", markdown }));
       })
       .catch(() => {
-        if (!controller.signal.aborted) setLoaded({ kind: "message", text: "报告没有读出来。刷新后再打开一次。" });
+        if (controller.signal.aborted) return;
+        setLoaded((current) => (current.kind === "ready" ? current : { kind: "message", text: "报告没有读出来。刷新后再打开一次。" }));
       });
     return () => controller.abort();
   }, [prefix, title]);
 
+  // Remember where the reader was, and return there next time.
+  const ready = loaded.kind === "ready";
+  useLayoutEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller || !prefix || !ready) return;
+    const saved = memory.get(prefix)?.scroll ?? 0;
+    if (saved > 0) {
+      scroller.style.scrollBehavior = "auto";
+      scroller.scrollTop = saved;
+      scroller.style.scrollBehavior = "";
+    }
+    const save = () => {
+      const entry = memory.get(prefix) ?? { scroll: 0 };
+      memory.set(prefix, { ...entry, scroll: scroller.scrollTop });
+    };
+    scroller.addEventListener("scroll", save, { passive: true });
+    return () => scroller.removeEventListener("scroll", save);
+  }, [prefix, ready]);
+
   return (
     <motion.div
-      className="report-wash"
+      className="report-backdrop"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.45, delay: 0.18, ease: "easeIn" } }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      exit={{ opacity: 0, transition: { duration: 0.22, ease: "easeIn" } }}
+      transition={{ duration: 0.26, ease: "easeOut" }}
+      onClick={(event: MouseEvent) => {
+        if (event.target === event.currentTarget) endReport();
+      }}
     >
-      <div
-        className="report-stage"
-        style={{ pointerEvents: "auto" }}
-        onClick={(event: MouseEvent) => {
-          if (event.target === event.currentTarget) endReport();
+      <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="galaxy-report-title"
+        className="report-panel glass glass-strong"
+        initial={{ opacity: 0, scale: 0.965, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 10, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
+        transition={{ duration: 0.32, ease: EASE }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            endReport();
+          }
         }}
       >
-        <motion.div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="galaxy-report-title"
-          className="report-paper"
-          initial={{ opacity: 0, y: 70, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 50, scale: 0.98, transition: { duration: 0.32, ease: [0.4, 0, 1, 1] } }}
-          transition={{ duration: 0.7, delay: 0.12, ease: EASE }}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.preventDefault();
-              event.stopPropagation();
-              endReport();
-            }
-          }}
-        >
-          <header className="report-head">
-            <div className="report-head-copy">
-              <span className="report-kicker">
-                研究报告
-                {loaded.kind === "ready" && <span className="report-meta"> · {readingMeta(loaded.markdown)}</span>}
-              </span>
-              <h2 id="galaxy-report-title" className="report-title" title={title}>
-                {title}
-              </h2>
-            </div>
-            <button ref={closeRef} type="button" className="report-close" aria-label="关闭报告" onClick={endReport}>
-              <IconClose />
-            </button>
-            <motion.span className="report-progress" aria-hidden="true" style={{ scaleX: scrollYProgress }} />
-          </header>
-          <div ref={scrollRef} className="report-scroll">
-            {loaded.kind === "loading" && (
-              <p className="report-status" role="status">
-                <span className="spinner" aria-hidden="true" />
-                正在读取报告
-              </p>
-            )}
-            {loaded.kind === "message" && (
-              <p className="report-status" role="status">
-                {loaded.text}
-              </p>
-            )}
-            {loaded.kind === "ready" && <Article markdown={loaded.markdown} scrollRef={scrollRef} />}
+        <header className="report-head">
+          <span className="report-head-mark" aria-hidden="true">
+            <IconReport />
+          </span>
+          <div className="report-head-copy">
+            <span className="report-kicker">
+              研究报告
+              {loaded.kind === "ready" && <span className="report-meta"> · {readingMeta(loaded.markdown)}</span>}
+            </span>
+            <h2 id="galaxy-report-title" className="report-title" title={title}>
+              {title}
+            </h2>
           </div>
-        </motion.div>
-      </div>
+          <button ref={closeRef} type="button" className="g-btn g-btn-icon report-close" aria-label="关闭报告" aria-keyshortcuts="Escape" onClick={endReport}>
+            <IconClose />
+          </button>
+          <span className="report-progress" aria-hidden="true">
+            <motion.span style={{ scaleX: progress }} />
+          </span>
+        </header>
+        <div ref={scrollRef} className="report-scroll g-scroll">
+          {loaded.kind === "loading" && (
+            <p className="report-status" role="status">
+              <span className="spinner" aria-hidden="true" />
+              正在读取报告
+            </p>
+          )}
+          {loaded.kind === "message" && (
+            <p className="report-status" role="status">
+              {loaded.text}
+            </p>
+          )}
+          {loaded.kind === "ready" && <Article markdown={loaded.markdown} scrollRef={scrollRef} />}
+        </div>
+      </motion.div>
     </motion.div>
   );
+}
+
+/** Scroll progress of the reader, re-measured when the content (not just the viewport) changes size. */
+function useReadProgress(scrollRef: RefObject<HTMLDivElement | null>): MotionValue<number> {
+  const progress = useMotionValue(0);
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const update = () => {
+      const range = scroller.scrollHeight - scroller.clientHeight;
+      progress.set(range > 1 ? Math.min(1, Math.max(0, scroller.scrollTop / range)) : 0);
+    };
+    update();
+    scroller.addEventListener("scroll", update, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(scroller);
+    const content = new MutationObserver(() => {
+      observer?.disconnect();
+      observer?.observe(scroller);
+      if (scroller.firstElementChild) observer?.observe(scroller.firstElementChild);
+      update();
+    });
+    content.observe(scroller, { childList: true });
+    if (scroller.firstElementChild) observer?.observe(scroller.firstElementChild);
+    return () => {
+      scroller.removeEventListener("scroll", update);
+      observer?.disconnect();
+      content.disconnect();
+    };
+  }, [scrollRef, progress]);
+  return progress;
 }
 
 interface OutlineItem {
@@ -221,10 +283,10 @@ function Article({ markdown, scrollRef }: { markdown: string; scrollRef: RefObje
   return (
     <div className={`report-grid ${outline.length ? "has-toc" : ""}`}>
       {outline.length > 0 && (
-        <nav className="report-toc" aria-label="章节目录">
-          <p>目录</p>
+        <nav className="report-toc g-scroll" aria-label="章节目录">
+          <p className="g-kicker">目录</p>
           <ol>
-            {outline.map((item) => (
+            {outline.map((item, index) => (
               <li key={item.id}>
                 <a
                   href={`#${item.id}`}
@@ -234,14 +296,17 @@ function Article({ markdown, scrollRef }: { markdown: string; scrollRef: RefObje
                     document.getElementById(item.id)?.scrollIntoView({ block: "start" });
                   }}
                 >
-                  {item.text}
+                  <span className="report-toc-index" aria-hidden="true">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span>{item.text}</span>
                 </a>
               </li>
             ))}
           </ol>
         </nav>
       )}
-      <article ref={articleRef} className="prose-paper">
+      <article ref={articleRef} className="prose-report">
         {content}
       </article>
     </div>
@@ -268,6 +333,55 @@ function headerLabels(node: HastLike | undefined): string {
   return cells.filter(Boolean).join("、") || "表格";
 }
 
+/**
+ * A wide table scrolls sideways inside its own region; the clipped side(s)
+ * fade out and a small hint says there is more, so nothing looks cut off.
+ */
+function TableScroll({ label, children }: { label: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => {
+      const max = element.scrollWidth - element.clientWidth;
+      const left = element.scrollLeft > 2;
+      const right = element.scrollLeft < max - 2;
+      setEdges((previous) => (previous.left === left && previous.right === right ? previous : { left, right }));
+    };
+    update();
+    element.addEventListener("scroll", update, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(element);
+    if (element.firstElementChild) observer?.observe(element.firstElementChild);
+    return () => {
+      element.removeEventListener("scroll", update);
+      observer?.disconnect();
+    };
+  }, []);
+
+  const overflow = edges.left || edges.right;
+  return (
+    <div className="table-frame" data-fade-left={edges.left} data-fade-right={edges.right}>
+      <div ref={ref} className="table-wrap g-scroll" role="region" tabIndex={0} aria-label={overflow ? `${label}（可左右滚动）` : label}>
+        {children}
+      </div>
+      {edges.right && (
+        <button
+          type="button"
+          className="table-more"
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => ref.current?.scrollBy({ left: ref.current.clientWidth * 0.7, behavior: "smooth" })}
+        >
+          <IconChevron />
+        </button>
+      )}
+    </div>
+  );
+}
+
 const COMPONENTS: Components = {
   a({ node: _node, href, children, ...rest }) {
     const external = Boolean(href && /^https?:\/\//i.test(href));
@@ -279,11 +393,64 @@ const COMPONENTS: Components = {
     );
   },
   table({ node, children, ...rest }: ComponentProps<"table"> & { node?: unknown }) {
-    const label = headerLabels(node as HastLike | undefined);
     return (
-      <div className="table-wrap" role="region" tabIndex={0} aria-label={label}>
+      <TableScroll label={headerLabels(node as HastLike | undefined)}>
         <table {...rest}>{children}</table>
-      </div>
+      </TableScroll>
     );
   },
 };
+
+/**
+ * Bottom prompt once a study has finished and has a report, so the result is
+ * never missed. Dismissable; opening the report also retires it.
+ */
+export function ReportCta() {
+  const studyId = useGalaxy((state) => state.studyId);
+  const finished = useGalaxy((state) => Boolean(state.view?.ok && state.view.running === false && state.view.report));
+  const selected = useGalaxy((state) => state.selectedId !== null);
+  const stage = useUi((state) => state.reportStage);
+  const dismissed = useUi((state) => state.reportCtaDismissed);
+  const beginReport = useUi((state) => state.beginReport);
+  const dismiss = useUi((state) => state.dismissReportCta);
+  const syncReportCta = useUi((state) => state.syncReportCta);
+
+  useEffect(() => syncReportCta(studyId), [studyId, syncReportCta]);
+
+  const show = finished && !dismissed && stage === "closed";
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          key="cta"
+          className="report-cta glass glass-pop glass-glow hud-auto"
+          data-under-sheet={selected || undefined}
+          role="region"
+          aria-label="研究已完成"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0, transition: { duration: 0.5, delay: 0.9, ease: EASE } }}
+          exit={{ opacity: 0, y: 10, transition: { duration: 0.2 } }}
+        >
+          <button type="button" className="report-cta-open" onClick={beginReport}>
+            <span className="report-cta-icon" aria-hidden="true">
+              <IconReport />
+            </span>
+            <span className="report-cta-text">
+              <span className="report-cta-done">研究已完成</span>
+              <span className="report-cta-sep" aria-hidden="true">
+                ·
+              </span>
+              <b>阅读报告</b>
+            </span>
+            <span className="report-cta-arrow" aria-hidden="true">
+              <IconChevron />
+            </span>
+          </button>
+          <button type="button" className="report-cta-dismiss" aria-label="不再提示" title="不再提示" onClick={dismiss}>
+            <IconClose />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

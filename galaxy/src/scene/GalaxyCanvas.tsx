@@ -60,7 +60,7 @@ export function GalaxyCanvas() {
         <color attach="background" args={[SPACE]} />
         <FxDriver fx={fx} graph={graph} />
         <Starfield fx={fx} />
-        <GalaxyDisc fx={fx} extent={graph.extent} />
+        <GalaxyDisc fx={fx} extent={graph.extent} coreRadius={graph.goal ? graph.goal.p.r : 0.8} />
         <Edges graph={graph} fx={fx} />
         <CoreStar graph={graph} fx={fx} />
         <Bodies graph={graph} fx={fx} />

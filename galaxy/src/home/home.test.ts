@@ -18,7 +18,19 @@ import {
 } from "./format";
 import { navigate, resetNavigation } from "./flags";
 import { buildGalaxy, KIND_CORE, KIND_NODE } from "./geometry";
-import { galleryParams, neighbour, scrollBounds, scrollToReveal, slotX } from "./layout";
+import {
+  captionWidth,
+  columnCount,
+  galleryLines,
+  galleryParams,
+  gridLayout,
+  neighbour,
+  pxPerUnit,
+  scrollBounds,
+  scrollToReveal,
+  slotPose,
+  viewBand,
+} from "./layout";
 
 function row(id: string, patch: Partial<HistoryRow> = {}): HistoryRow {
   return {
@@ -126,40 +138,145 @@ describe("format", () => {
 });
 
 describe("layout", () => {
+  const params = (w: number, h: number) => galleryParams(w / h);
+
   it("backs the camera off on narrow screens", () => {
-    const wide = galleryParams(1440 / 900);
-    const phone = galleryParams(390 / 844);
+    const wide = params(1440, 900);
+    const phone = params(390, 844);
     expect(wide.compact).toBe(false);
     expect(phone.compact).toBe(true);
     expect(phone.camDist).toBeGreaterThan(wide.camDist);
     expect(phone.halfWidth).toBeGreaterThan(3);
-    expect(wide.rowY[0]).toBeGreaterThan(wide.rowY[1]);
   });
 
-  it("centres rows that fit and pans rows that overflow", () => {
-    const params = { spacing: 4, halfWidth: 8, margin: 2 };
-    expect(scrollBounds(3, params)).toEqual({ min: 0, max: 0, fits: true });
-    const bounds = scrollBounds(6, params);
-    expect(bounds).toEqual({ min: 6, max: 14, fits: false });
-    expect(slotX(0, 3, 4, true)).toBe(-4);
-    expect(slotX(2, 6, 4, false)).toBe(8);
-    expect(scrollToReveal(6, 16, params, bounds)).toBe(10);
-    expect(scrollToReveal(14, 0, params, bounds)).toBe(6);
-    expect(scrollToReveal(6, 8, params, bounds)).toBe(6);
-    expect(scrollToReveal(6, 20, params, bounds)).toBe(14);
+  it("fits as many columns as the viewport allows (at least one)", () => {
+    expect(columnCount(params(1920, 1000))).toBe(5);
+    expect(columnCount(params(1440, 900))).toBe(4);
+    expect(columnCount(params(390, 844))).toBe(2);
+    expect(columnCount({ halfWidth: 1, edge: 1.55, spacing: 3.45 })).toBe(1);
+    // Every galaxy of a full line stays on screen.
+    for (const [w, h] of [[1920, 1000], [1440, 900], [1280, 800], [1024, 768], [390, 844]] as const) {
+      const p = params(w, h);
+      const outer = ((columnCount(p) - 1) / 2) * p.spacing + p.galaxyRadius;
+      expect(outer).toBeLessThanOrEqual(p.halfWidth);
+    }
   });
 
-  it("moves keyboard focus within and across rows", () => {
-    const rows: [string[], string[]] = [["r1", "r2"], ["d1", "d2", "d3", "d4"]];
-    expect(neighbour(rows, "r1", "ArrowRight", false)).toBe("r2");
-    expect(neighbour(rows, "r2", "ArrowRight", false)).toBe("d1");
-    expect(neighbour(rows, "d1", "ArrowLeft", false)).toBe("r2");
-    expect(neighbour(rows, "r1", "ArrowLeft", false)).toBeNull();
-    expect(neighbour(rows, "r2", "ArrowDown", false)).toBe("d2");
-    expect(neighbour(rows, "d4", "ArrowUp", false)).toBe("r2");
-    expect(neighbour(rows, "r1", "ArrowUp", false)).toBeNull();
-    expect(neighbour(rows, "d3", "End", false)).toBe("d4");
-    expect(neighbour(rows, "x", "ArrowUp", false)).toBeNull();
+  it("keeps neighbouring captions apart", () => {
+    const p = params(1920, 1000);
+    const ppu = pxPerUnit(p, 1000);
+    expect(captionWidth(p, ppu)).toBe(264);
+    const phone = params(390, 844);
+    const width = captionWidth(phone, pxPerUnit(phone, 844));
+    expect(width).toBeLessThan(phone.spacing * pxPerUnit(phone, 844));
+  });
+
+  it("wraps each section into centred lines, 调研中 above 已完成", () => {
+    const p = params(1920, 1000);
+    const ppu = pxPerUnit(p, 1000);
+    const layout = gridLayout([3, 6], p, ppu);
+    expect(layout.cols).toBe(5);
+    const [running, done] = layout.slots;
+    expect(running).toHaveLength(3);
+    expect(done).toHaveLength(6);
+    // One centred line of 3.
+    expect(running.map((slot) => slot.x)).toEqual([-p.spacing, 0, p.spacing]);
+    expect(new Set(running.map((slot) => slot.y)).size).toBe(1);
+    // 已完成: a full line of 5, then 1 centred below it.
+    expect(new Set(done.slice(0, 5).map((slot) => slot.y)).size).toBe(1);
+    expect(done[0]!.x).toBeCloseTo(-2 * p.spacing);
+    expect(done[5]!.x).toBe(0);
+    expect(done[5]!.y).toBeLessThan(done[0]!.y);
+    // Sections and headings stack downward without overlapping a caption.
+    expect(layout.headingY[0]).toBe(0);
+    expect(layout.headingY[1]).toBeLessThan(running[0]!.y - layout.below);
+    expect(done[0]!.y + p.above).toBeLessThan(layout.headingY[1]);
+    const pitch = done[0]!.y - done[5]!.y;
+    expect(pitch).toBeGreaterThan(p.above + layout.below);
+    expect(layout.height).toBeGreaterThan(-done[5]!.y + layout.below);
+    expect(layout.left).toBeCloseTo(-2 * p.spacing);
+  });
+
+  it("gives empty sections a note and a single column on tiny screens", () => {
+    const p = { ...params(1440, 900), halfWidth: 2 };
+    const layout = gridLayout([0, 3], p, 80);
+    expect(layout.cols).toBe(1);
+    expect(layout.slots[0]).toEqual([]);
+    expect(layout.emptyY[0]).toBeLessThan(layout.headingY[0]);
+    expect(layout.emptyY[0]).toBeGreaterThan(layout.headingY[1]);
+    expect(layout.slots[1].map((slot) => slot.x)).toEqual([0, 0, 0]);
+    expect(layout.slots[1][1]!.y).toBeLessThan(layout.slots[1][0]!.y);
+  });
+
+  it("scrolls vertically only when the content is taller than the free band", () => {
+    const p = params(1440, 900);
+    const band = viewBand(p, 900, 130);
+    const ppu = pxPerUnit(p, 900);
+    expect(band.top).toBeCloseTo(p.halfHeight - 72 / ppu);
+    expect(band.bottom).toBeCloseTo(-p.halfHeight + 130 / ppu);
+    const short = scrollBounds({ height: 2 }, band);
+    expect(short.fits).toBe(true);
+    expect(short.max).toBe(0);
+    // Centred in the band.
+    expect(short.top - 2 - band.bottom).toBeCloseTo(band.top - short.top);
+    const tall = scrollBounds({ height: 30 }, band);
+    expect(tall).toEqual({ min: 0, max: 30 - (band.top - band.bottom), fits: false, top: band.top });
+  });
+
+  it("scrolls just enough to reveal a slot", () => {
+    const band = { top: 5, bottom: -5 };
+    const bounds = { min: 0, max: 20, fits: false, top: 5 };
+    const p = { above: 1 };
+    const layout = { below: 2 };
+    // Already in view: unchanged.
+    expect(scrollToReveal(0, -2, p, layout, band, bounds)).toBe(0);
+    // Below the band: raise it until the caption bottom touches the band bottom.
+    expect(scrollToReveal(0, -14, p, layout, band, bounds)).toBeCloseTo(6);
+    expect(scrollToReveal(0, -14, p, layout, band, bounds, 0.5)).toBeCloseTo(6.5);
+    // Above the band: lower it until the galaxy top touches the band top.
+    expect(scrollToReveal(10, -2, p, layout, band, bounds)).toBeCloseTo(1);
+    // Clamped to the limits, and nothing scrolls when everything fits.
+    expect(scrollToReveal(0, -60, p, layout, band, bounds)).toBe(20);
+    expect(scrollToReveal(3, -60, p, layout, band, { ...bounds, fits: true })).toBe(0);
+  });
+
+  it("bends lines away from the camera and turns galaxies toward it", () => {
+    const p = params(1440, 900);
+    const centre = slotPose(0, 1, p);
+    const side = slotPose(4, 1, p);
+    expect(centre).toEqual({ x: 0, y: 1, z: -0, rotY: -0 });
+    expect(side.z).toBeLessThan(0);
+    expect(side.rotY).toBeLessThan(0);
+  });
+
+  it("moves keyboard focus through wrapped lines", () => {
+    const lines = galleryLines([["r1", "r2", "r3"], ["d1", "d2", "d3", "d4", "d5", "d6"]], 4);
+    expect(lines.map((line) => line.items.map((item) => item.id))).toEqual([["r1", "r2", "r3"], ["d1", "d2", "d3", "d4"], ["d5", "d6"]]);
+    expect(lines[2]!.section).toBe(1);
+    // Left/Right follow reading order across lines and sections.
+    expect(neighbour(lines, "r1", "ArrowRight")).toBe("r2");
+    expect(neighbour(lines, "r3", "ArrowRight")).toBe("d1");
+    expect(neighbour(lines, "d1", "ArrowLeft")).toBe("r3");
+    expect(neighbour(lines, "d4", "ArrowRight")).toBe("d5");
+    expect(neighbour(lines, "r1", "ArrowLeft")).toBeNull();
+    expect(neighbour(lines, "d6", "ArrowRight")).toBeNull();
+    // Up/Down go to the nearest galaxy on the neighbouring line (lines are centred).
+    expect(neighbour(lines, "r2", "ArrowDown")).toBe("d2");
+    expect(neighbour(lines, "d4", "ArrowUp")).toBe("r3");
+    expect(neighbour(lines, "d2", "ArrowDown")).toBe("d5");
+    expect(neighbour(lines, "d3", "ArrowDown")).toBe("d6");
+    expect(neighbour(lines, "d6", "ArrowUp")).toBe("d3");
+    expect(neighbour(lines, "r1", "ArrowUp")).toBeNull();
+    expect(neighbour(lines, "d5", "ArrowDown")).toBeNull();
+    // Home/End stay within the section.
+    expect(neighbour(lines, "d5", "Home")).toBe("d1");
+    expect(neighbour(lines, "d1", "End")).toBe("d6");
+    expect(neighbour(lines, "r2", "End")).toBe("r3");
+    expect(neighbour(lines, "x", "ArrowUp")).toBeNull();
+    // One column: Up/Down walk the list.
+    const single = galleryLines([["a"], ["b", "c"]], 1);
+    expect(neighbour(single, "a", "ArrowDown")).toBe("b");
+    expect(neighbour(single, "c", "ArrowUp")).toBe("b");
   });
 });
 
