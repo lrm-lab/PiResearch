@@ -57,3 +57,24 @@ jobs:
       - name: Build
         working-directory: galaxy
         run: pnpm build
+
+  prism:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g pnpm@9
+      - name: Install
+        working-directory: prism
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        working-directory: prism
+        run: pnpm typecheck
+      - name: Test
+        working-directory: prism
+        run: pnpm test
+      - name: Build
+        working-directory: prism
+        run: pnpm build

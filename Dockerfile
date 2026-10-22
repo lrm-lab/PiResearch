@@ -9,7 +9,16 @@ RUN pnpm install --frozen-lockfile
 COPY galaxy/ ./
 RUN pnpm build
 
-# ---------- stage 2: python runtime ----------
+# ---------- stage 2: build the prism 3D frontend ----------
+FROM node:22-slim AS prism
+RUN npm install -g pnpm@9
+WORKDIR /build/prism
+COPY prism/package.json prism/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY prism/ ./
+RUN pnpm build
+
+# ---------- stage 3: python runtime ----------
 FROM python:3.12-slim AS app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -31,8 +40,9 @@ RUN cd FrontierAgent && uv sync --frozen --no-dev --extra eval
 COPY constellation/ ./constellation/
 COPY conftest.py ./
 
-# The built 3D bundle and its stdlib reverse proxy.
+# The built 3D bundles and the stdlib reverse proxy.
 COPY --from=galaxy /build/galaxy/dist ./galaxy/dist
+COPY --from=prism /build/prism/dist ./prism/dist
 COPY galaxy/serve.py ./galaxy/serve.py
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
