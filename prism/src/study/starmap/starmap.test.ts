@@ -69,7 +69,8 @@ describe("transform", () => {
   it("sizes orbs with zoom but never below a readable minimum", () => {
     expect(orbRadius(60, 0.05, false)).toBe(9);
     expect(orbRadius(60, 0.05, true)).toBe(17);
-    expect(orbRadius(60, 100, false)).toBe(46);
+    expect(orbRadius(60, 100, false)).toBe(26);
+    expect(orbRadius(60, 100, true)).toBe(40);
     expect(orbRadius(80, 0.5, false)).toBeGreaterThan(orbRadius(40, 0.5, false));
   });
 });

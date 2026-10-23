@@ -101,10 +101,15 @@ export function lerpTransform(a: Transform, b: Transform, f: number): Transform 
 
 export const toScreen = (t: Transform, p: Point): Point => ({ x: p.x * t.k + t.x, y: p.y * t.k + t.y });
 
-/** Orb radius on screen: grows with the zoom but is never too small to read or hit. */
+/** Largest on-screen orb radius. A small study fitted to a big screen would otherwise blow its
+ *  stars up into balls; the labels, not the orbs, carry the content. */
+export const MAX_ORB_R = 26;
+export const MAX_GOAL_ORB_R = 40;
+
+/** Orb radius on screen: grows with the zoom but is never too small to read or hit, nor huge. */
 export function orbRadius(radius: number, k: number, goal: boolean): number {
   const base = Math.max(goal ? 17 : 9, radius * k * 0.9);
-  return Math.min(base, goal ? 64 : 46);
+  return Math.min(base, goal ? MAX_GOAL_ORB_R : MAX_ORB_R);
 }
 
 export function easeOutCubic(f: number): number {
