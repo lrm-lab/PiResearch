@@ -12,12 +12,30 @@ services:
     volumes:
       - ./runs:/data/runs
 
+  # CoForge App: Agent manifest and /api/coforge/*, in front of PiResearch's own API. Answers 404
+  # everywhere while COFORGE_ISSUER is unset in .env.
+  coforge-app:
+    image: ${COFORGE_APP_IMAGE:-ghcr.io/lrm-lab/piresearch-coforge-app:latest}
+    container_name: piresearch-coforge-app
+    restart: unless-stopped
+    depends_on:
+      - piresearch
+    environment:
+      COFORGE_ISSUER: ${COFORGE_ISSUER:-}
+      COFORGE_CLIENT_ID: ${COFORGE_CLIENT_ID:-}
+      APP_ORIGIN: ${APP_ORIGIN:-}
+      COFORGE_MAX_CONCURRENT_RUNS: ${COFORGE_MAX_CONCURRENT_RUNS:-2}
+      PIRESEARCH_INTERNAL_URL: http://piresearch:8766
+    volumes:
+      - coforge-app-data:/data
+
   caddy:
     image: caddy:2.11.3
     container_name: piresearch-caddy
     restart: unless-stopped
     depends_on:
       - piresearch
+      - coforge-app
     ports:
       - "80:80"
       - "443:443"
@@ -25,3 +43,6 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data
       - ./caddy-config:/config
+
+volumes:
+  coforge-app-data:

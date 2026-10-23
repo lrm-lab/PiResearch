@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.vars.outputs.image }}
+      coforge_app_image: ${{ steps.vars.outputs.coforge_app_image }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -31,6 +32,8 @@ jobs:
           repo="$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
           echo "image=ghcr.io/${repo}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           echo "latest=ghcr.io/${repo}:latest" >> "$GITHUB_OUTPUT"
+          echo "coforge_app_image=ghcr.io/${repo}-coforge-app:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "coforge_app_latest=ghcr.io/${repo}-coforge-app:latest" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -40,6 +43,15 @@ jobs:
             ${{ steps.vars.outputs.latest }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - uses: docker/build-push-action@v6
+        with:
+          context: coforge-app
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.coforge_app_image }}
+            ${{ steps.vars.outputs.coforge_app_latest }}
+          cache-from: type=gha,scope=coforge-app
+          cache-to: type=gha,mode=max,scope=coforge-app
 
   deploy:
     needs: build
@@ -82,10 +94,11 @@ jobs:
       - name: Pull image and restart
         env:
           IMAGE: ${{ needs.build.outputs.image }}
+          COFORGE_APP_IMAGE: ${{ needs.build.outputs.coforge_app_image }}
         run: |
           ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
             -o StrictHostKeyChecking=accept-new "$REMOTE" \
             "cd /home/dev/piresearch && \
-             PIRESEARCH_IMAGE='$IMAGE' docker compose pull && \
-             PIRESEARCH_IMAGE='$IMAGE' docker compose up -d && \
+             PIRESEARCH_IMAGE='$IMAGE' COFORGE_APP_IMAGE='$COFORGE_APP_IMAGE' docker compose pull && \
+             PIRESEARCH_IMAGE='$IMAGE' COFORGE_APP_IMAGE='$COFORGE_APP_IMAGE' docker compose up -d && \
              docker logout ghcr.io"
