@@ -101,15 +101,25 @@ export function lerpTransform(a: Transform, b: Transform, f: number): Transform 
 
 export const toScreen = (t: Transform, p: Point): Point => ({ x: p.x * t.k + t.x, y: p.y * t.k + t.y });
 
-/** Largest on-screen orb radius. A small study fitted to a big screen would otherwise blow its
- *  stars up into balls; the labels, not the orbs, carry the content. */
-export const MAX_ORB_R = 26;
-export const MAX_GOAL_ORB_R = 40;
+/** Node tiles are CoForge avatars: 28-44px, restrained at fit, growing modestly with the zoom. */
+export const MIN_NODE_R = 14;
+export const MAX_NODE_R = 22;
+/** The goal's half-size (used for its hit area; the card itself is a DOM box). */
+export const GOAL_R = 20;
 
-/** Orb radius on screen: grows with the zoom but is never too small to read or hit, nor huge. */
-export function orbRadius(radius: number, k: number, goal: boolean): number {
-  const base = Math.max(goal ? 17 : 9, radius * k * 0.9);
-  return Math.min(base, goal ? MAX_GOAL_ORB_R : MAX_ORB_R);
+/** Tile half-size on screen: grows with the zoom but is never too small to read or hit, nor large. */
+export function orbRadius(radius: number, k: number, goal: boolean, small = false): number {
+  if (goal) return GOAL_R;
+  // Phones fit 30 tasks into ~350px: smaller tiles keep the map readable.
+  return Math.min(Math.max(small ? 11 : MIN_NODE_R, radius * k * 0.9), small ? 16 : MAX_NODE_R);
+}
+
+/** Distance from a box's centre to its edge along the unit direction (ux, uy), plus `gap`. */
+export function boxRim(ux: number, uy: number, halfW: number, halfH: number, gap = 0): number {
+  const ax = Math.abs(ux);
+  const ay = Math.abs(uy);
+  const d = Math.min(ax > 1e-6 ? halfW / ax : Infinity, ay > 1e-6 ? halfH / ay : Infinity);
+  return d + gap;
 }
 
 export function easeOutCubic(f: number): number {

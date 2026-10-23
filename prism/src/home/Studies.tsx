@@ -1,105 +1,181 @@
-// The study list under the hero: 进行中 and 已完成 sections as responsive card grids, with
-// skeletons while history loads, an inline error banner when it cannot be read, and the CoForge
-// empty state (featured icon, title, description, example chips that fill the composer).
+// The study list under the composer: a 44px toolbar (underline tabs 全部 / 进行中 / 已完成 / 未完成
+// with counts, and a title search) over a responsive grid of cards. Also the loading skeleton, the
+// inline error banner and the CoForge empty state (featured icon, title, line, example chips that
+// fill the composer). Filtering animates with layout; a submitted question appears as a card on top.
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertCircle, Telescope } from "@untitledui/icons";
-import type { HistoryRow } from "../types/api";
+import { AlertCircle, SearchLg, Telescope, XClose } from "@untitledui/icons";
+import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
+import { Tabs, type TabItem } from "../ui/Tabs";
 import { EXAMPLE_CHIPS } from "./examples";
-import { splitRows } from "./format";
+import { rowTitle } from "./format";
+import { MiniMap } from "./MiniMap";
 import { refreshHistoryNow } from "./polling";
-import { useHome, type Pending } from "./store";
-import { PendingSlot } from "./SubmitGhost";
-import { StudyCard } from "./StudyCard";
+import { useHome } from "./store";
+import { BEAM_CLASS, CARD_CLASS, cardMotion, LiveDot, StudyCard } from "./StudyCard";
 
-const GRID = "relative grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] sm:gap-5";
+type Filter = "all" | "running" | "finished" | "failed";
 
-export function Studies({ webgl, scroller }: { webgl: boolean; scroller: HTMLElement | null }) {
+const GRID = "grid grid-cols-1 gap-5 sm:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]";
+
+export function Studies({ scroller }: { scroller: HTMLElement | null }) {
   const rows = useHome((state) => state.rows);
   const loadError = useHome((state) => state.loadError);
   const pending = useHome((state) => state.pending);
-  const flying = pending?.phase === "fly" ? pending : null;
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+
+  // Cards present on the first load enter with a short stagger; later ones just appear.
+  const firstIds = useRef<Set<string> | null>(null);
+  if (rows && firstIds.current === null) firstIds.current = new Set(rows.map((row) => row.id));
+  useEffect(() => {
+    if (!rows) return;
+    const timer = setTimeout(() => (firstIds.current = new Set()), 1400);
+    return () => clearTimeout(timer);
+  }, [rows === null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const counts = useMemo(() => {
+    const c = { all: 0, running: 0, finished: 0, failed: 0 };
+    for (const row of rows ?? []) {
+      c.all += 1;
+      c[row.status] += 1;
+    }
+    return c;
+  }, [rows]);
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return (rows ?? []).filter(
+      (row) => (filter === "all" || row.status === filter) && (!needle || rowTitle(row).toLowerCase().includes(needle)),
+    );
+  }, [rows, filter, query]);
 
   if (!rows) {
-    return (
-      <div className="mt-8">
-        {loadError ? <ErrorBanner message={loadError} /> : <Skeletons />}
-      </div>
-    );
+    return <div className="mt-6 pb-10">{loadError ? <ErrorBanner message={loadError} /> : <Skeletons />}</div>;
   }
-  if (!rows.length && !flying) return <EmptyState />;
+  if (!rows.length && !pending) return <EmptyState />;
 
-  const { running, done } = splitRows(rows);
+  const tabs: TabItem<Filter>[] = [
+    { id: "all", label: "全部", badge: counts.all },
+    { id: "running", label: "进行中", badge: counts.running },
+    { id: "finished", label: "已完成", badge: counts.finished },
+    { id: "failed", label: "未完成", badge: counts.failed },
+  ];
+  const showPending = !!pending && (filter === "all" || filter === "running") && !query.trim();
+  const empty = visible.length === 0 && !showPending;
+
   return (
-    <div className="mt-8 flex flex-col gap-10 pb-8">
-      {(running.length > 0 || flying) && (
-        <Section title="进行中" count={running.length + (flying ? 1 : 0)} live rows={running} webgl={webgl} scroller={scroller} pending={flying} />
-      )}
-      {done.length > 0 && <Section title="已完成" count={done.length} rows={done} webgl={webgl} scroller={scroller} pending={null} />}
+    <div className="pb-12">
+      <div className="sticky top-0 z-10 flex h-11 items-stretch justify-between gap-4 border-b border-secondary bg-primary/95 backdrop-blur">
+        <Tabs items={tabs} value={filter} onChange={setFilter} label="筛选研究" className="min-w-0 overflow-x-auto" />
+        <label className="relative my-auto block w-28 shrink-0 sm:w-56">
+          <SearchLg aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-fg-quaternary" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索标题"
+            aria-label="按标题搜索研究"
+            className="h-9 w-full appearance-none rounded-lg border border-primary bg-primary pr-2.5 pl-8 text-sm text-primary shadow-xs outline-none transition-colors duration-150 placeholder:text-quaternary hover:border-secondary focus:border-brand [&::-webkit-search-cancel-button]:hidden"
+          />
+        </label>
+      </div>
+      <div className="relative mt-5">
+        <motion.div layout="position" className={GRID}>
+          <AnimatePresence mode="popLayout" initial>
+            {showPending && <PendingCard key={`pending-${pending!.href}`} question={pending!.question} />}
+            {visible.map((row, index) => (
+              <StudyCard
+                key={row.id}
+                row={row}
+                scroller={scroller}
+                delay={firstIds.current?.has(row.id) ? Math.min(index, 11) * 0.045 : 0}
+              />
+            ))}
+          </AnimatePresence>
+        </motion.div>
+        <AnimatePresence>
+          {empty && (
+            <motion.div
+              key="none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.1 } }}
+              className="flex flex-col items-center py-16 text-center"
+            >
+              <p className="text-md font-semibold text-primary">没有符合条件的研究</p>
+              <p className="mt-1 text-sm text-tertiary">换个关键词，或者清除筛选。</p>
+              <Button
+                color="secondary"
+                size="sm"
+                iconLeading={XClose}
+                className="mt-4"
+                onClick={() => {
+                  setFilter("all");
+                  setQuery("");
+                }}
+              >
+                清除筛选
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
 
-function Section({
-  title,
-  count,
-  live = false,
-  rows,
-  webgl,
-  scroller,
-  pending,
-}: {
-  title: string;
-  count: number;
-  live?: boolean;
-  rows: HistoryRow[];
-  webgl: boolean;
-  scroller: HTMLElement | null;
-  pending: Pending | null;
-}) {
+/** The card of a question that was just submitted, before the study page opens. */
+function PendingCard({ question, ref }: { question: string; ref?: React.Ref<HTMLElement> }) {
   return (
-    <motion.section layout="position" aria-label={title}>
-      <div className="mb-3 flex items-center gap-2">
-        {live && (
-          <span aria-hidden="true" className="relative flex size-2">
-            <span className="absolute inset-0 animate-ping rounded-full bg-status-progress opacity-60 motion-reduce:animate-none" />
-            <span className="relative size-2 rounded-full bg-status-progress" />
-          </span>
-        )}
-        <h2 className="text-sm font-semibold text-secondary">{title}</h2>
-        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-tertiary tabular ring-1 ring-secondary ring-inset">
-          {count}
-        </span>
+    <motion.article
+      ref={ref}
+      layout="position"
+      {...cardMotion()}
+      initial={{ opacity: 0, y: -10, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className={cx(CARD_CLASS, BEAM_CLASS)}
+    >
+      <div className="overflow-hidden rounded-t-[11px] border-b border-secondary">
+        <MiniMap thumb={undefined} running noGraph={false} />
       </div>
-      <div className={GRID}>
-        <AnimatePresence mode="popLayout" initial={false}>
-          {pending && <PendingSlot key={`pending-${pending.href}`} pending={pending} />}
-          {rows.map((row) => (
-            <StudyCard key={row.id} row={row} webgl={webgl} scroller={scroller} />
-          ))}
-        </AnimatePresence>
+      <div className="flex flex-1 flex-col px-4 pt-3.5 pb-4">
+        <h3 className="line-clamp-2 min-h-12 text-md font-semibold text-primary">{question}</h3>
+        <div className="mt-auto flex items-center gap-2 pt-3">
+          <Badge color="progress" size="xs">
+            <LiveDot />
+            进行中
+          </Badge>
+          <span className="ml-auto text-xs text-tertiary">刚刚提交</span>
+        </div>
       </div>
-    </motion.section>
+    </motion.article>
   );
 }
 
 function Skeletons() {
   return (
     <div aria-busy="true" aria-label="正在读取研究">
-      <div className="home-skeleton mb-3 h-5 w-24 rounded-md" />
-      <div className={GRID}>
-        {Array.from({ length: 6 }, (_, index) => (
-          <div key={index} className="overflow-hidden rounded-xl border border-secondary shadow-xs">
-            <div className="home-skeleton aspect-[16/10]" />
-            <div className="border-t border-secondary bg-primary p-4">
+      <div className="-mt-6 flex h-11 items-center gap-6 border-b border-secondary">
+        {[40, 52, 52, 52].map((w, index) => (
+          <div key={index} className="home-skeleton h-4 rounded" style={{ width: w }} />
+        ))}
+      </div>
+      <div className={cx(GRID, "mt-5")}>
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} className="overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs">
+            <div className="home-skeleton aspect-[320/176] rounded-none border-b border-secondary" />
+            <div className="p-4">
               <div className="home-skeleton h-4 w-11/12 rounded" />
               <div className="home-skeleton mt-2 h-4 w-2/3 rounded" />
-              <div className="mt-4 flex items-center gap-2">
+              <div className="mt-6 flex items-center gap-2">
                 <div className="home-skeleton h-5 w-16 rounded-full" />
                 <div className="home-skeleton ml-auto h-4 w-24 rounded" />
               </div>
+              <div className="home-skeleton mt-3 h-1 w-full rounded-full" />
             </div>
           </div>
         ))}
@@ -126,9 +202,10 @@ function EmptyState() {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto mt-14 flex max-w-lg flex-col items-center px-4 pb-12 text-center"
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="mx-auto mt-16 flex max-w-lg flex-col items-center px-4 pb-12 text-center"
     >
-      <div className="relative flex size-12 items-center justify-center rounded-xl bg-primary text-fg-secondary shadow-xs ring-1 ring-secondary ring-inset">
+      <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-fg-secondary shadow-xs ring-1 ring-secondary ring-inset">
         <Telescope aria-hidden="true" className="size-6" />
       </div>
       <h2 className="mt-4 text-md font-semibold text-primary">还没有研究</h2>
@@ -140,10 +217,7 @@ function EmptyState() {
             type="button"
             title={chip.question}
             onClick={() => setPrefill(chip.question)}
-            className={cx(
-              "inline-flex h-8 items-center rounded-full bg-primary px-3 text-sm font-medium text-secondary shadow-xs ring-1 ring-primary ring-inset transition-colors",
-              "outline-none hover:bg-primary_hover hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-            )}
+            className="inline-flex h-8 items-center rounded-full bg-primary px-3 text-sm font-medium text-secondary shadow-xs ring-1 ring-primary ring-inset transition-colors outline-none hover:bg-primary_hover hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             {chip.label}
           </button>
@@ -152,3 +226,4 @@ function EmptyState() {
     </motion.div>
   );
 }
+

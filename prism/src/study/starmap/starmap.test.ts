@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { Edge, Snapshot, ViewNode } from "../../types/api";
 import { hexId, mixHex } from "./color";
 import { bendOf, edgeGeometry, edgeLabel, parentDepths, spreadEdgeLabels, visibleRelationEdges } from "./edges";
-import { estimateChip, estimateCompact, overlaps, placeLabels, type LabelItem } from "./labels";
+import { estimateChip, chooseGoalTier, estimateCompact, estimateGoalCard, overlaps, placeLabels, type LabelItem } from "./labels";
 import { dirOfKey, nextInDirection } from "./nav";
 import { summaryFacts, summaryLine } from "./summary";
-import { clampPan, fitTransform, focusTransform, MAX_FIT_K, nodeBounds, orbRadius, toScreen, zoomAt, zoomLimits } from "./transform";
+import { clampPan, fitTransform, focusTransform, MAX_FIT_K, boxRim, nodeBounds, orbRadius, toScreen, zoomAt, zoomLimits } from "./transform";
 
 const nodes = [
   { x: 100, y: 100, radius: 50 },
@@ -67,11 +67,12 @@ describe("transform", () => {
   });
 
   it("sizes orbs with zoom but never below a readable minimum", () => {
-    expect(orbRadius(60, 0.05, false)).toBe(9);
-    expect(orbRadius(60, 0.05, true)).toBe(17);
-    expect(orbRadius(60, 100, false)).toBe(26);
-    expect(orbRadius(60, 100, true)).toBe(40);
-    expect(orbRadius(80, 0.5, false)).toBeGreaterThan(orbRadius(40, 0.5, false));
+    expect(orbRadius(60, 0.05, false)).toBe(14);
+    expect(orbRadius(60, 100, false)).toBe(22);
+    expect(orbRadius(60, 100, true)).toBe(20);
+    expect(orbRadius(80, 0.25, false)).toBeGreaterThan(orbRadius(40, 0.25, false));
+    expect(boxRim(1, 0, 100, 40, 3)).toBe(103);
+    expect(boxRim(0, -1, 100, 40)).toBe(40);
   });
 });
 
@@ -120,14 +121,22 @@ function item(id: string, x: number, y: number, extra: Partial<LabelItem> = {}):
 }
 
 describe("labels", () => {
-  it("estimates chips within the 180px cap and two lines", () => {
-    const small = estimateChip("t1", "短标题");
+  it("estimates labels within the 176px cap, one line of title plus a meta line", () => {
+    const small = estimateChip("短标题", "T1 · 未开始");
     expect(small.w).toBeLessThan(120);
-    const long = estimateChip("t12", "这是一个非常非常长的任务标题需要换行显示出来才可以看清楚的内容");
-    expect(long.w).toBeLessThanOrEqual(180);
-    expect(long.h).toBeGreaterThan(small.h);
-    expect(estimateChip("t1", "标题", { live: true }).h).toBeGreaterThan(small.h);
+    const long = estimateChip("这是一个非常非常长的任务标题需要截断显示出来才可以看清楚的内容", "T12 · 进行中 · 7 次调用");
+    expect(long.w).toBeLessThanOrEqual(176);
+    expect(long.h).toBe(small.h);
+    expect(estimateChip("标题", "T1", { live: "【浏览】化债置换额度" }).h).toBeGreaterThan(small.h);
     expect(estimateCompact("t12").w).toBeLessThan(60);
+    expect(estimateGoalCard("短问题").h).toBeLessThan(estimateGoalCard("很长".repeat(40)).h);
+    expect(estimateGoalCard("x", 2).h).toBeLessThan(estimateGoalCard("x", 1).h);
+  });
+
+  it("keeps labels off obstacles", () => {
+    const obstacle = { x: 210, y: 180, w: 200, h: 40 };
+    const spots = placeLabels([item("a", 200, 200)], { w: 800, h: 600 }, 6, [obstacle]);
+    expect(overlaps(spots.get("a")!.rect, obstacle, 0)).toBe(false);
   });
 
   it("places non-overlapping labels beside their stars", () => {
@@ -233,5 +242,16 @@ describe("edge label spreading", () => {
     const [p, q] = spreadEdgeLabels([a, b]);
     expect(p!.x).toBeCloseTo(200);
     expect(Math.abs(q!.x - p!.x)).toBeGreaterThanOrEqual(64);
+  });
+});
+
+describe("goal card tiers", () => {
+  it("uses the roomiest card that clears the tiles", () => {
+    const goal = { x: 400, y: 300 };
+    expect(chooseGoalTier("问题", goal, [{ x: 100, y: 100, r: 14 }])).toBe(0);
+    expect(chooseGoalTier("很长的问题".repeat(8), goal, [{ x: 400, y: 365, r: 14 }])).toBe(1);
+    expect(chooseGoalTier("问题", goal, [{ x: 400, y: 350, r: 14 }])).toBe(2);
+    expect(chooseGoalTier("问题", goal, [{ x: 400, y: 330, r: 14 }])).toBe(3);
+    expect(chooseGoalTier("问题", goal, [{ x: 400, y: 350, r: 14 }], 1)).toBe(2);
   });
 });

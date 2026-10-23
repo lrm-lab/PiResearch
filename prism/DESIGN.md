@@ -15,9 +15,8 @@ Ground rules (from the project owner):
 
 ## 1. Stack
 
-Vite + React 19 + TypeScript (strict), base `/prism/`. three.js + React Three Fiber v9 + drei +
-`@react-three/postprocessing` (home page only: the hero gradient and the study minis; the study page
-uses none of it). Motion for DOM animation. Tailwind v4. zustand. react-markdown +
+Vite + React 19 + TypeScript (strict), base `/prism/`. SVG and DOM only (no WebGL): the star map
+and the home minis are SVG. Motion for DOM animation. Tailwind v4. zustand. react-markdown +
 remark-gfm. Vitest for pure logic. Fonts self-hosted with `@fontsource-variable` (Inter, Noto Sans SC,
 JetBrains Mono): no external requests. Icons: `@untitledui/icons` (MIT), the set CoForge uses.
 
@@ -70,21 +69,21 @@ buttons bottom-right, key `F` fits), clamped so the map can never be dragged awa
 glides it into the area the detail panel leaves free. The fit is followed on resize until the visitor
 takes the camera.
 
-**Stars.** Each node is a soft glowing orb in its agent tone (`agentTone`; the goal larger, brand
-violet, with a slow dashed halo) wrapped in a CoForge status ring in `TONE_HEX`: empty dashed =
-未开始, half arc (turning slowly) = 进行中, full arc + check = 已完成, grey + cross = 已取消, red +
-bang and a red pulse = an incoming error edge. The goal's ring shows `resolved / total`. Orb radius
-follows `radius` and the zoom, with a readable minimum. In-progress stars pulse and carry up to three
-small orbiting dots, one per live tool call.
+**Nodes are CoForge avatar tiles.** A rounded square (radius = size / 4) in the agent tone
+(`agentTone`) with the agent's initials and CoForge's violet gradient hairline frame. Task status is
+the presence-dot idiom: a small dot bottom-right with a `bg-primary` separator ring, in the task
+status colours. In-progress tiles carry a thin rotating blue→lavender beam, errors a thin red ring;
+unassigned tasks are a dashed `?` tile, cancelled ones desaturated. Hover lifts the tile; selection
+and keyboard focus draw a brand ring. The **goal is a compact card** (`bg-primary`, gradient
+hairline, `shadow-lg`): prism mark, 研究问题, the question and a thin progress bar; on crowded maps
+it steps down to a one-line card, a mini card, then a pill that expands on hover (`chooseGoalTier`).
 
-**Labels** are DOM chips next to the stars (`T<n>` + title, at most 180px, two lines, `text-sm`,
-`bg-primary/90`, `border-secondary`; red border on errors, brand border on the selection). The goal's
-chip is the question in brand colours. In-progress chips end with a dark mono line holding the live
-call (typed with a caret; 思考 shimmers). Placement (`labels.ts`) is greedy by priority (goal,
-related to the hovered / selected star, in progress, error, hubs, size) over eight candidate spots
-around the orb, avoiding other chips and orbs; if the full chip does not fit it falls back to a
-compact `T<n>` chip, then hides. Hovered, focused and selected stars always show the full chip. On
-mobile only the compact chip shows, except for the hovered / selected star.
+**Labels** sit beside the tiles without boxes: the title in `text-sm font-medium` over a
+`text-xs text-tertiary` line `T12 · 进行中 · 7 次调用`, on a soft blurred backdrop. Live calls are a
+mono `text-brand-secondary` line with a caret. Placement (`labels.ts`) is greedy by priority over
+candidate spots, avoiding tiles, other labels and the goal card, falling back to a compact `T<n>`
+label, then hiding. A 250ms hover or focus opens a CoForge popover card (title, status, agents,
+calls, latest step, relations).
 
 **Edges.** `parent` edges are the constellation lines: always drawn, thin, neutral, gently curved,
 with a slow dash flowing toward an in-progress child. Verification edges are hidden until asked for:
@@ -102,12 +101,12 @@ unrelated stars dim. The selection keeps its edges drawn (hover adds to it). The
 draws every verification edge at once and dims the rest. Edge labels slide along their curve to
 avoid each other (`spreadEdgeLabels`).
 
-**Backdrop and motion.** A faint twinkling star field (three CSS dot layers out of phase, a very
-slight parallax with the pan) over a drifting violet nebula; light theme lavender dots and the
-`#f3f1ff` haze on white, dark theme the `#21183b` to `#141720` sky. Intro: stars fade and pop in by
-parent depth from the goal outward while the constellation lines draw on. New stars twinkle in at
-once, a status change animates the ring (arc grows, mark pops). Reduced motion: everything static,
-camera moves are instant.
+**Backdrop and motion.** Plain `bg-primary` with one soft violet glow behind the goal, CoForge's
+sidebar gradient as a faint wash and a 24px dot grid that moves with the map and fades toward the
+edges (a few specks in dark only). Parent lines are 1px hairlines with a 1px dot moving toward
+in-progress children; the active star's lines turn into a violet gradient. Intro: tiles fade in from
+0.96 by parent depth while lines draw on; status dots cross-fade. Everything eases with
+`--ease-out-quint`; reduced motion makes it static.
 
 **Keyboard.** Stars are a roving tab stop: arrows move to the nearest star in that direction
 (`nav.ts`), Enter selects, Esc clears, `V` lens, `F` fit, `1` / `2` / `3` tabs, `?` help. Shortcuts
@@ -147,27 +146,29 @@ are ignored while typing, composing, or with a modifier held.
 
 ## 5. Home (`src/home/**`)
 
-- **Header**: `深度研究` + meta `N 项进行中`.
-- **Hero**: a `rounded-3xl` brand panel with the CoForge landing gradient (WebGL2, paused under
-  reduced motion; dark in both themes, like the landing page). Eyebrow in shimmer, a two-line
-  blur-reveal headline, and the **composer**: a Slack-style rounded box (text on top, toolbar below,
-  hint `⏎ 发送 · ⇧⏎ 换行` on the left, the page's one primary button `开始研究` on the right). The
-  placeholder types example questions.
-- **Studies**: sections 进行中 / 已完成 as a grid of CoForge cards. Each card's top is a live **3D
-  mini-diorama** of its thumbnail (all minis share one WebGL canvas through drei `View`): small slabs
-  in status colours on a dotted desk, thin relation lines, a tiny prism. Hover tilts the mini and
-  lifts the card; running studies carry a border beam. Below: title, status badge, `R/N` and the time
-  in mono. Hover shows a delete icon button.
-- **Submit**: the primary button loads; on success a ghost card **crystallises out of the hero** and
-  flies into the first grid slot, then the page navigates (cross-document view transition).
+A CoForge content page, no hero or slogan before the content (CoForge's task-first rule).
+
+- **Header**: `深度研究` + meta `N 项进行中`; right: the Galaxy/Prism/2D switcher, the theme toggle
+  and a secondary `新研究` that focuses the composer.
+- **Composer**: CoForge's message-composer shape: one `rounded-xl` box, text on top, a toolbar
+  below with the mono hint `⏎ 发送 · ⇧⏎ 换行` and the page's one primary button `开始研究`. Focus
+  deepens the border; no coloured glow. The placeholder types example questions.
+- **Toolbar**: tabs 全部 / 进行中 / 已完成 / 未完成 with counts, and a title search.
+- **Studies**: a wrapping grid of CoForge cards. Each card's top is an SVG mini star map of its
+  thumbnail (agent-tone tiles with status dots, the goal as a violet tile, hairline parent edges on
+  a faint dot grid); below: title, status badge, a thin status-coloured progress bar with `R/N`, and
+  the time in mono. Running studies carry a thin border beam; delete appears on hover or focus.
+- **Submit**: the new card inserts at the top of the grid, then the page opens the study.
 - **Delete**: CoForge confirm dialog (featured icon + grey description, `primary-destructive`
-  confirm with loading). On success the card dissolves and the grid reflows.
+  confirm with loading); the card fades out and the grid reflows.
 - **Empty / error**: CoForge empty state with example questions as chips; inline error banner.
+
+No page uses WebGL any more.
 
 ## 6. URL flags (dev server only, as in Galaxy)
 
-`?mockSubmit=1|error|network`, `?mockDelete=1|error`, `?mockEmpty=1`, `?navigate=0`, plus `?nowebgl=1`
-(production too) and `?theme=light|dark` (production too).
+`?mockSubmit=1|error|network`, `?mockDelete=1|error`, `?mockEmpty=1`, `?navigate=0`, plus
+`?theme=light|dark` (production too).
 
 ## 7. Embedding in CoForge
 

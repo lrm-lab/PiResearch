@@ -7,7 +7,7 @@ import { cx } from "../../ui/cx";
 export function PrismMark({ className, active = false }: { className?: string; active?: boolean }) {
   const rays = [AGENT_TONES[3], AGENT_TONES[4], AGENT_TONES[1], AGENT_TONES[0]];
   return (
-    <svg viewBox="0 0 40 40" aria-hidden="true" className={cx("size-10 shrink-0", className)} fill="none">
+    <svg viewBox="0 0 40 40" aria-hidden="true" className={cx("shrink-0", className ?? "size-10")} fill="none">
       <path d="M2 24.5 14.5 22" stroke="currentColor" strokeOpacity="0.55" strokeWidth="1.6" strokeLinecap="round" className={cx(active && "sm-ray")} />
       <path d="M20 6 31 28H9L20 6Z" className="fill-brand-primary stroke-brand-600 dark:stroke-brand-400" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M20 12.5 25.5 24H14.5L20 12.5Z" className="fill-brand-secondary" opacity="0.55" />
