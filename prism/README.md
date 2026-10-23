@@ -61,7 +61,7 @@ PYTHONPATH=. python3 -m constellation.serve --home /tmp/prism-runs/runs --port 1
 
 正在进行的工具调用会在轨迹文件修改 30 分钟后过期，重新运行脚本即可恢复。
 
-仅在开发服务器上生效的调试参数：`?mockSubmit=1`、`?mockDelete=1`、`?mockEmpty=1`、`?navigate=0`。生产环境也可用的参数：`?nowebgl=1`（不用 WebGL）、`?theme=light|dark`。注意：不带 mock 参数时，在首页提交问题会启动一次真实的研究。
+仅在开发服务器上生效的调试参数：`?mockSubmit=1`、`?mockDelete=1`、`?mockEmpty=1`、`?navigate=0`。生产环境也可用的参数：`?theme=light|dark`。注意：不带 mock 参数时，在首页提交问题会启动一次真实的研究。
 
 ## 目录
 

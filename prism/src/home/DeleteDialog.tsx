@@ -2,7 +2,7 @@
 // icon and a grey description instead of a red warning box, `secondary` cancel and the one solid
 // red `primary-destructive` confirm with a loading state. role=dialog aria-modal, Tab trapped,
 // Esc or the backdrop cancels (not while the request is out), focus returns to the opener. On
-// success the card freezes its mini, then dissolves out of the grid and the grid reflows.
+// success the card fades out of the grid and the grid reflows.
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
@@ -14,7 +14,6 @@ import { DELETE_NOTE_DONE, DELETE_NOTE_RUNNING, rowTitle } from "./format";
 import { deleteStudy } from "./mutations";
 import { refreshHistoryNow } from "./polling";
 import { useHome } from "./store";
-import { freezeCard } from "./StudyCard";
 
 const EXIT_MS = 160;
 
@@ -76,7 +75,6 @@ function Dialog() {
     next?.focus({ preventScroll: true });
     // Let the veil clear first, so the dissolve is seen.
     setTimeout(() => {
-      freezeCard(row.id);
       useHome.getState().remove(row.id);
       refreshHistoryNow();
     }, EXIT_MS + 20);

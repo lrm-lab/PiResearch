@@ -7,8 +7,7 @@
 //   ?mockDelete=1        DELETE is faked: success after 700 ms
 //   ?mockDelete=error    fake 500 {"error":"删除失败，请重试。"}
 //   ?mockEmpty=1         history is faked as [] (first-run state)
-//   ?navigate=0          the submit flight and card links play out but never leave the page
-//   ?nowebgl=1           flat minis and a still hero gradient (works in production too)
+//   ?navigate=0          the submit and card links play out but never leave the page
 
 const params = typeof location === "undefined" ? new URLSearchParams() : new URLSearchParams(location.search);
 const dev = import.meta.env.DEV;
@@ -18,7 +17,6 @@ export const flags = {
   mockDelete: dev ? params.get("mockDelete") : null,
   mockEmpty: dev && params.get("mockEmpty") === "1",
   stay: dev && params.get("navigate") === "0",
-  noWebGL: params.get("nowebgl") === "1",
 };
 
 /** Set once the page is leaving, so the submit flight and its watchdog navigate only once. */

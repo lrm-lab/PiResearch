@@ -37,12 +37,10 @@ export interface Rect {
   h: number;
 }
 
-export const CHIP_MAX_W = 180;
-export const GOAL_CHIP_MAX_W = 260;
-const PAD_X = 20; // px-2 + border
-const LINE = 20;
+export const CHIP_MAX_W = 176;
+const PAD_X = 12; // px-1.5 on each side
 
-/** Rough text width at 14px: CJK ~14px, other ~7.6px. */
+/** Rough text width: CJK ~1em, other ~0.55em. */
 export function textWidth(text: string, size = 14): number {
   let w = 0;
   for (const ch of text) w += ch.charCodeAt(0) > 0x2e80 ? size : size * 0.55;
@@ -50,22 +48,49 @@ export function textWidth(text: string, size = 14): number {
 }
 
 /**
- * Chip size estimate: id badge + title wrapped to at most 2 lines (goal: 3), plus an optional dark
- * live-call line. The real DOM chip hugs its content, this only has to be close.
+ * Label size estimate: a one-line title (14px, capped at ~160px) over a one-line meta line (12px),
+ * plus an optional mono live-call line. The real DOM label hugs its content, this only has to be close.
  */
-export function estimateChip(id: string, title: string, opts: { goal?: boolean; live?: boolean } = {}): Size {
-  const max = opts.goal ? GOAL_CHIP_MAX_W : CHIP_MAX_W;
-  const idW = opts.goal ? 0 : textWidth(id.toUpperCase(), 11) + 6;
-  const textW = textWidth(title || "未命名任务") + idW;
-  const inner = max - PAD_X;
-  const lines = Math.min(opts.goal ? 3 : 2, Math.max(1, Math.ceil(textW / inner)));
-  const w = Math.min(max, Math.ceil(Math.min(textW, inner * lines)) + PAD_X);
-  const h = lines * LINE + 10 + (opts.live ? 24 : 0) + (opts.goal ? 18 : 0);
-  return { w: Math.max(48, w), h };
+export function estimateChip(title: string, meta: string, opts: { live?: string } = {}): Size {
+  const titleW = Math.min(160, textWidth(title || "未命名任务"));
+  const metaW = textWidth(meta, 12);
+  const liveW = opts.live ? textWidth(opts.live, 12) * 0.9 : 0;
+  const w = Math.min(CHIP_MAX_W, Math.ceil(Math.max(titleW, metaW, liveW)) + PAD_X);
+  return { w: Math.max(48, w), h: 20 + 16 + 4 + (opts.live ? 18 : 0) };
 }
 
 export function estimateCompact(id: string): Size {
-  return { w: Math.ceil(textWidth(id.toUpperCase(), 11)) + 14, h: 22 };
+  return { w: Math.ceil(textWidth(id.toUpperCase(), 12)) + 10, h: 22 };
+}
+
+/**
+ * The goal card comes in three sizes so it never sits on top of the tasks around it: tier 0 is the full
+ * card (eyebrow, two-line question, progress), tier 1 a one-line question, tier 2 a mini card (mark,
+ * one-line question, progress), tier 3 a pill (mark and eyebrow; the full card returns on hover).
+ */
+export type GoalTier = 0 | 1 | 2 | 3;
+
+export function estimateGoalCard(title: string, tier: GoalTier = 0): Size {
+  if (tier === 3) return { w: 108, h: 32 };
+  if (tier === 2) return { w: 188, h: 50 };
+  const w = tier === 1 ? 232 : 272;
+  const lines = tier === 1 ? 1 : Math.min(2, Math.max(1, Math.ceil(textWidth(title, 14) / (w - 32))));
+  return { w, h: 60 + lines * 20 };
+}
+
+/** The roomiest tier whose box (plus `pad`) stays clear of every tile; the smallest if none does. */
+export function chooseGoalTier(title: string, at: { x: number; y: number }, tiles: readonly { x: number; y: number; r: number }[], first: GoalTier = 0, pad = 6): GoalTier {
+  for (const tier of [0, 1, 2, 3] as const) {
+    if (tier < first) continue;
+    const { w, h } = estimateGoalCard(title, tier);
+    const clear = tiles.every((t) => {
+      const nx = Math.max(at.x - w / 2, Math.min(t.x, at.x + w / 2));
+      const ny = Math.max(at.y - h / 2, Math.min(t.y, at.y + h / 2));
+      return Math.abs(t.x - nx) > t.r + pad || Math.abs(t.y - ny) > t.r + pad;
+    });
+    if (clear) return tier;
+  }
+  return 3;
 }
 
 const GAP = 5;
@@ -108,9 +133,9 @@ function inside(rect: Rect, view: Size, margin: number): boolean {
  * Greedy placement by priority. For each star try the 8 spots with the full chip, then the 8 with the
  * compact chip; an item that fits nowhere gets `null` (hidden). Forced items go first and take the
  * first in-view spot even if it overlaps (they are what the user is looking at). Offscreen orbs get
- * `null`. Deterministic.
+ * `null`. `obstacles` are rectangles no label may cover (the goal card). Deterministic.
  */
-export function placeLabels(items: readonly LabelItem[], view: Size, margin = 6): Map<string, LabelSpot | null> {
+export function placeLabels(items: readonly LabelItem[], view: Size, margin = 6, obstacles: readonly Rect[] = []): Map<string, LabelSpot | null> {
   const out = new Map<string, LabelSpot | null>();
   const placed: Rect[] = [];
   const orbs = items.map((i) => ({ id: i.id, x: i.x, y: i.y, r: i.r }));
@@ -123,7 +148,7 @@ export function placeLabels(items: readonly LabelItem[], view: Size, margin = 6)
       continue;
     }
     const free = (rect: Rect) =>
-      inside(rect, view, margin) && !placed.some((p) => overlaps(rect, p)) && !orbs.some((o) => o.id !== item.id && hitsOrb(rect, o));
+      inside(rect, view, margin) && !placed.some((p) => overlaps(rect, p)) && !obstacles.some((o) => overlaps(rect, o, 2)) && !orbs.some((o) => o.id !== item.id && hitsOrb(rect, o));
     const tiers: { size: Size; compact: boolean }[] = [{ size: item.full, compact: false }];
     if (!item.forced) tiers.push({ size: item.compact, compact: true });
     let spot: LabelSpot | null = null;

@@ -1,9 +1,9 @@
 // The question composer, Slack-style (CoForge docs/design/page-skeleton-and-density.md): one
 // rounded box, text on top, a toolbar below with the key hint on the left and the page's single
-// primary action on the right. Focus darkens the border instead of a coloured glow. Enter submits,
+// primary action on the right. Focus deepens the border to brand, with no glow. Enter submits,
 // Shift+Enter adds a line, IME composition and key repeat are ignored (enterAction). While empty,
-// the placeholder types and erases example questions. On success the ghost card takes over
-// (SubmitGhost); errors show inline inside the box.
+// the placeholder types and erases example questions. On success a card for the question
+// slides in at the top of the grid (Studies), then the study opens; errors show inline under the box.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { AlertCircle, Stars02 } from "@untitledui/icons";
@@ -67,7 +67,6 @@ function useTypewriter(lines: readonly string[], enabled: boolean): string {
 export function Composer({ className }: { className?: string }) {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
-  const [focused, setFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
@@ -97,7 +96,7 @@ export function Composer({ className }: { className?: string }) {
     if (area) {
       area.focus({ preventScroll: true });
       requestAnimationFrame(() => area.setSelectionRange(area.value.length, area.value.length));
-      area.closest("section")?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+      area.closest("form")?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
     }
   }, [prefill, reducedMotion]);
 
@@ -156,68 +155,79 @@ export function Composer({ className }: { className?: string }) {
         return;
       }
       submitted.current = true;
-      if (reducedMotion) {
-        // No flight: go straight to the study (or, with ?navigate=0, show the new card briefly).
-        navigate(result.href);
-        if (flags.stay) {
-          useHome.getState().setPending({ question, href: result.href, phase: "fly" });
-          setTimeout(() => useHome.getState().setPending(null), 1600);
-        }
-        return;
-      }
-      useHome.getState().setPending({ question, href: result.href, phase: "crystal" });
+      // The new card slides in at the top of the grid, then the page opens the study.
+      useHome.getState().setPending({ question, href: result.href, phase: "fly" });
+      setTimeout(
+        () => {
+          navigate(result.href);
+          if (flags.stay) setTimeout(() => useHome.getState().setPending(null), 1600);
+        },
+        reducedMotion ? 0 : 900,
+      );
     },
     [busy, value, reducedMotion],
   );
 
   const count = value.length;
-  const forming = pending?.phase === "crystal";
   return (
-    <form
-      ref={formRef}
-      onSubmit={onSubmit}
-      noValidate
-      className={cx(
-        "relative flex flex-col rounded-2xl border bg-primary text-left shadow-xl transition-[border-color,opacity] duration-150",
-        error ? "border-error" : focused ? "border-fg-quaternary" : "border-primary",
-        className,
-      )}
-    >
-      <div className="relative">
-        <textarea
-          ref={areaRef}
-          name="question"
-          rows={2}
-          maxLength={MAX_LENGTH}
-          aria-label="研究问题"
-          placeholder={COMPOSER_PLACEHOLDER}
-          value={value}
-          readOnly={busy}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? "home-ask-error" : "home-ask-hint"}
-          onChange={(event) => {
-            setValue(event.target.value);
-            if (error) setError(null);
-          }}
-          onKeyDown={onKeyDown}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          className={cx(
-            "block max-h-48 min-h-[4.25rem] w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-md text-primary outline-none transition-opacity duration-300 placeholder:text-quaternary focus-visible:outline-none",
-            showTyping && "placeholder:text-transparent",
-            forming && "opacity-30",
-          )}
-        />
-        {showTyping && (
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-4 top-3.5 line-clamp-2 text-md text-quaternary select-none"
-          >
-            {typing || "​"}
-            <span className="home-caret text-fg-quaternary" />
-          </span>
+    <div className={className}>
+      <form
+        ref={formRef}
+        onSubmit={onSubmit}
+        noValidate
+        className={cx(
+          "flex flex-col rounded-xl border bg-primary text-left shadow-xs transition-colors duration-150",
+          error ? "border-error" : "border-primary focus-within:border-brand",
         )}
-      </div>
+      >
+        <div className="relative">
+          <textarea
+            ref={areaRef}
+            name="question"
+            rows={2}
+            maxLength={MAX_LENGTH}
+            aria-label="研究问题"
+            placeholder={COMPOSER_PLACEHOLDER}
+            value={value}
+            readOnly={busy}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "home-ask-error" : "home-ask-hint"}
+            onChange={(event) => {
+              setValue(event.target.value);
+              if (error) setError(null);
+            }}
+            onKeyDown={onKeyDown}
+            className={cx(
+              "block max-h-48 min-h-[4.5rem] w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-md text-primary outline-none placeholder:text-quaternary focus-visible:outline-none",
+              showTyping && "placeholder:text-transparent",
+            )}
+          />
+          {showTyping && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-4 top-3.5 line-clamp-2 text-md text-quaternary select-none"
+            >
+              {typing || "\u200b"}
+              <span className="home-caret text-fg-quaternary" />
+            </span>
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-3 px-3 pt-1 pb-3">
+          <span id="home-ask-hint" className="truncate pl-1 font-mono text-xs text-quaternary">
+            ⏎ 发送 · ⇧⏎ 换行
+          </span>
+          <div className="flex items-center gap-3">
+            {count > MAX_LENGTH * 0.8 && (
+              <span className="font-mono text-xs text-tertiary tabular" aria-live="polite">
+                {count}/{MAX_LENGTH}
+              </span>
+            )}
+            <Button ref={buttonRef} type="submit" color="primary" size="sm" iconLeading={Stars02} isLoading={busy} showTextWhileLoading>
+              开始研究
+            </Button>
+          </div>
+        </div>
+      </form>
       <AnimatePresence initial={false}>
         {error && (
           <motion.p
@@ -227,28 +237,13 @@ export function Composer({ className }: { className?: string }) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex items-start gap-1.5 overflow-hidden px-4 text-sm text-error-primary"
+            className="flex items-start gap-1.5 overflow-hidden text-sm text-error-primary"
           >
-            <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span className="pb-1">{error}</span>
+            <AlertCircle aria-hidden="true" className="mt-2 size-4 shrink-0" />
+            <span className="pt-1.5">{error}</span>
           </motion.p>
         )}
       </AnimatePresence>
-      <div className="flex items-center justify-between gap-3 px-3 pt-1 pb-3">
-        <span id="home-ask-hint" className="truncate pl-1 font-mono text-xs text-quaternary">
-          ⏎ 发送 · ⇧⏎ 换行
-        </span>
-        <div className="flex items-center gap-3">
-          {count > MAX_LENGTH * 0.8 && (
-            <span className="font-mono text-xs text-tertiary tabular" aria-live="polite">
-              {count}/{MAX_LENGTH}
-            </span>
-          )}
-          <Button ref={buttonRef} type="submit" color="primary" iconLeading={Stars02} isLoading={busy} showTextWhileLoading>
-            开始研究
-          </Button>
-        </div>
-      </div>
-    </form>
+    </div>
   );
 }

@@ -14,7 +14,7 @@ import { cx } from "../ui/cx";
 import { agentRoster, progressSegments, TONE_LABEL } from "./model";
 import { Skeleton } from "./primitives";
 import { PrismMark } from "./starmap/PrismMark";
-import { summaryLine } from "./starmap/summary";
+import { summaryParts } from "./starmap/summary";
 import { useStudy } from "./store";
 import { useStudyUi } from "./ui";
 
@@ -49,10 +49,13 @@ function ReadyStrip({ view }: { view: Snapshot }) {
     return () => observer.disconnect();
   }, [question, expanded]);
 
+  const parts = summaryParts(view);
+  const shown = roster.slice(0, 5);
+  const more = roster.length - shown.length;
+
   return (
-    <section aria-label="研究问题" className="relative z-10 shrink-0 border-b border-secondary bg-primary px-4 py-3 sm:px-6">
-      <div className="flex items-start gap-3 sm:gap-4">
-        <PrismMark active={running} className="mt-0.5 hidden sm:block" />
+    <section aria-label="研究问题" className="relative z-10 shrink-0 border-b border-secondary bg-primary px-4 py-4 sm:px-6">
+      <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <p ref={textRef} className={cx("text-md leading-6 font-semibold text-primary", !expanded && "line-clamp-2")}>
             {question || "（没有记录研究问题）"}
@@ -68,7 +71,7 @@ function ReadyStrip({ view }: { view: Snapshot }) {
             </button>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-3">
           <Badge color={activity || running ? "brand" : "gray"} dot={running && !activity}>
             <span className={cx(activity && "prism-shimmer")}>{phaseLabel(view)}</span>
           </Badge>
@@ -80,22 +83,27 @@ function ReadyStrip({ view }: { view: Snapshot }) {
         </div>
       </div>
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 sm:pl-14">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
         <div
           role="img"
           aria-label={segments.map((s) => `${TONE_LABEL[s.tone]} ${s.count}`).join("，")}
-          className="flex h-2 w-full max-w-72 gap-0.5 overflow-hidden rounded-full bg-tertiary sm:w-56"
+          className="flex h-1.5 w-full gap-0.5 overflow-hidden rounded-full bg-tertiary sm:w-56"
         >
           {segments.map((s) => (
             <span
               key={s.tone}
-              className={cx("h-full min-w-1 rounded-full transition-[flex-grow] duration-500", TONE_CLASS[s.tone].dot, s.tone === "progress" && running && "animate-pulse")}
+              className={cx("h-full min-w-1.5 rounded-full transition-[flex-grow] duration-500 ease-[var(--ease-out-quint)]", TONE_CLASS[s.tone].dot, s.tone === "progress" && running && "animate-pulse")}
               style={{ flexGrow: s.count / Math.max(total, 1), flexBasis: 0 }}
             />
           ))}
         </div>
-        <p role="status" aria-live="polite" className="min-w-0 text-sm text-secondary tabular">
-          {summaryLine(view)}
+        <p role="status" aria-live="polite" className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm text-tertiary tabular">
+          {parts.map((part, i) => (
+            <span key={part} className="inline-flex items-center gap-2">
+              {i > 0 && <span aria-hidden="true" className="text-quaternary">·</span>}
+              {part}
+            </span>
+          ))}
         </p>
         <div className="ml-auto flex items-center gap-3">
           {view.report && (
@@ -104,26 +112,25 @@ function ReadyStrip({ view }: { view: Snapshot }) {
             </Button>
           )}
           {roster.length > 0 && (
-            <div className="flex items-center gap-2" role="group" aria-label="智能体">
-              <span className="flex -space-x-1.5">
-                {roster.slice(0, 8).map((entry) => (
-                  <span
-                    key={entry.agent}
-                    tabIndex={0}
-                    onPointerEnter={() => setFocusAgent(entry.agent)}
-                    onPointerLeave={() => setFocusAgent(null)}
-                    onFocus={() => setFocusAgent(entry.agent)}
-                    onBlur={() => setFocusAgent(null)}
-                    className="rounded-full outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
-                  >
-                    <AgentAvatar name={entry.agent} tone={entry.tone} size="xs" ring />
-                  </span>
-                ))}
-              </span>
-              <span className="text-sm text-tertiary tabular">
-                {roster.length > 8 ? `+${roster.length - 8} · ` : ""}
-                {roster.length} 个智能体
-              </span>
+            <div className="flex -space-x-1" role="group" aria-label={`${roster.length} 个智能体`}>
+              {shown.map((entry) => (
+                <span
+                  key={entry.agent}
+                  tabIndex={0}
+                  onPointerEnter={() => setFocusAgent(entry.agent)}
+                  onPointerLeave={() => setFocusAgent(null)}
+                  onFocus={() => setFocusAgent(entry.agent)}
+                  onBlur={() => setFocusAgent(null)}
+                  className="rounded-full outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
+                >
+                  <AgentAvatar name={entry.agent} tone={entry.tone} size="xs" ring />
+                </span>
+              ))}
+              {more > 0 && (
+                <span className="relative inline-flex size-6 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-tertiary ring-[1.5px] ring-[var(--color-bg-primary)]">
+                  +{more}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -137,9 +144,9 @@ function WaitingStrip({ view }: { view: Snapshot }) {
   // A snapshot without a graph and without `running: false` is a run that has just started.
   const running = view.running !== false;
   return (
-    <section aria-label="研究问题" className="relative z-10 shrink-0 border-b border-secondary bg-primary px-4 py-3 sm:px-6">
-      <div className="flex items-center gap-3 sm:gap-4">
-        <PrismMark active={running} className="hidden sm:block" />
+    <section aria-label="研究问题" className="relative z-10 shrink-0 border-b border-secondary bg-primary px-4 py-4 sm:px-6">
+      <div className="flex items-center gap-3">
+        <PrismMark active={running} className="size-4" />
         <div className="min-w-0 flex-1">
           <p className={cx("text-md font-semibold text-primary", running && "prism-shimmer")}>{running ? "正在等待派发任务" : "这份运行没有任务图"}</p>
           <p className="text-sm text-tertiary">{view.message || (running ? "智能体拆解问题后，任务会出现在这里。" : "这次运行没有留下可以展示的任务。")}</p>
@@ -151,17 +158,16 @@ function WaitingStrip({ view }: { view: Snapshot }) {
 
 function StripSkeleton() {
   return (
-    <div aria-hidden="true" className="shrink-0 border-b border-secondary bg-primary px-4 py-3 sm:px-6">
+    <div aria-hidden="true" className="shrink-0 border-b border-secondary bg-primary px-4 py-4 sm:px-6">
       <div className="flex items-start gap-4">
-        <Skeleton className="hidden size-10 rounded-xl sm:block" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-5 w-[min(36rem,80%)]" />
           <Skeleton className="h-5 w-[min(22rem,50%)]" />
         </div>
         <Skeleton className="h-6 w-16 rounded-full" />
       </div>
-      <div className="mt-3 flex items-center gap-5 sm:pl-14">
-        <Skeleton className="h-2 w-56 rounded-full" />
+      <div className="mt-4 flex items-center gap-4">
+        <Skeleton className="h-1.5 w-56 rounded-full" />
         <Skeleton className="h-4 w-72 max-w-[50%]" />
       </div>
     </div>
