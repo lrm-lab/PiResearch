@@ -23,5 +23,14 @@
 	@root path /
 	redir @root /galaxy/ 302
 
-	reverse_proxy piresearch:8766
+	# The CoForge App sidecar owns the Agent manifest and its API; it answers 404 while
+	# COFORGE_ISSUER is unset.
+	@coforge path /.well-known/coforge-agent-manifest.json /api/coforge/*
+	handle @coforge {
+		reverse_proxy coforge-app:3000
+	}
+
+	handle {
+		reverse_proxy piresearch:8766
+	}
 }
