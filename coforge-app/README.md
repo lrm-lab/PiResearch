@@ -24,20 +24,20 @@ Caddy sends `/.well-known/coforge-agent-manifest.json` and `/api/coforge/*` here
 
 ## Environment
 
-Set these in the PiResearch server's `.env` (managed outside the repo); compose passes them on. See `.env.example`.
+Set these as this repository's Actions variables; the deploy workflow writes them into the server's `.env` and compose passes them on. See `.env.example`.
 
 | Variable | Meaning |
 | --- | --- |
 | `COFORGE_ISSUER` | `<CoForge origin>/oidc`, no trailing slash. Unset turns the app off. |
 | `COFORGE_CLIENT_ID` | The app's client ID; Agent tokens carry it as `aud`. |
-| `APP_ORIGIN` | `https://82.157.184.89`. The manifest's `base_url` is `APP_ORIGIN/api/coforge`. |
+| `APP_ORIGIN` | `https://research.coforge.cn`. The manifest's `base_url` is `APP_ORIGIN/api/coforge`. |
 | `COFORGE_MAX_CONCURRENT_RUNS` | Optional, default 2. |
 
 ## Register and use
 
 1. A Workspace owner or admin registers the app in Settings, Applications: name `PiResearch`, homepage
-   `https://82.157.184.89`, no redirect URIs. Copy the client ID into the server's `.env` as
-   `COFORGE_CLIENT_ID`, set `COFORGE_ISSUER` and `APP_ORIGIN`, then deploy (or `docker compose up -d`).
+   `https://research.coforge.cn`, no redirect URIs. Set the client ID as the Actions variable
+   `COFORGE_CLIENT_ID`, plus `COFORGE_ISSUER` and `APP_ORIGIN`, then rerun the Deploy workflow.
    CoForge's OIDC issuer must be enabled for this to work.
 2. Install the app and let the Agent have access (the first `coforge app invoke` asks a person to approve).
 3. As an Agent:

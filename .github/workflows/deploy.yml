@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-s89
+  group: deploy-coforge-staging
   cancel-in-progress: false
 
 permissions:
@@ -53,52 +53,63 @@ jobs:
           cache-from: type=gha,scope=coforge-app
           cache-to: type=gha,mode=max,scope=coforge-app
 
+  # Deploys to CoForge's staging machine (Aliyun, the coforge.cn ICP filing), behind its Caddy at
+  # https://research.coforge.cn. The host key is pinned; .env is rebuilt from this repository's
+  # Actions variables and secrets on every deploy and goes over SSH stdin, never in arguments.
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: read
     env:
-      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       REMOTE: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+      REMOTE_DIR: /home/deploy/piresearch
     steps:
       - uses: actions/checkout@v4
-      - name: Configure SSH key
+      - name: Configure SSH
         env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_HOST_KEY: ${{ secrets.DEPLOY_SSH_HOST_KEY }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-      - name: Prepare remote directory
+          printf '%s %s\n' "$DEPLOY_HOST" "$DEPLOY_SSH_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_deploy ~/.ssh/known_hosts
+          printf 'Host deploy-host\n  HostName %s\n  IdentityFile ~/.ssh/id_deploy\n  BatchMode yes\n  ConnectTimeout 20\n  StrictHostKeyChecking yes\n' "$DEPLOY_HOST" > ~/.ssh/config
+      - name: Upload compose file and .env
+        env:
+          VARS_JSON: ${{ toJSON(vars) }}
+          MODEL_FACTORY_API_KEY: ${{ secrets.MODEL_FACTORY_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          ZHIZENGZENG_OPENAI_API_KEY: ${{ secrets.ZHIZENGZENG_OPENAI_API_KEY }}
         run: |
-          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new "$REMOTE" \
-            "mkdir -p /home/dev/piresearch/runs /home/dev/piresearch/caddy-data /home/dev/piresearch/caddy-config"
-      - name: Upload compose file and Caddyfile
-        run: |
-          scp -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new compose.yaml Caddyfile \
-            "$REMOTE:/home/dev/piresearch/"
-      - name: Log in to GHCR on the host
+          user="${REMOTE%@*}"
+          ssh "$user@deploy-host" "mkdir -p $REMOTE_DIR/runs"
+          scp compose.yaml "$user@deploy-host:$REMOTE_DIR/compose.yaml"
+          {
+            jq -r 'to_entries[] | "\(.key)=\(.value)"' <<< "$VARS_JSON"
+            for name in MODEL_FACTORY_API_KEY SERPER_API_KEY TAVILY_API_KEY ZHIZENGZENG_OPENAI_API_KEY; do
+              printf '%s=%s\n' "$name" "${!name}"
+            done
+          } | ssh "$user@deploy-host" "umask 077 && cat > $REMOTE_DIR/.env.tmp && mv $REMOTE_DIR/.env.tmp $REMOTE_DIR/.env"
+      - name: Pull images and restart
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
-        run: |
-          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new "$REMOTE" \
-            "docker login ghcr.io -u '$ACTOR' --password-stdin" <<< "$GHCR_TOKEN"
-      - name: Pull image and restart
-        env:
           IMAGE: ${{ needs.build.outputs.image }}
           COFORGE_APP_IMAGE: ${{ needs.build.outputs.coforge_app_image }}
         run: |
-          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 \
-            -o StrictHostKeyChecking=accept-new "$REMOTE" \
-            "cd /home/dev/piresearch && \
-             PIRESEARCH_IMAGE='$IMAGE' COFORGE_APP_IMAGE='$COFORGE_APP_IMAGE' docker compose pull && \
-             PIRESEARCH_IMAGE='$IMAGE' COFORGE_APP_IMAGE='$COFORGE_APP_IMAGE' docker compose up -d && \
-             docker logout ghcr.io"
+          # The registry login lives in this project's own DOCKER_CONFIG, so it never touches the
+          # credentials CoForge staging keeps for the same user, and is removed after the pull.
+          ssh "${REMOTE%@*}@deploy-host" "set -euo pipefail
+            export XDG_RUNTIME_DIR=/run/user/\$(id -u) DOCKER_HOST=unix:///run/user/\$(id -u)/docker.sock DOCKER_CONFIG=$REMOTE_DIR/.docker
+            cd $REMOTE_DIR
+            docker login ghcr.io -u '$ACTOR' --password-stdin >/dev/null
+            trap 'docker logout ghcr.io >/dev/null' EXIT
+            export PIRESEARCH_IMAGE='$IMAGE' COFORGE_APP_IMAGE='$COFORGE_APP_IMAGE'
+            docker compose pull
+            docker compose up -d --remove-orphans" <<< "$GHCR_TOKEN"

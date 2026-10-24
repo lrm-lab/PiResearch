@@ -7,10 +7,10 @@ services:
       - .env
     environment:
       RUNS_DIR: /data/runs
-    ports:
-      - "127.0.0.1:8766:8766"
     volumes:
       - ./runs:/data/runs
+    networks:
+      - coforge-staging-apps
 
   # CoForge App: Agent manifest and /api/coforge/*, in front of PiResearch's own API. Answers 404
   # everywhere while COFORGE_ISSUER is unset in .env.
@@ -28,21 +28,14 @@ services:
       PIRESEARCH_INTERNAL_URL: http://piresearch:8766
     volumes:
       - coforge-app-data:/data
-
-  caddy:
-    image: caddy:2.11.3
-    container_name: piresearch-caddy
-    restart: unless-stopped
-    depends_on:
-      - piresearch
-      - coforge-app
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy-data:/data
-      - ./caddy-config:/config
+    networks:
+      - coforge-staging-apps
 
 volumes:
   coforge-app-data:
+
+# The host is CoForge's staging machine (lrm-lab/coforge infra/staging). Its Caddy owns 80/443 and
+# serves research.coforge.cn, reaching these two containers by name on this shared network.
+networks:
+  coforge-staging-apps:
+    external: true
