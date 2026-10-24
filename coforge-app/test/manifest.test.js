@@ -16,6 +16,11 @@ test("the manifest validates against the published coforge-agent-manifest.v1 sch
   assert.ok(validateManifest(manifest), JSON.stringify(validateManifest.errors, null, 2));
 });
 
+test("the manifest names PiResearch and says what it does", () => {
+  assert.equal(manifest.name, "PiResearch");
+  assert.match(manifest.description, /research/i);
+});
+
 test("the schema rejects a manifest that breaks it", () => {
   const ajv = addFormats(new Ajv2020({ strict: false }));
   const validateManifest = ajv.compile(schema);
