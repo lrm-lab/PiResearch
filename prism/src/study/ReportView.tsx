@@ -7,10 +7,12 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { fetchReport, studyApiPrefix } from "../lib/api";
 import { selectionHeading } from "../lib/heading";
 import { isUsableTitle, prepareUserReport } from "../lib/report";
+import type { ReportExport } from "../lib/reportExport";
 import { AgentAvatar } from "../ui/AgentAvatar";
 import { Button } from "../ui/Button";
 import { agentRoster, readingMeta } from "./model";
 import { EASE_OUT, EmptyState, Skeleton } from "./primitives";
+import { ReportDownload } from "./ReportDownload";
 import { alignNumericColumns, stripLeadingTitle } from "./reportTables";
 import { useStudy } from "./store";
 
@@ -97,6 +99,17 @@ export function ReportView({ studyId }: { studyId: string }) {
   const roster = useMemo(() => agentRoster(view), [view]);
   const running = view?.running === true;
 
+  const getReport = (): ReportExport | null => {
+    const article = contentRef.current?.querySelector<HTMLElement>(".prism-doc");
+    if (loaded.kind !== "ready" || !article) return null;
+    return {
+      title,
+      markdown: loaded.markdown,
+      article,
+      byline: roster.length > 0 ? `由 ${roster.length} 个研究智能体完成` : undefined,
+    };
+  };
+
   const header =
     loaded.kind === "ready" ? (
       <motion.header
@@ -105,13 +118,16 @@ export function ReportView({ studyId }: { studyId: string }) {
         transition={{ duration: 0.6, ease: EASE_OUT }}
         className="mb-10 border-b border-secondary pb-8"
       >
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <span className="font-semibold text-brand-secondary">研究报告</span>
-          <span aria-hidden="true" className="text-quaternary">
-            ·
-          </span>
-          <span className="text-tertiary tabular">{readingMeta(loaded.markdown)}</span>
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <span className="font-semibold text-brand-secondary">研究报告</span>
+            <span aria-hidden="true" className="text-quaternary">
+              ·
+            </span>
+            <span className="text-tertiary tabular">{readingMeta(loaded.markdown)}</span>
+          </p>
+          <ReportDownload getReport={getReport} />
+        </div>
         <h1 className="mt-3 text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{title}</h1>
         {(roster.length > 0 || running) && (
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-tertiary">
@@ -187,8 +203,9 @@ export function ReportView({ studyId }: { studyId: string }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-4 bottom-4 sm:right-6 sm:bottom-6"
+            className="absolute right-4 bottom-4 flex flex-col items-end gap-2 sm:right-6 sm:bottom-6"
           >
+            <ReportDownload getReport={getReport} compact side="top" />
             <Button
               color="secondary"
               iconLeading={ArrowUp}

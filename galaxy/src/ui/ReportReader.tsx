@@ -20,8 +20,10 @@ import { fetchReport, studyApiPrefix } from "../lib/api";
 import { selectionHeading } from "../lib/heading";
 import { useFocusTrap } from "../lib/hooks";
 import { isUsableTitle, prepareUserReport } from "../lib/report";
+import type { ReportExport } from "../lib/reportExport";
 import { useGalaxy } from "../store";
 import { IconChevron, IconClose, IconExternal, IconReport } from "./icons";
+import { ReportDownload } from "./ReportDownload";
 import { alignNumericColumns, stripLeadingTitle } from "./reportTables";
 import { useUi } from "./uiStore";
 
@@ -121,6 +123,11 @@ function Dialog() {
     return () => scroller.removeEventListener("scroll", save);
   }, [prefix, ready]);
 
+  const getReport = (): ReportExport | null => {
+    const article = scrollRef.current?.querySelector<HTMLElement>(".prose-report");
+    return loaded.kind === "ready" && article ? { title, markdown: loaded.markdown, article } : null;
+  };
+
   return (
     <motion.div
       className="report-backdrop"
@@ -163,6 +170,7 @@ function Dialog() {
               {title}
             </h2>
           </div>
+          {loaded.kind === "ready" && <ReportDownload getReport={getReport} />}
           <button ref={closeRef} type="button" className="g-btn g-btn-icon report-close" aria-label="关闭报告" aria-keyshortcuts="Escape" onClick={endReport}>
             <IconClose />
           </button>
