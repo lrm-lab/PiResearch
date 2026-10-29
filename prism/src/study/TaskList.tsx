@@ -2,10 +2,9 @@
 // stagger in once on mount (never on polls); arrow keys / J K move the selection (page shortcuts).
 
 import { FilterLines } from "@untitledui/icons";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef } from "react";
 import { goalActivity, isErroneous, toolCount } from "../lib/activity";
-import { verificationIds } from "../lib/edges";
 import { taskTone } from "../lib/status";
 import type { Edge, ViewNode } from "../types/api";
 import { AgentAvatar } from "../ui/AgentAvatar";
@@ -14,7 +13,6 @@ import { cx } from "../ui/cx";
 import { StatusIcon } from "../ui/StatusIcon";
 import { groupTasks, relationCounts, relationName, visibleTasks, type StatusGroup } from "./model";
 import { EASE_OUT, EmptyState, Skeleton, Tooltip } from "./primitives";
-import { LensPill } from "./LensPill";
 import { RelationDot } from "./relations";
 import { useStudy } from "./store";
 
@@ -24,13 +22,10 @@ export function TaskList({ narrow }: { narrow: boolean }) {
   const view = useStudy((state) => state.view);
   const hidden = useStudy((state) => state.hiddenAgents);
   const selectedId = useStudy((state) => state.selectedId);
-  const lens = useStudy((state) => state.lens);
-  const toggleLens = useStudy((state) => state.toggleLens);
   const showAllAgents = useStudy((state) => state.showAllAgents);
   const reducedMotion = useStudy((state) => state.reducedMotion);
   const tasks = useMemo(() => visibleTasks(view, hidden), [view, hidden]);
   const groups = useMemo(() => groupTasks(tasks), [tasks]);
-  const lit = useMemo(() => (lens && view ? verificationIds(view.edges) : null), [lens, view]);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Only the first paint staggers; later polls and filter changes appear in place.
   const mounted = useRef(false);
@@ -55,7 +50,6 @@ export function TaskList({ narrow }: { narrow: boolean }) {
         narrow ? "w-[min(35rem,50%)] shrink-0" : "w-full",
       )}
     >
-      <AnimatePresence initial={false}>{lens && <LensPill key="lens" onClose={toggleLens} />}</AnimatePresence>
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain" role="list" aria-label="任务">
         {!view && <ListSkeleton />}
         {view && total === 0 && (
@@ -82,7 +76,6 @@ export function TaskList({ narrow }: { narrow: boolean }) {
               group={group}
               edges={view.edges}
               selectedId={selectedId}
-              lit={lit}
               running={view.running !== false}
               stagger={!mounted.current && !reducedMotion}
               offset={groups.slice(0, groupIndex).reduce((sum, entry) => sum + entry.items.length + 1, 0)}
@@ -100,7 +93,6 @@ function Group({
   group,
   edges,
   selectedId,
-  lit,
   running,
   stagger,
   offset,
@@ -110,7 +102,6 @@ function Group({
   group: StatusGroup;
   edges: readonly Edge[];
   selectedId: string | null;
-  lit: Set<string> | null;
   running: boolean;
   stagger: boolean;
   offset: number;
@@ -131,7 +122,6 @@ function Group({
             node={node}
             edges={edges}
             selected={node.id === selectedId}
-            dimmed={lit !== null && !lit.has(node.id)}
             erroneous={erroneous(node.id)}
             running={running}
             delay={stagger ? Math.min(offset + index, 14) * 0.028 : -1}
@@ -147,7 +137,6 @@ const Row = memo(function Row({
   node,
   edges,
   selected,
-  dimmed,
   erroneous,
   running,
   delay,
@@ -156,7 +145,6 @@ const Row = memo(function Row({
   node: ViewNode;
   edges: readonly Edge[];
   selected: boolean;
-  dimmed: boolean;
   erroneous: boolean;
   running: boolean;
   delay: number;
@@ -174,7 +162,7 @@ const Row = memo(function Row({
     <motion.li
       role="listitem"
       initial={delay >= 0 ? { opacity: 0, y: 8 } : false}
-      animate={{ opacity: dimmed ? 0.38 : 1, y: 0 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, delay: Math.max(0, delay), ease: EASE_OUT }}
     >
       <button

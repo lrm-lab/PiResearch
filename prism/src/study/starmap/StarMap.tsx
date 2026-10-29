@@ -1,11 +1,10 @@
 // The star map (DESIGN.md §3): the server's 2D constellation layout, seen flat. Tasks are CoForge-style
 // agent avatar tiles with a presence-dot status, the goal is a compact card, parent edges are hairlines,
-// labels are quiet DOM text, and verification relations are drawn on demand (hover, focus, selection,
-// or the 核验透镜).
+// labels are quiet DOM text, and verification relations are drawn on demand (hover, focus, selection).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { ariaLabel, progress, stateText, toolCount } from "../../lib/activity";
-import { drawnRelation, errorTargets, linkedIds, verificationIds } from "../../lib/edges";
+import { drawnRelation, errorTargets, linkedIds } from "../../lib/edges";
 import { BRAND, LAVENDER, RELATION_HEX } from "../../lib/palette";
 import { TONE_HEX, taskTone, type TaskTone } from "../../lib/status";
 import { useTheme } from "../../lib/theme";
@@ -47,7 +46,6 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
   const reduced = useStudy((s) => s.reducedMotion);
   const selectedId = useStudy((s) => s.selectedId);
   const hoveredId = useStudy((s) => s.hoveredId);
-  const lens = useStudy((s) => s.lens);
   const select = useStudy((s) => s.select);
   const hover = useStudy((s) => s.hover);
   const unhover = useStudy((s) => s.unhover);
@@ -103,11 +101,10 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
     for (const id of focus) for (const other of linkedIds(view.edges, id)) out.add(other);
     return out;
   }, [view.edges, focus]);
-  const verification = useMemo(() => (lens ? verificationIds(view.edges) : null), [lens, view.edges]);
   const dimmed = (star: Star): boolean => {
     if (focusAgent && !star.node.goal && !star.node.agents.includes(focusAgent)) return true;
-    if (!linked && !verification) return false;
-    if (linked?.has(star.node.id) || verification?.has(star.node.id)) return false;
+    if (!linked) return false;
+    if (linked.has(star.node.id)) return false;
     return true;
   };
 
@@ -170,11 +167,11 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
 
   // Relation edges on demand.
   const relationEdges = useMemo(() => {
-    if (focus.length < 2) return visibleRelationEdges(view.edges, focus[0] ?? null, lens);
+    if (focus.length < 2) return visibleRelationEdges(view.edges, focus[0] ?? null);
     const seen = new Set<Edge>();
-    for (const id of focus) for (const edge of visibleRelationEdges(view.edges, id, lens)) seen.add(edge);
+    for (const id of focus) for (const edge of visibleRelationEdges(view.edges, id)) seen.add(edge);
     return [...seen];
-  }, [view.edges, focus, lens]);
+  }, [view.edges, focus]);
   const parentEdges = useMemo(() => view.edges.filter((e) => e.relation === "parent" && byId.has(e.from) && byId.has(e.to)), [view.edges, byId]);
 
   // Edge ends sit on the node's box edge (the goal card's side, a tile's rim), not at its centre.
@@ -330,7 +327,7 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
             if (!geo) return null;
             const child = byId.get(edge.to)!;
             const incident = focus.includes(edge.from) || focus.includes(edge.to);
-            const faded = (focus.length > 0 && !incident) || (lens && !incident);
+            const faded = focus.length > 0 && !incident;
             const delay = Math.max(0, delayOf(edge.to, depths.get(edge.to) ?? 1) - 0.1);
             const flowing = running && !reduced && child.status === "in_progress";
             return (

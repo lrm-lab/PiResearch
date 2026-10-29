@@ -1,16 +1,15 @@
 // Study page header (DESIGN.md §4): back, the question, phase + progress meta, centred tabs, and
-// the verification lens, export, and the Galaxy / Prism / 2D and theme controls.
+// export and the Galaxy / Prism / 2D and theme controls.
 
-import { ArrowLeft, Dataflow03, File06, Rows01, SearchRefraction } from "@untitledui/icons";
+import { ArrowLeft, Dataflow03, File06, Rows01 } from "@untitledui/icons";
 import { goalActivity, phaseLabel, progress } from "../lib/activity";
 import { APP_BASE } from "../lib/api";
-import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { HeaderControls } from "../ui/HeaderControls";
 import { PageHeader } from "../ui/PageHeader";
 import { ExportMenu } from "./ExportMenu";
 import type { StudyTab } from "./model";
-import { LinkButton, Skeleton, Tooltip } from "./primitives";
+import { LinkButton, Skeleton } from "./primitives";
 import { useStudy } from "./store";
 import { StudyTabs, type StudyTabItem } from "./StudyTabs";
 
@@ -26,8 +25,6 @@ export function StudyHeader({
   const errorKind = useStudy((state) => state.errorKind);
   const tab = useStudy((state) => state.tab);
   const setTab = useStudy((state) => state.setTab);
-  const lens = useStudy((state) => state.lens);
-  const toggleLens = useStudy((state) => state.toggleLens);
 
   const back = (
     <LinkButton href={APP_BASE} color="tertiary" icon={ArrowLeft} iconOnly className="-ml-2">
@@ -65,8 +62,6 @@ export function StudyHeader({
     },
   ];
 
-  const lensUsable = tab !== "report" && Boolean(view?.ok);
-
   return (
     <PageHeader
       leading={back}
@@ -75,18 +70,6 @@ export function StudyHeader({
       tabs={<StudyTabs items={items} value={tab} onChange={setTab} label="研究视图" />}
       actions={
         <>
-          <Tooltip label={lens ? "关闭核验透镜" : "核验透镜：突出审核、支持、挑战和错误"} shortcut="V" align="end">
-            <Button
-              color="secondary"
-              iconLeading={SearchRefraction}
-              aria-label="核验透镜"
-              aria-pressed={lens}
-              aria-keyshortcuts="V"
-              disabled={!lensUsable}
-              onClick={toggleLens}
-              className={cx(lens && "bg-brand-primary! text-brand-secondary! ring-brand-300! dark:ring-brand-700!")}
-            />
-          </Tooltip>
           <ExportMenu />
           <HeaderControls studyId={studyId} />
         </>

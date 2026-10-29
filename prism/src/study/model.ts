@@ -233,7 +233,6 @@ export interface KeyContext {
 }
 
 export type KeyAction =
-  | { kind: "lens" }
   | { kind: "fit" }
   | { kind: "escape" }
   | { kind: "help" }
@@ -241,7 +240,7 @@ export type KeyAction =
   | { kind: "step"; delta: 1 | -1 };
 
 /**
- * Page shortcuts: V lens · F fit the map · Esc · ? help · 1/2/3 tabs · ↑/↓ (and J/K) in the task list.
+ * Page shortcuts: F fit the map · Esc · ? help · 1/2/3 tabs · ↑/↓ (and J/K) in the task list.
  * (Arrow keys on the map are handled by the map itself: they move between stars.) Nothing fires
  * while typing, composing (IME), or with Cmd/Ctrl/Alt held.
  */
@@ -263,8 +262,6 @@ export function keyAction(input: KeyInput, context: KeyContext): KeyAction | nul
       return { kind: "tab", tab: "tasks" };
     case "3":
       return context.hasReport ? { kind: "tab", tab: "report" } : null;
-    case "v":
-      return context.tab === "report" ? null : { kind: "lens" };
     case "f":
       return context.tab === "map" ? { kind: "fit" } : null;
     case "j":

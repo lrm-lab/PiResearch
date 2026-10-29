@@ -1,21 +1,18 @@
-// 任务图 tab: the star map fills the area; small overlays sit on top (verification-lens pill
-// top-centre, zoom group bottom-right, legend bottom-left). Overlay wrappers ignore the pointer so
-// drag and wheel reach the map; only the controls themselves take clicks.
+// 任务图 tab: the star map fills the area; small overlays sit on top (zoom group bottom-right,
+// legend bottom-left). Overlay wrappers ignore the pointer so drag and wheel reach the map; only
+// the controls themselves take clicks.
 
 import { Keyboard01, Maximize02, Minus, Plus } from "@untitledui/icons";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import type { Snapshot } from "../types/api";
 import { cx } from "../ui/cx";
 import { TONE_CLASS } from "../lib/status";
-import { LensPill } from "./LensPill";
 import { Kbd, Skeleton, Tooltip } from "./primitives";
 import { MapBackdrop, StarMap } from "./starmap/StarMap";
 import { useStudy } from "./store";
 import { useStudyUi } from "./ui";
 
 export function MapView({ view, rightInset, bottomInset, compact }: { view: Snapshot; rightInset: number; bottomInset: number; compact: boolean }) {
-  const lens = useStudy((s) => s.lens);
-  const toggleLens = useStudy((s) => s.toggleLens);
   const hasSelection = useStudy((s) => s.selectedId !== null);
   const helpOpen = useStudyUi((s) => s.popover === "help");
   const togglePopover = useStudyUi((s) => s.togglePopover);
@@ -26,10 +23,6 @@ export function MapView({ view, rightInset, bottomInset, compact }: { view: Snap
     <div className="absolute inset-0 overflow-hidden">
       <StarMap view={view} rightInset={rightInset} bottomInset={bottomInset} compact={compact} />
       <div className="pointer-events-none absolute inset-0 z-10">
-        <div className="absolute inset-x-0 top-3 flex justify-center px-4" style={{ paddingRight: rightInset ? rightInset + 16 : undefined }}>
-          <AnimatePresence>{lens && <LensPill key="lens" onClose={toggleLens} floating />}</AnimatePresence>
-        </div>
-
         <motion.div
           data-ui
           className="pointer-events-auto absolute flex flex-col overflow-hidden rounded-lg border border-secondary bg-primary shadow-xs"

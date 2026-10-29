@@ -142,7 +142,6 @@ describe("keyAction", () => {
   const map = { tab: "map" as const, hasReport: true };
 
   it("maps the page shortcuts", () => {
-    expect(keyAction({ key: "v" }, map)).toEqual({ kind: "lens" });
     expect(keyAction({ key: "F" }, map)).toEqual({ kind: "fit" });
     expect(keyAction({ key: "?" }, map)).toEqual({ kind: "help" });
     expect(keyAction({ key: "Escape" }, map)).toEqual({ kind: "escape" });
