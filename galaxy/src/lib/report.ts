@@ -134,8 +134,20 @@ export function breakBlockquoteLines(markdown: string): string {
     .map((line, index) => {
       if (/^\s*```/.test(line)) fence = !fence;
       if (fence || !/^\s*>/.test(line)) return line;
-      if (!/^\s*>/.test(lines[index + 1] ?? "") || /\s{2}$|\\$/.test(line)) return line;
-      return line + "  ";
+      const out = quoteLabels(line);
+      if (!/^\s*>/.test(lines[index + 1] ?? "") || /\s{2}$|\\$/.test(out)) return out;
+      return out + "  ";
     })
     .join("\n");
+}
+
+// "标签：内容" meta lines emphasise the label; 来源/备注 lines render as quiet notes.
+function quoteLabels(line: string): string {
+  const head = /^(\s*>\s?)/.exec(line)?.[0];
+  if (!head || /^(\s*>\s?)[#>*\-`]/.test(line)) return line;
+  const body = line.slice(head.length);
+  const label = /^([^：:*`\[\]]{1,24})[：:](.+)$/.exec(body);
+  if (!label) return line;
+  if (/来源|备注/.test(label[1]!)) return `${head}*${label[1]!.trim()}：${label[2]!.trim()}*`;
+  return `${head}**${label[1]!.trim()}：**${label[2]}`;
 }
