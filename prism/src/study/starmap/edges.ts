@@ -95,14 +95,12 @@ export function parentDepths(nodeIds: readonly string[], edges: readonly Edge[],
   return depth;
 }
 
-/** Edges to draw on demand: those touching `active`, or every verification edge in lens mode. */
-export function visibleRelationEdges(edges: readonly Edge[], active: string | null, lens: boolean): Edge[] {
+/** Edges drawn on demand: those touching `active`. */
+export function visibleRelationEdges(edges: readonly Edge[], active: string | null): Edge[] {
   const out: Edge[] = [];
   for (const edge of edges) {
     if (edge.from === edge.to) continue;
-    const verification = edge.relation !== "parent";
-    const touches = active !== null && (edge.from === active || edge.to === active);
-    if (touches || (lens && verification)) out.push(edge);
+    if (active !== null && (edge.from === active || edge.to === active)) out.push(edge);
   }
   return out;
 }

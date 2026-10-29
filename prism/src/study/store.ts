@@ -34,8 +34,6 @@ export interface StudyState {
   errorKind: LoadErrorKind | null;
   selectedId: string | null;
   hoveredId: string | null;
-  /** 核验透镜 (verification lens): dims everything but verification relations and their tasks. */
-  lens: boolean;
   /** Current header tab. */
   tab: StudyView;
   /** Agents hidden by the toolbar filter (empty = all shown). */
@@ -52,7 +50,6 @@ export interface StudyState {
   hover(id: string | null): void;
   /** Clear the hover only if `id` still holds it (another label or body may already have taken it). */
   unhover(id: string): void;
-  toggleLens(): void;
   setTab(tab: StudyView): void;
   toggleAgent(agent: string): void;
   showAllAgents(): void;
@@ -100,7 +97,6 @@ export const useStudy = create<StudyState>()((set, get) => {
     errorKind: null,
     selectedId: null,
     hoveredId: null,
-    lens: false,
     tab: "map",
     hiddenAgents: {},
     reducedMotion: initialReducedMotion(),
@@ -158,10 +154,6 @@ export const useStudy = create<StudyState>()((set, get) => {
 
     unhover(id) {
       if (get().hoveredId === id) set({ hoveredId: null });
-    },
-
-    toggleLens() {
-      set((state) => ({ lens: !state.lens }));
     },
 
     setTab(tab) {

@@ -150,7 +150,7 @@ function isTyping(target: EventTarget | null): boolean {
   return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
 }
 
-/** Page shortcuts (model.ts keyAction): V lens · F fit · Esc · ? · 1/2/3 · ↑/↓ J/K in the list. */
+/** Page shortcuts (model.ts keyAction): F fit · Esc · ? · 1/2/3 · ↑/↓ J/K in the list. */
 function useStudyShortcuts() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -178,10 +178,6 @@ function useStudyShortcuts() {
           break;
         case "help":
           ui.togglePopover("help");
-          break;
-        case "lens":
-          if (!study.view?.ok) return;
-          study.toggleLens();
           break;
         case "fit":
           ui.requestFit();

@@ -101,12 +101,10 @@ describe("edges", () => {
     expect(depth.get("t3")).toBe(3);
   });
 
-  it("draws relations on demand: the active node's edges, or all verification in lens mode", () => {
+  it("draws relations on demand: only the active node's edges", () => {
     const edges = [edge("goal", "t1", "parent"), edge("goal", "t2", "parent"), edge("t3", "t1", "audit"), edge("t4", "t2", "error")];
-    expect(visibleRelationEdges(edges, null, false)).toEqual([]);
-    expect(visibleRelationEdges(edges, "t1", false)).toEqual([edges[0], edges[2]]);
-    expect(visibleRelationEdges(edges, null, true)).toEqual([edges[2], edges[3]]);
-    expect(visibleRelationEdges(edges, "t1", true)).toEqual([edges[0], edges[2], edges[3]]);
+    expect(visibleRelationEdges(edges, null)).toEqual([]);
+    expect(visibleRelationEdges(edges, "t1")).toEqual([edges[0], edges[2]]);
   });
 
   it("labels edges in plain Chinese", () => {
