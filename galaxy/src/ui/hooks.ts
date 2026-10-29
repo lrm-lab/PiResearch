@@ -15,7 +15,7 @@ function typing(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
-/** V lens · F core · R overview · ? help · Esc closes menus, then the selection. */
+/** F core · R overview · ? help · Esc closes menus, then the selection. */
 export function useShortcuts() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -42,8 +42,7 @@ export function useShortcuts() {
       }
       if (event.repeat) return;
       const key = event.key.toLowerCase();
-      if (key === "v") galaxy.toggleLens();
-      else if (key === "f") galaxy.emitCamera({ kind: "core" });
+      if (key === "f") galaxy.emitCamera({ kind: "core" });
       else if (key === "r") galaxy.emitCamera({ kind: "overview" });
       else if (event.key === "?") ui.toggleMenu("help");
       else return;

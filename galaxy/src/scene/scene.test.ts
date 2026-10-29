@@ -88,27 +88,19 @@ describe("graph", () => {
 
 describe("emphasis", () => {
   it("brightens the selection and dims everything not linked to it", () => {
-    const targets = nodeTargets(graph, { selectedId: "t2", hoveredId: null, lens: false });
+    const targets = nodeTargets(graph, { selectedId: "t2", hoveredId: null });
     expect(targets[graph.byId.get("t2")!.i]).toBeGreaterThan(1);
     expect(targets[graph.byId.get("t1")!.i]).toBe(1);
     expect(targets[graph.byId.get("t3")!.i]).toBeCloseTo(DIM);
-    const lines = edgeTargets(graph, { selectedId: "t2", hoveredId: null, lens: false });
+    const lines = edgeTargets(graph, { selectedId: "t2", hoveredId: null });
     for (const edge of graph.edges) {
       const touches = edge.edge.from === "t2" || edge.edge.to === "t2";
       expect(lines[edge.i]! > 1).toBe(touches);
     }
   });
 
-  it("lens keeps verification relations lit and dims parent edges", () => {
-    const lines = edgeTargets(graph, { selectedId: null, hoveredId: null, lens: true });
-    for (const edge of graph.edges) expect(lines[edge.i]! < 1).toBe(edge.rel === REL_PARENT);
-    const targets = nodeTargets(graph, { selectedId: null, hoveredId: null, lens: true });
-    expect(targets[graph.byId.get("goal")!.i]).toBeLessThan(1);
-    expect(targets[graph.byId.get("t1")!.i]).toBe(1);
-  });
-
   it("hover brightens the node and its relations without dimming others", () => {
-    const targets = nodeTargets(graph, { selectedId: null, hoveredId: "t3", lens: false });
+    const targets = nodeTargets(graph, { selectedId: null, hoveredId: "t3" });
     expect(targets[graph.byId.get("t3")!.i]).toBeGreaterThan(1);
     expect(targets[graph.byId.get("t1")!.i]).toBe(1);
   });

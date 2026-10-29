@@ -4,8 +4,6 @@
 
 import { useEffect, useState } from "react";
 import { LayoutGroup, MotionConfig, motion } from "motion/react";
-import { Plus } from "@untitledui/icons";
-import { Button } from "../ui/Button";
 import { HeaderControls } from "../ui/HeaderControls";
 import { PageHeader } from "../ui/PageHeader";
 import { Composer } from "./Composer";
@@ -17,12 +15,6 @@ import { useHome } from "./store";
 import { Studies } from "./Studies";
 import "./home.css";
 
-function focusComposer() {
-  const area = document.querySelector<HTMLTextAreaElement>("textarea[name=question]");
-  if (!area) return;
-  area.closest("form")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  area.focus({ preventScroll: true });
-}
 
 export function HomePage() {
   const [scroller, setScroller] = useState<HTMLElement | null>(null);
@@ -50,9 +42,6 @@ export function HomePage() {
               <>
                 <HeaderControls />
                 <SettingsButton />
-                <Button color="secondary" size="sm" iconLeading={Plus} onClick={focusComposer} aria-label="新研究" className="max-sm:px-2.5">
-                  <span className="max-sm:hidden">新研究</span>
-                </Button>
               </>
             }
           />

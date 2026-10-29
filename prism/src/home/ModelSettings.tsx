@@ -104,7 +104,7 @@ function onRadioKeys(event: KeyboardEvent<HTMLDivElement>, choice: ModelId) {
   event.currentTarget.querySelector<HTMLElement>(`[data-model="${next.id}"]`)?.focus();
 }
 
-/** Header gear → settings panel. A brand dot on the gear while a non-default model is chosen. */
+/** Header gear → settings panel. */
 export function SettingsButton() {
   const choice = useModelChoice();
   const [open, setOpen] = useState(false);
@@ -127,9 +127,6 @@ export function SettingsButton() {
           <motion.span animate={{ rotate: open ? 60 : 0 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="inline-flex">
             <Settings01 aria-hidden="true" className="size-4" />
           </motion.span>
-          {choice !== DEFAULT_MODEL && (
-            <span aria-hidden="true" className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-fg-brand-primary ring-2 ring-bg-primary" />
-          )}
         </button>
       }
     >
