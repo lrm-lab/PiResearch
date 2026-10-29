@@ -19,6 +19,7 @@ import { chooseGoalTier, estimateChip, estimateCompact, estimateGoalCard, placeL
 import { dirOfKey, nextInDirection } from "./nav";
 import { GoalCard, NodeTile } from "./NodeTile";
 import { NodePopover, useDwell } from "./NodePopover";
+import { ToolChips } from "./ToolChips";
 import { boxRim, focusTransform, nodeBounds, orbRadius, toScreen, type Point } from "./transform";
 import { useViewport } from "./useViewport";
 import "./starmap.css";
@@ -47,6 +48,7 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
   const selectedId = useStudy((s) => s.selectedId);
   const hoveredId = useStudy((s) => s.hoveredId);
   const select = useStudy((s) => s.select);
+  const nodeDetails = useStudy((s) => s.nodeDetails);
   const hover = useStudy((s) => s.hover);
   const unhover = useStudy((s) => s.unhover);
   const focusAgent = useStudyUi((s) => s.focusAgent);
@@ -454,6 +456,30 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
           </button>
         );
       })}
+
+      {selectedId && !byId.get(selectedId)?.goal && (() => {
+        const spot = pos.get(selectedId);
+        const steps = nodeDetails[selectedId]?.steps;
+        if (!spot || !steps?.length) return null;
+        const obstacles = stars
+          .filter((star) => star.node.id !== selectedId)
+          .map((star) => {
+            const at = pos.get(star.node.id);
+            return at ? { x: at.p.x, y: at.p.y, r: star.node.goal ? 150 : at.r } : null;
+          })
+          .filter((obstacle): obstacle is { x: number; y: number; r: number } => obstacle !== null);
+        return (
+          <ToolChips
+            steps={steps}
+            x={spot.p.x}
+            y={spot.p.y}
+            r={spot.r}
+            width={size.w - rightInset}
+            height={size.h - bottomInset}
+            obstacles={obstacles}
+          />
+        );
+      })()}
 
       {popStar && pos.get(popStar.node.id) && (
         <PopoverAt

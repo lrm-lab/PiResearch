@@ -262,3 +262,24 @@
     transition: none !important;
   }
 }
+
+/* A step flashed from its chip: a short violet wash, then back. */
+.step-flash {
+  animation: step-flash 1.5s var(--ease-out-quint);
+  border-radius: 6px;
+}
+@keyframes step-flash {
+  0%,
+  60% {
+    background: color-mix(in srgb, var(--color-fg-brand-primary) 22%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-flash {
+    animation: none;
+    outline: 1px solid var(--color-fg-brand-primary);
+  }
+}

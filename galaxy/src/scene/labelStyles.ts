@@ -2,6 +2,112 @@
 // Injected once; kept here so the scene does not depend on global styles.
 
 const CSS = `
+.gx-tool-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.gx-tool-list li {
+  display: flex;
+  min-width: 0;
+}
+.gx-toolchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 15rem;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(20, 24, 40, 0.78), rgba(10, 12, 22, 0.72));
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.32);
+  color: #cfd6e4;
+  font: 500 11.5px/1 Inter, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  animation: gx-toolchip-in 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 180ms cubic-bezier(0.34, 1.6, 0.5, 1);
+}
+@keyframes gx-toolchip-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.gx-toolchip:hover {
+  border-color: color-mix(in srgb, var(--gx-toolchip, #94a3b8) 55%, transparent);
+  background: linear-gradient(180deg, rgba(32, 38, 60, 0.9), rgba(14, 17, 30, 0.85));
+  color: #fff;
+  transform: translateX(2px);
+}
+.gx-toolchip:focus-visible {
+  outline: 2px solid var(--gx-toolchip, #94a3b8);
+  outline-offset: 2px;
+}
+.gx-toolchip-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gx-toolchip, #94a3b8);
+}
+.gx-toolchip-tool {
+  flex: none;
+  color: color-mix(in srgb, var(--gx-toolchip, #94a3b8) 78%, #fff);
+  font-weight: 600;
+}
+.gx-toolchip-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(223, 229, 241, 0.72);
+}
+.gx-toolchip-count {
+  flex: none;
+  color: rgba(223, 229, 241, 0.45);
+  font: 500 10px/1 "JetBrains Mono", ui-monospace, monospace;
+}
+.gx-toolchip-more {
+  justify-content: center;
+  border-style: dashed;
+  background: rgba(12, 15, 26, 0.6);
+  color: rgba(223, 229, 241, 0.5);
+}
+.trace-flash {
+  animation: trace-flash 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+  border-radius: 6px;
+}
+@keyframes trace-flash {
+  0%,
+  60% {
+    background: rgba(109, 156, 255, 0.16);
+  }
+  100% {
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gx-toolchip {
+    animation: none;
+    opacity: 1;
+  }
+  .trace-flash {
+    animation: none;
+    outline: 1px solid rgba(109, 156, 255, 0.6);
+  }
+}
+
 .gx-label {
   position: absolute;
   left: 0;

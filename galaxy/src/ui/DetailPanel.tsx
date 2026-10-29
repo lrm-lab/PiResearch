@@ -12,6 +12,7 @@ import { childState, goalMeta, goalSummary } from "./childState";
 import { SHEET_QUERY } from "./hooks";
 import { IconCheck, IconChevron, IconClose, IconCore } from "./icons";
 import { SignalTrace } from "./SignalTrace";
+import { ToolChipsRow } from "./ToolBoard";
 import { stateColor } from "./tokens";
 import { exportTask } from "./exportRun";
 import { useUi } from "./uiStore";
@@ -146,6 +147,7 @@ function Body({ node }: { node: ViewNode }) {
 
       {!node.goal && (
         <Section label="工具步骤" count={toolCount(node) || undefined}>
+          <ToolChipsRow steps={detail?.steps ?? []} />
           <SignalTrace
             live={node.live}
             steps={detail?.steps ?? []}

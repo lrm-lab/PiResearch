@@ -14,6 +14,8 @@ interface Row {
   key: string;
   step: Step | LiveCall;
   live: boolean;
+  /** Index within `steps` (absent on live rows). */
+  index?: number;
 }
 
 const LIVE_ROW_PX = 64;
@@ -36,7 +38,7 @@ export function SignalTrace({
   const [expand, setExpand] = useState({ all: false, tick: 0 });
   const rows: Row[] = [
     ...live.map((step, index) => ({ key: `live:${index}:${step.tool}:${step.label}`, step, live: true })),
-    ...steps.map((step, index) => ({ key: `step:${index}:${step.tool}:${step.label}`, step, live: false })),
+    ...steps.map((step, index) => ({ key: `step:${index}:${step.tool}:${step.label}`, step, live: false, index })),
   ];
   const loadingEmpty = state === "loading" && !steps.length;
 
@@ -67,7 +69,7 @@ export function SignalTrace({
           )}
           <ol className="trace">
             {rows.map((row) => (
-              <TraceRow key={row.key} step={row.step} live={row.live} expand={expand} />
+              <TraceRow key={row.key} step={row.step} live={row.live} index={row.index} expand={expand} />
             ))}
           </ol>
         </div>
@@ -103,7 +105,7 @@ export function SignalTrace({
   );
 }
 
-function TraceRow({ step, live, expand }: { step: Step | LiveCall; live: boolean; expand: { all: boolean; tick: number } }) {
+function TraceRow({ step, live, index, expand }: { step: Step | LiveCall; live: boolean; index?: number; expand: { all: boolean; tick: number } }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (expand.tick) setOpen(expand.all);
@@ -118,7 +120,7 @@ function TraceRow({ step, live, expand }: { step: Step | LiveCall; live: boolean
   const classes = ["trace-row", open ? "is-open" : "", live ? "is-live" : "", step.error ? "is-error" : "", thinking ? "is-thinking" : ""].join(" ");
 
   return (
-    <li className={classes} style={{ ["--tool" as string]: color }}>
+    <li className={classes} data-step={index} style={{ ["--tool" as string]: color }}>
       <span className="trace-node" aria-hidden="true">
         <ToolGlyph tool={step.tool} />
       </span>
