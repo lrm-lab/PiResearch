@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { LayoutGroup, MotionConfig, motion } from "motion/react";
 import { HeaderControls } from "../ui/HeaderControls";
 import { PageHeader } from "../ui/PageHeader";
+import { Wordmark } from "../ui/Wordmark";
 import { Composer } from "./Composer";
 import { DeleteDialog } from "./DeleteDialog";
 import { SettingsButton } from "./ModelSettings";
@@ -36,7 +37,7 @@ export function HomePage() {
       <LayoutGroup>
         <div className="flex h-full flex-col bg-primary">
           <PageHeader
-            title="深度研究"
+            title={<Wordmark />}
             meta={runningCount === null ? undefined : `${runningCount} 项进行中`}
             actions={
               <>
