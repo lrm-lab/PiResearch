@@ -2432,3 +2432,88 @@
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------- report download */
+.report-download-btn {
+  position: relative;
+  isolation: isolate;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border-color: var(--g-hairline);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+.report-download-btn[data-done] {
+  border-color: color-mix(in srgb, var(--g-accent) 45%, transparent);
+  color: #dffbff;
+}
+.report-download-btn:disabled {
+  cursor: wait;
+}
+.report-download-ripple {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--g-accent), 0 0 24px -4px var(--g-accent);
+  pointer-events: none;
+}
+.report-download-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+}
+.report-download-icon > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.report-download-btn[data-done] .report-download-icon {
+  color: var(--g-accent);
+}
+.report-download-chevron {
+  display: inline-grid;
+  color: var(--g-ink-faint);
+  transition: transform 0.2s var(--g-ease);
+}
+.report-download-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+.report-download-chevron[data-open] {
+  transform: rotate(180deg);
+}
+.report-download-menu {
+  min-width: 200px;
+}
+.report-download-ext {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 26px;
+  flex: none;
+  border-radius: 7px;
+  border: 1px solid var(--g-hairline);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--g-ink-dim);
+  font: 600 10px/1 var(--font-tool);
+  letter-spacing: 0.06em;
+  transition: transform 0.2s var(--g-ease), border-color 0.2s ease;
+}
+.report-download-ext[data-format="pdf"] {
+  color: #ff9c8f;
+}
+.report-download-ext[data-format="doc"] {
+  color: var(--g-accent);
+}
+.g-menu-item:hover .report-download-ext,
+.g-menu-item:focus-visible .report-download-ext {
+  transform: translateY(-1px);
+  border-color: var(--g-hairline-strong);
+}
