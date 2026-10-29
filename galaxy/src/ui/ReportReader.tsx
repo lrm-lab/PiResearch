@@ -24,6 +24,7 @@ import { isUsableTitle, prepareUserReport } from "../lib/report";
 import type { ReportExport } from "../lib/reportExport";
 import { useGalaxy } from "../store";
 import { IconChevron, IconClose, IconExternal, IconReport } from "./icons";
+import { AskBar, ChatPanel, Lineage, SelectionAsk, SpawnStar, useCite, useReportChat } from "./ReportChat";
 import { ReportDownload } from "./ReportDownload";
 import { alignNumericColumns, stripLeadingTitle } from "./reportTables";
 import { useUi } from "./uiStore";
@@ -80,6 +81,18 @@ function Dialog() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const progress = useReadProgress(scrollRef);
   useFocusTrap(dialogRef, true);
+  const model = useGalaxy((state) => (state.view?.ok ? state.view.model : undefined));
+  const chat = useReportChat(studyId);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [quote, setQuote] = useState("");
+  const [focusKey, setFocusKey] = useState(0);
+  const lineageRef = useRef<HTMLSpanElement>(null);
+  const cite = useCite(scrollRef);
+  const canChat = loaded.kind === "ready" && Boolean(chat.info?.available);
+  const openChat = () => {
+    setChatOpen(true);
+    setFocusKey((value) => value + 1);
+  };
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
@@ -147,6 +160,7 @@ function Dialog() {
         aria-modal="true"
         aria-labelledby="galaxy-report-title"
         className="report-panel"
+        data-chat={chatOpen && canChat ? "open" : undefined}
         initial={{ opacity: 0, scale: 0.965, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: 10, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
@@ -155,7 +169,9 @@ function Dialog() {
           if (event.key === "Escape") {
             event.preventDefault();
             event.stopPropagation();
-            endReport();
+            // The chat collapses first; a second Esc closes the report.
+            if (chatOpen) setChatOpen(false);
+            else endReport();
           }
         }}
       >
@@ -171,6 +187,7 @@ function Dialog() {
             <h2 id="galaxy-report-title" className="report-title" title={title}>
               {title}
             </h2>
+            <Lineage info={chat.info} bump={chat.bump} chipRef={lineageRef} />
           </div>
           {loaded.kind === "ready" && <ReportDownload getReport={getReport} />}
           <button ref={closeRef} type="button" className="g-btn g-btn-icon report-close" aria-label="关闭报告" aria-keyshortcuts="Escape" onClick={endReport}>
@@ -180,7 +197,9 @@ function Dialog() {
             <motion.span style={{ scaleX: progress }} />
           </span>
         </header>
-        <div ref={scrollRef} className="report-scroll g-scroll">
+        <div className="report-body" data-chat={chatOpen && canChat ? "open" : undefined}>
+        <div className="report-main">
+        <div ref={scrollRef} className="report-scroll g-scroll" data-askbar={canChat && !chatOpen ? "" : undefined}>
           {loaded.kind === "loading" && (
             <p className="report-status" role="status">
               <span className="spinner" aria-hidden="true" />
@@ -194,6 +213,44 @@ function Dialog() {
           )}
           {loaded.kind === "ready" && <Article markdown={loaded.markdown} scrollRef={scrollRef} />}
         </div>
+        <AnimatePresence>
+          {canChat && !chatOpen && (
+            <AskBar
+              key="ask"
+              onOpen={openChat}
+              onFollowup={() => {
+                openChat();
+                void chat.beginDraft("");
+              }}
+            />
+          )}
+        </AnimatePresence>
+        {canChat && (
+          <SelectionAsk
+            scrollRef={scrollRef}
+            onAsk={(text) => {
+              setQuote(text);
+              openChat();
+            }}
+          />
+        )}
+        </div>
+        <AnimatePresence>
+          {canChat && chatOpen && (
+            <ChatPanel
+              key="panel"
+              chat={chat}
+              model={model}
+              quote={quote}
+              setQuote={setQuote}
+              focusKey={focusKey}
+              onCite={cite}
+              onClose={() => setChatOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+        </div>
+        {chat.spawn && <SpawnStar key={chat.spawn.key} spawn={chat.spawn} targetRef={lineageRef} onDone={() => chat.setSpawn(null)} />}
       </motion.div>
     </motion.div>
   );

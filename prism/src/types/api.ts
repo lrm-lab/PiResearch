@@ -143,4 +143,39 @@ export interface HistoryRow {
   href: string;
   /** Research model id ("deepseek", "gpt-6.1-sol"); empty for studies that predate the choice. */
   model?: string;
+  /** Id of the study this one continues; "" when none. */
+  parent?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Report chat (GET/POST/DELETE /api/studies/<id>/chat, POST .../followup)
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  at: string;
+}
+
+export interface StudyLink {
+  id: string;
+  title: string;
+}
+
+export interface FollowupLink extends StudyLink {
+  status: StudyStatus;
+}
+
+export interface ChatThread {
+  /** False while the study has no report. */
+  available: boolean;
+  messages: ChatMessage[];
+  parent: StudyLink | null;
+  followups: FollowupLink[];
+}
+
+/** One server-sent event of POST /chat, in order: start, delta*, done — or error at any point. */
+export type ChatEvent =
+  | { type: "start"; user: ChatMessage }
+  | { type: "delta"; text: string }
+  | { type: "done"; message: ChatMessage }
+  | { type: "error"; error: string };

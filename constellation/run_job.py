@@ -11,25 +11,10 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 
-def _load_env(path: Path) -> None:
-    if not path.is_file():
-        return
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip("'").strip('"')
-        if key and key not in os.environ:
-            os.environ[key] = value
-
-
 def _prepare_env(project: Path, trial: Path) -> None:
-    _load_env(project / ".env")
-    _load_env(project.parent / ".env")
-    if not os.environ.get("OPENAI_API_KEY") and os.environ.get("ZHIZENGZENG_OPENAI_API_KEY"):
-        os.environ["OPENAI_API_KEY"] = os.environ["ZHIZENGZENG_OPENAI_API_KEY"]
+    from constellation.chat import prepare_llm_env
+
+    prepare_llm_env(project)
     os.environ["SANDBOX_BACKEND"] = "native"
     os.environ["FRONTIER_AGENT_WORKSPACE_DIR"] = str(trial / "sandbox" / "worktree")
     os.environ["FRONTIER_AGENT_OUTPUTS_DIR"] = str(trial / "sandbox" / "outputs")

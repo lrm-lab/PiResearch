@@ -3,8 +3,9 @@
 
 import { AlertTriangle, ArrowUp, Dataflow03, FileX02, RefreshCw01 } from "@untitledui/icons";
 import { AnimatePresence, motion, useMotionValue, useSpring } from "motion/react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchReport, studyApiPrefix } from "../lib/api";
+import { useMediaQuery } from "../lib/media";
 import { selectionHeading } from "../lib/heading";
 import { isUsableTitle, prepareUserReport } from "../lib/report";
 import type { ReportExport } from "../lib/reportExport";
@@ -14,6 +15,13 @@ import { agentRoster, readingMeta } from "./model";
 import { EASE_OUT, EmptyState, Skeleton } from "./primitives";
 import { ReportDownload } from "./ReportDownload";
 import { alignNumericColumns, stripLeadingTitle } from "./reportTables";
+import { AskBar } from "./chat/AskBar";
+import { ChatPanel, SHELL_SPRING } from "./chat/ChatPanel";
+import { findHeading, flashHeading, hasHeading } from "./chat/headings";
+import { LineageChips } from "./chat/Lineage";
+import { SelectionAsk } from "./chat/SelectionAsk";
+import { SpawnFly, type Fly } from "./chat/SpawnFly";
+import { useReportChat } from "./chat/useReportChat";
 import { useStudy } from "./store";
 
 const ReportMarkdown = lazy(() => import("./ReportMarkdown"));
@@ -47,6 +55,58 @@ export function ReportView({ studyId }: { studyId: string }) {
   const ratio = useMotionValue(0);
   const progress = useSpring(ratio, { stiffness: 260, damping: 40, restDelta: 0.001 });
   const [showTop, setShowTop] = useState(false);
+
+  // Report chat: the ask bar, the side panel (a bottom sheet on narrow screens) and lineage.
+  const chat = useReportChat(studyId);
+  const sheet = useMediaQuery("(max-width: 759px)");
+  const [fly, setFly] = useState<Fly | null>(null);
+  const [held, setHeld] = useState<ReadonlySet<string>>(new Set());
+  const [popKey, setPopKey] = useState(0);
+  const columnRef = useRef<HTMLDivElement>(null);
+  const getArticle = useCallback(() => contentRef.current?.querySelector<HTMLElement>("article.prism-doc") ?? null, []);
+  const cited = useCallback((title: string) => hasHeading(getArticle(), title), [getArticle]);
+  const onCite = useCallback(
+    (title: string) => {
+      const heading = findHeading(getArticle(), title);
+      if (heading) flashHeading(heading, !reducedMotion);
+    },
+    [getArticle, reducedMotion],
+  );
+  const chatOpen = chat.open && chat.thread.available && loaded.kind === "ready";
+  const setChatOpen = chat.setOpen;
+  useEffect(() => {
+    if (!chatOpen) return;
+    // Esc folds the panel first; the page's own Esc handling only sees the next one.
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented || document.querySelector('[role="menu"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setChatOpen(false);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [chatOpen, setChatOpen]);
+
+  const draftText = chat.draft?.text ?? "";
+  const onSpawn = (from: DOMRect, id: string) => {
+    setHeld((current) => new Set(current).add(id));
+    const land = () => {
+      setFly(null);
+      setHeld((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+      setPopKey((n) => n + 1);
+    };
+    const root = contentRef.current;
+    const target = root?.querySelector("[data-lineage-chip]") ?? root?.querySelector("[data-lineage-anchor]");
+    if (reducedMotion || !target) return land();
+    const rect = target.getBoundingClientRect();
+    const top = columnRef.current?.getBoundingClientRect().top ?? 0;
+    setFly({ key: Date.now(), from, to: { x: Math.max(rect.left, 16), y: Math.max(rect.top, top + 12) }, text: draftText });
+    window.setTimeout(land, 1100);
+  };
 
   useEffect(() => {
     const scroller = scrollRef.current;
@@ -129,6 +189,9 @@ export function ReportView({ studyId }: { studyId: string }) {
           <ReportDownload getReport={getReport} />
         </div>
         <h1 className="mt-3 text-display-xs font-semibold tracking-tight text-balance text-primary md:text-display-sm">{title}</h1>
+        <div data-lineage-anchor className="mt-4 empty:mt-0">
+          <LineageChips parent={chat.thread.parent} followups={chat.thread.followups.filter((item) => !held.has(item.id))} popKey={popKey} />
+        </div>
         {(roster.length > 0 || running) && (
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-tertiary">
             {roster.length > 0 && (
@@ -153,7 +216,8 @@ export function ReportView({ studyId }: { studyId: string }) {
     ) : null;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1">
+      <div ref={columnRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       {loaded.kind === "ready" && (
         <motion.div
           aria-hidden="true"
@@ -190,7 +254,7 @@ export function ReportView({ studyId }: { studyId: string }) {
         )}
         {loaded.kind === "ready" && (
           <Suspense fallback={<DocSkeleton />}>
-            <ReportMarkdown markdown={loaded.markdown} header={header} scrollRef={scrollRef} />
+            <ReportMarkdown markdown={loaded.markdown} header={header} scrollRef={scrollRef} compact={chatOpen && !sheet} />
           </Suspense>
         )}
         </div>
@@ -203,7 +267,7 @@ export function ReportView({ studyId }: { studyId: string }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-4 bottom-4 flex flex-col items-end gap-2 sm:right-6 sm:bottom-6"
+            className={`absolute right-4 flex flex-col items-end gap-2 sm:right-6 ${chat.thread.available && !chatOpen ? "bottom-24 sm:bottom-28" : "bottom-4 sm:bottom-6"}`}
           >
             <ReportDownload getReport={getReport} compact side="top" />
             <Button
@@ -213,6 +277,44 @@ export function ReportView({ studyId }: { studyId: string }) {
               className="shadow-lg"
               onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" })}
             />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {loaded.kind === "ready" && chat.thread.available && !chatOpen && (
+        <AskBar pulse={chat.pulse} onOpen={() => chat.setOpen(true)} onFollowup={() => void chat.draftFollowup("")} />
+      )}
+      {loaded.kind === "ready" && chat.thread.available && <SelectionAsk article={getArticle} onAsk={chat.askAbout} />}
+      </div>
+      {fly && <SpawnFly key={fly.key} fly={fly} onLand={() => {}} />}
+      <AnimatePresence>
+        {chatOpen && !sheet && (
+          <motion.aside
+            key="chat-side"
+            initial={{ width: 0 }}
+            animate={{ width: 432 }}
+            exit={{ width: 0 }}
+            transition={SHELL_SPRING}
+            className="relative shrink-0 overflow-hidden border-l border-secondary bg-secondary"
+          >
+            <div className="absolute inset-y-0 right-0 w-[432px] p-2.5">
+              <ChatPanel chat={chat} sheet={false} modelId={view?.model} cite={{ cited, onCite }} onCollapse={() => chat.setOpen(false)} onSpawn={onSpawn} />
+            </div>
+          </motion.aside>
+        )}
+        {chatOpen && sheet && (
+          <motion.div key="chat-sheet" exit={{ opacity: 0 }} className="absolute inset-0 z-40">
+            <motion.button
+              type="button"
+              aria-label="收起"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => chat.setOpen(false)}
+              className="absolute inset-0 cursor-default bg-black/30 backdrop-blur-[2px]"
+            />
+            <div className="absolute inset-x-0 bottom-0 h-[78%] p-2">
+              <ChatPanel chat={chat} sheet modelId={view?.model} cite={{ cited, onCite }} onCollapse={() => chat.setOpen(false)} onSpawn={onSpawn} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

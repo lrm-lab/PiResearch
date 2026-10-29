@@ -116,6 +116,18 @@ class FakeUpstream(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length)
         self._record(body)
+        if self.path.endswith("/chat"):
+            # A chat reply: an event stream with no length, flushed event by event.
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            for event in (b"event: delta\ndata: {}\n\n", b": ping\n\n", b"event: done\ndata: {}\n\n"):
+                self.wfile.write(event)
+                self.wfile.flush()
+            return
         payload = json.loads(body.decode("utf-8"))
         reply = json.dumps({"echo": payload, "type": self.headers.get("Content-Type")}, ensure_ascii=False).encode("utf-8")
         self._reply(200, reply, {"Content-Type": "application/json; charset=utf-8"})
@@ -190,6 +202,14 @@ class GalaxyServeTest(unittest.TestCase):
             conn.close()
 
     # -- proxy -----------------------------------------------------------
+
+    def test_event_stream_is_relayed_without_buffering_headers(self):
+        status, headers, body = self.request("POST", "/api/studies/s/1/chat", body=b'{"message":"hi"}', headers={"Content-Type": "application/json"})
+        self.assertEqual(status, 200)
+        self.assertTrue(headers.get("Content-Type", "").startswith("text/event-stream"))
+        self.assertNotIn("Content-Length", headers)
+        self.assertEqual(headers.get("X-Accel-Buffering"), "no")
+        self.assertEqual(body, b"event: delta\ndata: {}\n\n: ping\n\nevent: done\ndata: {}\n\n")
 
     def test_304_passes_through_with_etag(self):
         status, headers, body = self.request("GET", "/api/studies/s/1/snapshot", headers={"If-None-Match": ETAG})
