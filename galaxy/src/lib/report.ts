@@ -121,3 +121,21 @@ export function prepareUserReport(source: unknown, title?: string | null): strin
   if (chapters.length && isUsableTitle(heading)) body = "# " + heading + "\n\n" + body;
   return body;
 }
+
+/**
+ * Reports write meta blocks (研究对象/资料截止/说明…) as consecutive ">" lines; standard Markdown
+ * joins them into one run-on paragraph. Add a hard break to each ">" line that is followed by
+ * another, so every source line stays on its own line.
+ */
+export function breakBlockquoteLines(markdown: string): string {
+  const lines = markdown.split("\n");
+  let fence = false;
+  return lines
+    .map((line, index) => {
+      if (/^\s*```/.test(line)) fence = !fence;
+      if (fence || !/^\s*>/.test(line)) return line;
+      if (!/^\s*>/.test(lines[index + 1] ?? "") || /\s{2}$|\\$/.test(line)) return line;
+      return line + "  ";
+    })
+    .join("\n");
+}

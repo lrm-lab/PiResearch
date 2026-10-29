@@ -1845,7 +1845,7 @@ function foldUrls(source){
 
 function foldProseUrls(source){
   const found = [];
-  const re = /https?:\/\/[^\s<）)，。；、]+/g;
+  const re = /https?:\/\/[^\s<>）)，。；、]+/g;
   let match;
   while((match = re.exec(source))){
     if(match.index >= 2 && source[match.index - 2] === "]" && source[match.index - 1] === "(") continue;
@@ -1858,10 +1858,14 @@ function foldProseUrls(source){
   for(const item of found){
     const picked = labelBefore(source.slice(cursor, item.start));
     const href = item.href.replace(/\(/g, "%28").replace(/\)/g, "%29");
+    // <https://…> autolinks: the label pick would take "<" as the link text; show the URL instead
+    // and drop the angle brackets.
+    const wrapped = item.start > 0 && source[item.start - 1] === "<" && source[item.end] === ">";
     let text = picked.text.replace(/[\[\]*]/g, "").replace(/\|/g, "").trim();
-    if(!text || text === "来源" || /^https?:\/\//i.test(text)) text = linkHost(href) || "原文";
+    if(wrapped) text = item.href;
+    else if(!text || text === "来源" || /^https?:\/\//i.test(text)) text = linkHost(href) || "原文";
     out += picked.keep + "[" + text + "](" + href + ")" + item.trailing;
-    cursor = item.end;
+    cursor = item.end + (wrapped ? 1 : 0);
   }
   return out + source.slice(cursor);
 }
@@ -1885,7 +1889,7 @@ function closingBold(text, from){
   return -1;
 }
 
-function inlineMarkdown(source){
+function inlineMarkdown(source, allowBareUrl = true){
   const text = String(source);
   let html = "";
   let i = 0;
@@ -1901,7 +1905,7 @@ function inlineMarkdown(source){
     if(text.startsWith("**", i)){
       const end = closingBold(text, i + 2);
       if(end !== -1){
-        html += "<strong>" + inlineMarkdown(text.slice(i + 2, end)) + "</strong>";
+        html += "<strong>" + inlineMarkdown(text.slice(i + 2, end), allowBareUrl) + "</strong>";
         i = end + 2;
         continue;
       }
@@ -1909,11 +1913,12 @@ function inlineMarkdown(source){
     const link = /^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/.exec(text.slice(i));
     if(link){
       const host = linkHost(link[2]);
-      html += '<a href="' + escapeHtml(link[2]) + '" target="_blank" rel="noopener noreferrer"' + (host ? ' title="' + escapeHtml(host) + '"' : "") + ">" + inlineMarkdown(link[1]) + "</a>";
+      // Link text never nests another link (a [url](url) label stays literal).
+      html += '<a href="' + escapeHtml(link[2]) + '" target="_blank" rel="noopener noreferrer"' + (host ? ' title="' + escapeHtml(host) + '"' : "") + ">" + inlineMarkdown(link[1], false) + "</a>";
       i += link[0].length;
       continue;
     }
-    const url = /^https?:\/\/[^\s<）)，。；、]+/.exec(text.slice(i));
+    const url = allowBareUrl && /^https?:\/\/[^\s<）)，。；、]+/.exec(text.slice(i));
     if(url){
       const href = url[0].replace(/[.,;:]+$/, "");
       html += '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(href) + "</a>" + escapeHtml(url[0].slice(href.length));
@@ -2142,13 +2147,15 @@ function renderMarkdown(source){
       while(i < lines.length && lines[i].trim().startsWith(">")){
         const content = lines[i].trim().replace(/^>\s?/, "");
         if(!content){
-          if(current.length) paragraphs.push(joinParagraph(current));
+          if(current.length) paragraphs.push(current);
           current = [];
         } else current.push(content);
         i += 1;
       }
-      if(current.length) paragraphs.push(joinParagraph(current));
-      blocks.push("<blockquote>" + paragraphs.map(part => "<p>" + inlineMarkdown(part) + "</p>").join("") + "</blockquote>");
+      if(current.length) paragraphs.push(current);
+      // Each ">" source line stays on its own line: meta blocks (研究对象/资料截止/说明…) would
+      // otherwise merge into one run-on paragraph.
+      blocks.push("<blockquote>" + paragraphs.map(part => "<p>" + part.map(line => inlineMarkdown(line)).join("<br>") + "</p>").join("") + "</blockquote>");
       continue;
     }
     if(trimmed.startsWith("|") && i + 1 < lines.length && isTableRule(lines[i + 1])){
@@ -2351,6 +2358,28 @@ function saveText(filename, text, mime){
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
+/* The server renders the export document to a real PDF; resolves false when it cannot. */
+async function serverPdf(filename, html){
+  let response;
+  try{
+    response = await fetch("/api/report.pdf?filename=" + encodeURIComponent(filename), {
+      method: "POST",
+      headers: {"Content-Type": "text/html; charset=utf-8"},
+      body: html,
+    });
+  }catch(error){ return false; }
+  if(!response.ok) return false;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return true;
+}
 function printDocument(html){
   return new Promise((resolve, reject) => {
     const frame = document.createElement("iframe");
@@ -2389,7 +2418,10 @@ async function downloadReport(format){
     saveText(reportFilename(title, "doc"), reportDocument(title, body, byline, now, true), "application/msword;charset=utf-8");
     return;
   }
-  await printDocument(reportDocument(title, body, byline, now, false));
+  const html = reportDocument(title, body, byline, now, false);
+  // One click → a real .pdf file; the print dialog stays as the fallback.
+  if(await serverPdf(reportFilename(title, "pdf"), html)) return;
+  await printDocument(html);
 }
 async function chooseDownload(format){
   setDlMenu(false);

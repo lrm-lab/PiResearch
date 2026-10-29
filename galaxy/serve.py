@@ -34,9 +34,11 @@ PREFIX = "/galaxy/"
 PRISM_PREFIX = "/prism/"
 UNAVAILABLE = json.dumps({"ok": False, "message": "星图服务暂时不可用。"}, ensure_ascii=False).encode("utf-8")
 FORWARD_REQUEST_HEADERS = ("If-None-Match", "Accept-Encoding", "Content-Type", "Content-Length", "Accept")
-FORWARD_RESPONSE_HEADERS = ("ETag", "Content-Encoding", "Content-Type", "Cache-Control", "Vary", "Location")
+FORWARD_RESPONSE_HEADERS = ("ETag", "Content-Encoding", "Content-Type", "Cache-Control", "Vary", "Location", "Content-Disposition")
 UPSTREAM_TIMEOUT = 30
 MAX_BODY = 1_000_000
+# The PDF export posts the whole styled report document; other endpoints stay small.
+PDF_BODY = 4_000_000
 
 # -- the Galaxy · Prism · 2D switcher on the 2D pages --------------------------
 # Self-contained (inline style and script, no external requests). It is a fixed
@@ -255,7 +257,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
             return None, 400
         if size < 0:
             return None, 400
-        if size > MAX_BODY:
+        if size > (PDF_BODY if self.path.startswith("/api/report.pdf") else MAX_BODY):
             # Do not buffer huge bodies; the caller closes the connection over the unread rest.
             return None, 413
         return self.rfile.read(size), 0
@@ -285,8 +287,9 @@ class GalaxyHandler(BaseHTTPRequestHandler):
             headers["Content-Length"] = str(len(body))
         method = "GET" if target is not None else self.command
         request = Request(self.upstream.rstrip("/") + self.path, data=body, headers=headers, method=method)
+        timeout = 90 if self.path.startswith("/api/report.pdf") else UPSTREAM_TIMEOUT
         try:
-            response = _opener.open(request, timeout=UPSTREAM_TIMEOUT)
+            response = _opener.open(request, timeout=timeout)
         except HTTPError as error:  # 304, 3xx (not followed), 4xx, 5xx
             try:
                 payload = error.read()
