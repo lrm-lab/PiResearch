@@ -27,6 +27,7 @@ export function Studies({ scroller }: { scroller: HTMLElement | null }) {
   const loadError = useHome((state) => state.loadError);
   const pending = useHome((state) => state.pending);
   const [filter, setFilter] = useState<Filter>("all");
+  const thumbs = useHome((state) => state.thumbs);
   const [query, setQuery] = useState("");
 
   // Cards present on the first load enter with a short stagger; later ones just appear.
@@ -66,6 +67,8 @@ export function Studies({ scroller }: { scroller: HTMLElement | null }) {
     { id: "failed", label: "未完成", badge: counts.failed },
   ];
   const showPending = !!pending && (filter === "all" || filter === "running") && !query.trim();
+  // The wide card goes to the first study that actually has a graph to show.
+  const featuredId = filter === "all" && !query.trim() && visible.length > 3 ? visible.find((row) => thumbs[row.id]?.ok && (thumbs[row.id]?.nodes?.length ?? 0) > 1)?.id : undefined;
   const empty = visible.length === 0 && !showPending;
 
   return (
@@ -93,6 +96,7 @@ export function Studies({ scroller }: { scroller: HTMLElement | null }) {
                 key={row.id}
                 row={row}
                 scroller={scroller}
+                featured={row.id === featuredId}
                 delay={firstIds.current?.has(row.id) ? Math.min(index, 11) * 0.045 : 0}
               />
             ))}

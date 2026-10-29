@@ -101,3 +101,58 @@
     display: none;
   }
 }
+
+/* The composer's hero band: a soft brand wash that drifts very slowly. */
+.home-hero {
+  position: relative;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+}
+.home-hero::before {
+  content: "";
+  position: absolute;
+  inset: -8px -1rem 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 120% at 12% 0%, color-mix(in srgb, var(--color-bg-brand-primary) 55%, transparent), transparent 70%),
+    radial-gradient(45% 110% at 88% 6%, color-mix(in srgb, var(--color-bg-brand-secondary) 40%, transparent), transparent 72%);
+  opacity: 0.9;
+  animation: home-hero-drift 26s ease-in-out infinite alternate;
+}
+@keyframes home-hero-drift {
+  from {
+    transform: translate3d(-1.2%, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.2%, 1%, 0) scale(1.04);
+  }
+}
+
+/* The ask box: deeper radius, a quiet shadow, and a brand hairline that lights up on focus. */
+.home-ask {
+  position: relative;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--color-fg-primary) 6%, transparent),
+    0 12px 32px -18px color-mix(in srgb, var(--color-fg-primary) 22%, transparent);
+}
+.home-ask:focus-within {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--color-bg-brand-primary) 55%, transparent),
+    0 16px 40px -20px color-mix(in srgb, var(--color-fg-brand-primary) 35%, transparent);
+}
+
+/* The first card takes two columns on wide screens so the grid is not a uniform field. */
+@media (min-width: 1024px) {
+  .home-featured {
+    grid-column: span 2;
+  }
+  .home-featured [data-map] {
+    height: 220px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero::before {
+    animation: none;
+  }
+}
