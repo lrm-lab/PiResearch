@@ -99,6 +99,8 @@ export interface Snapshot {
   running?: boolean;
   revision?: string;
   detail_mode?: "on-demand";
+  /** Home mode only: the research model id; empty for studies that predate the choice. */
+  model?: string;
 }
 
 /** `/node?id=` payload: one node with `steps` filled and `steps_loaded: true`. */
@@ -137,6 +139,8 @@ export interface HistoryRow {
   report: boolean;
   created_at: string;
   error: string;
+  /** Research model id ("deepseek", "gpt-6.1-sol"); empty for studies that predate the choice. */
+  model?: string;
   /** 2D page link, e.g. "/study/sessions/20261020-101500/1". */
   href: string;
 }

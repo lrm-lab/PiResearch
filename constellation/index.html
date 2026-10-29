@@ -368,6 +368,48 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
   .prose .table-wrap{overflow-x:auto}
 }
 @media(max-width:480px){.top{padding:0 16px}.top a.brand{font-size:28px}#goal-text{margin-left:20px;margin-right:12px;font-size:16px}.app.has-selection .legend{bottom:64px}.prose{padding:26px 18px 48px;font-size:15px}.prose h1{font-size:24px}.prose h2{font-size:20px}.report header{padding:12px 16px}.report-heading{gap:8px}.report header b{font-size:13px}}
+.mm{display:inline-flex;flex:none;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px}
+.mm svg{display:block;width:64%;height:64%}
+.mm-xs{width:16px;height:16px;border-radius:5px}
+.mm-deepseek{background:linear-gradient(145deg,#6b84ff,#3b5bfd);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
+.mm-gpt-6\.1-sol{background:linear-gradient(145deg,#2a2833,#0f0e14);color:#ffc65c;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 0 0 1px #ffffff1f}
+.model-tag{display:inline-flex;flex:none;align-items:center;gap:6px;margin:0 14px 0 0;color:#8a8a8a;font-size:12px;font-weight:560;white-space:nowrap}
+.model-tag[hidden]{display:none}
+.report header{position:relative;z-index:3}
+.dl{position:relative;flex:none}
+.report header .dl-btn{position:relative;isolation:isolate;display:inline-flex;align-items:center;gap:7px;width:auto;height:32px;padding:0 9px 0 11px;border:1px solid #d9dedc;border-radius:999px;background:#fff;color:#3d4b52;font-size:13px;font-weight:560;white-space:nowrap;transition:background .16s ease,color .16s ease,border-color .2s ease}
+.report header .dl-btn:hover:not(:disabled),.report header .dl-btn[aria-expanded="true"]{background:#f1f4f3;color:#26383e}
+.report header .dl-btn:disabled{opacity:.45;cursor:default}
+.report header .dl-btn[data-done]{border-color:#7fc8a4;color:#1d7a4e;background:#f1faf5}
+.dl-btn svg{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.report header .dl-btn svg{width:16px;height:16px}
+.dl-icon{position:relative;display:inline-block;width:16px;height:16px;flex:none}
+.dl-icon svg{position:absolute;inset:0;transition:transform .32s cubic-bezier(.34,1.56,.64,1),opacity .2s ease}
+.dl-icon .ic-check{opacity:0;transform:translateY(8px) scale(.5)}
+.dl-btn[data-done] .ic-down{opacity:0;transform:translateY(-8px) scale(.5)}
+.dl-btn[data-done] .ic-check{opacity:1;transform:none;stroke-width:2.2;animation:dl-pop .46s cubic-bezier(.34,1.56,.64,1)}
+.report header .dl-btn .dl-chev{width:14px;height:14px;color:#8a979c;transition:transform .2s ease}
+.dl-btn[aria-expanded="true"] .dl-chev{transform:rotate(180deg)}
+.dl-ripple{position:absolute;inset:-1px;z-index:-1;border-radius:inherit;box-shadow:0 0 0 2px #3ab57f;opacity:0;pointer-events:none}
+.dl-btn[data-done] .dl-ripple{animation:dl-ripple .75s cubic-bezier(.22,1,.36,1)}
+@keyframes dl-pop{0%{transform:scale(.4) rotate(-12deg)}60%{transform:scale(1.25)}100%{transform:none}}
+@keyframes dl-ripple{from{opacity:.7;transform:scale(1)}to{opacity:0;transform:scale(1.45,1.9)}}
+.dl-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:5;min-width:196px;padding:5px;border:1px solid #dfe4e2;border-radius:12px;background:#fff;box-shadow:0 14px 40px #0000002e;transform-origin:100% 0;animation:dl-menu-in .18s cubic-bezier(.16,1,.3,1)}
+.dl-menu[hidden]{display:none}
+.report header .dl-menu button{display:flex;align-items:center;gap:10px;width:100%;height:auto;padding:7px 9px;border-radius:8px;color:#34434a;font-size:13px;font-weight:540;text-align:left;opacity:0;animation:dl-item-in .22s cubic-bezier(.22,1,.36,1) forwards}
+.report header .dl-menu button:nth-child(1){animation-delay:.03s}
+.report header .dl-menu button:nth-child(2){animation-delay:.065s}
+.report header .dl-menu button:nth-child(3){animation-delay:.1s}
+.report header .dl-menu button:hover,.report header .dl-menu button:focus-visible{background:#f1f4f3;color:#1c2b31}
+.dl-ext{display:inline-grid;place-items:center;flex:none;width:36px;height:24px;border:1px solid #e0e5e3;border-radius:7px;background:#f7f9f8;color:#5e6c72;font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;transition:transform .2s ease,border-color .2s ease}
+.dl-ext[data-format="pdf"]{color:#d4503f}
+.dl-ext[data-format="doc"]{color:#2f6fd0}
+.dl-ext[data-format="md"]{color:#4d5b61}
+.dl-menu button:hover .dl-ext,.dl-menu button:focus-visible .dl-ext{transform:translateY(-1px);border-color:#c5ceca}
+@keyframes dl-menu-in{from{opacity:0;transform:translateY(-4px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes dl-item-in{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:none}}
+@media(max-width:480px){.model-tag span.name{display:none}.model-tag{margin-right:10px}.report header .dl-btn{padding:0 8px 0 9px}.dl-menu{min-width:180px}}
+@media(prefers-reduced-motion:reduce){.dl-menu,.dl-btn[data-done] .ic-check,.dl-btn[data-done] .dl-ripple{animation:none}.report header .dl-menu button{animation:none;opacity:1}.dl-icon svg,.dl-chev{transition:none}.dl-btn[data-done] .dl-ripple{display:none}}
 @media(prefers-reduced-motion:reduce){.modal.open,.modal.open .report{animation:none}.report header button{transition:none}}
 @media(prefers-reduced-motion:reduce){.question-details summary svg{transition:none}}
 @media(prefers-reduced-motion:reduce){.edge.focus-trace,.node.selected.focus-in,.node.dim.focus-away,.drawer.focus-in,.drawer.focus-in::before,.drawer.focus-in .drawer-head,.drawer.focus-in .drawer-body{animation:none}}
@@ -378,6 +420,7 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
   <header class="top">
     <a class="brand" href="/" title="回到主页">PiResearch</a>
     <b id="goal-text">正在读取</b>
+    <span class="model-tag" id="model-tag" hidden></span>
     <button id="open-report" type="button">报告</button>
   </header>
   <div class="workspace">
@@ -416,7 +459,7 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
     </aside>
   </div>
 </div>
-<div class="modal" id="modal"><article class="report" role="dialog" aria-modal="true" aria-labelledby="report-title"><header><div class="report-heading"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 2.5h-6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-10zM11.5 2.5v4h4M7.5 10h5M7.5 13h5"/></svg><b id="report-title">研究报告</b></div><button id="close-report" type="button" aria-label="关闭报告"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8"/></svg></button></header><div class="prose" id="report-body"></div></article></div>
+<div class="modal" id="modal"><article class="report" role="dialog" aria-modal="true" aria-labelledby="report-title"><header><div class="report-heading"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 2.5h-6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-10zM11.5 2.5v4h4M7.5 10h5M7.5 13h5"/></svg><b id="report-title">研究报告</b></div><div class="dl" id="dl"><button type="button" class="dl-btn" id="dl-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="dl-menu" disabled><i class="dl-ripple" aria-hidden="true"></i><span class="dl-icon" aria-hidden="true"><svg class="ic-down" viewBox="0 0 20 20"><path d="M10 3.5v9M6.2 9.2 10 13l3.8-3.8M4 16.2h12"/></svg><svg class="ic-check" viewBox="0 0 20 20"><path d="m4.6 10.4 3.6 3.6 7.2-8"/></svg></span><span class="dl-label">下载</span><svg class="dl-chev" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="dl-menu" id="dl-menu" role="menu" aria-label="下载报告" hidden><button type="button" role="menuitem" data-format="pdf"><span class="dl-ext" data-format="pdf">PDF</span>PDF</button><button type="button" role="menuitem" data-format="doc"><span class="dl-ext" data-format="doc">DOC</span>Word 文档</button><button type="button" role="menuitem" data-format="md"><span class="dl-ext" data-format="md">MD</span>Markdown</button></div></div><button id="close-report" type="button" aria-label="关闭报告"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8"/></svg></button></header><div class="prose" id="report-body"></div></article></div>
 <script>
 const studyMatch = location.pathname.match(/^\/study\/(.+?)\/?$/);
 const API = studyMatch ? "/api/studies/" + studyMatch[1].replace(/\/$/, "") : "";
@@ -1008,6 +1051,7 @@ function draw(){
   }
   document.querySelector("#empty").hidden = true;
   document.querySelector("#goal-text").textContent = shortTitle(view.goal.title) || "";
+  updateModelTag(view.model);
   const radiusOf = node => node.radius || view.radius || 58;
   let maxX = 0, maxY = 0;
   view.nodes.forEach(node => {
@@ -1919,12 +1963,220 @@ function renderMarkdown(source){
   return blocks.join("");
 }
 
+/* ---- research model tag ---- */
+const MODELS = {deepseek:{name:"DeepSeek",short:"DeepSeek"},"gpt-6.1-sol":{name:"GPT-6.1 Sol",short:"GPT-6.1"}};
+const MODEL_GLYPH = {
+  deepseek:'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 13.5c2.2 0 3.3-3 5.5-3s3.3 3 5.5 3 3.3-3 5.5-3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M5 18c1.6 0 2.4-1.6 4-1.6s2.4 1.6 4 1.6 2.4-1.6 4-1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/><circle cx="16.5" cy="6.5" r="1.6" fill="currentColor"/></svg>',
+  "gpt-6.1-sol":'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="currentColor"/>' + Array.from({length:8},(_, i) => `<path d="M12 2.6v2.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" transform="rotate(${i * 45} 12 12)" opacity="${i % 2 ? .55 : 1}"/>`).join("") + "</svg>",
+};
+function updateModelTag(id){
+  const tag = document.querySelector("#model-tag");
+  const model = Object.hasOwn(MODELS, id) ? MODELS[id] : null;
+  tag.hidden = !model;
+  if(!model) return;
+  tag.title = "研究模型：" + model.name;
+  tag.innerHTML = `<i class="mm mm-xs mm-${id}">${MODEL_GLYPH[id]}</i><span class="name">${model.short}</span>`;
+}
+
 function closeReport(){
   const modal = document.querySelector("#modal");
   if(!modal.classList.contains("open")) return;
   modal.classList.remove("open");
+  setDlMenu(false);
   document.querySelector("#open-report").focus();
 }
+
+/* ---- report download ---- */
+let reportMarkdownText = "";
+const dl = {root:document.querySelector("#dl"), btn:document.querySelector("#dl-btn"), menu:document.querySelector("#dl-menu"), timer:0};
+function dlItems(){ return [...dl.menu.querySelectorAll("[role=menuitem]")]; }
+function setDlMenu(open, focusItem){
+  dl.menu.hidden = !open;
+  dl.btn.setAttribute("aria-expanded", String(open));
+  if(open && focusItem) dlItems()[0].focus();
+}
+function reportFilename(title, ext){
+  const safe = title.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60).replace(/[\s.]+$/, "");
+  return `${safe || "研究报告"}.${ext}`;
+}
+function exportDate(date){
+  const pad = n => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+function articleHtml(article){
+  const clone = article.cloneNode(true);
+  if(clone.firstElementChild && clone.firstElementChild.tagName === "H1") clone.firstElementChild.remove();
+  clone.querySelectorAll("svg,button,[aria-hidden='true'],script,style").forEach(el => el.remove());
+  clone.querySelectorAll("*").forEach(el => {
+    for(const name of ["id","class","tabindex","role","aria-label","aria-current"]) el.removeAttribute(name);
+    if(el.tagName !== "TH" && el.tagName !== "TD") el.removeAttribute("style");
+  });
+  clone.querySelectorAll("div").forEach(wrap => {
+    if(wrap.children.length === 1 && wrap.firstElementChild.tagName === "TABLE") wrap.replaceWith(wrap.firstElementChild);
+  });
+  return clone.innerHTML;
+}
+const DOC_CSS = `
+@page { size: A4; margin: 18mm 16mm 20mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; background: #fff; color: #414651; font: 15px/1.85 "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 56px 32px 72px; }
+.eyebrow { margin: 0; color: #5d36dc; font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+.title { margin: 12px 0 0; color: #101319; font-size: 30px; line-height: 1.3; font-weight: 600; letter-spacing: -.015em; }
+.meta { margin: 14px 0 0; color: #717680; font-size: 13px; }
+.rule { height: 2px; margin: 28px 0 40px; border: 0; background: linear-gradient(90deg, #5d36dc, #c5bafe 60%, rgba(197,186,254,0)); }
+article { counter-reset: chapter; }
+article h1, article h2 { margin: 44px 0 14px; padding-top: 32px; border-top: 1px solid #e0e5f1; color: #101319; font-size: 22px; line-height: 1.4; font-weight: 600; break-after: avoid; }
+article > h1:first-child, article > h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+article h2 { counter-increment: chapter; }
+article h2::before { content: counter(chapter, decimal-leading-zero); display: block; margin-bottom: 8px; color: #9e77ed; font: 600 11px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .06em; }
+article h3 { margin: 28px 0 8px; color: #101319; font-size: 17px; line-height: 1.5; font-weight: 600; break-after: avoid; }
+article h4, article h5, article h6 { margin: 22px 0 8px; color: #101319; font-size: 15px; font-weight: 600; }
+article p { margin: 12px 0; }
+article strong { color: #101319; font-weight: 600; }
+article a { color: #5d36dc; text-decoration: underline; text-decoration-color: rgba(93,54,220,.4); text-underline-offset: 3px; word-break: break-word; }
+article ul, article ol { margin: 10px 0; padding-left: 24px; }
+article li { margin: 5px 0; }
+article li::marker { color: #a4a7ae; }
+article blockquote { margin: 18px 0; padding: 10px 16px; border-left: 3px solid #d5d7da; border-radius: 0 8px 8px 0; background: #f7f8fb; break-inside: avoid; }
+article blockquote > :first-child { margin-top: 0; } article blockquote > :last-child { margin-bottom: 0; }
+article code { padding: .1em .35em; border-radius: 6px; background: #f7f8fb; color: #101319; font: .85em "JetBrains Mono", ui-monospace, monospace; }
+article pre { margin: 18px 0; padding: 14px 16px; overflow-x: auto; border-radius: 12px; background: #15131f; color: #e9e7f3; font-size: 12px; line-height: 1.7; white-space: pre-wrap; }
+article pre code { padding: 0; background: none; color: inherit; }
+article hr { margin: 28px 0; border: 0; border-top: 1px solid #e0e5f1; }
+article img { max-width: 100%; border-radius: 12px; }
+article table { width: 100%; margin: 20px 0; border-collapse: collapse; border: 1px solid #e0e5f1; font-size: 13px; line-height: 1.6; font-variant-numeric: tabular-nums; break-inside: auto; }
+article tr { break-inside: avoid; }
+article th { padding: 9px 12px; border: 1px solid #e0e5f1; background: #f7f8fb; color: #535862; font-size: 12px; font-weight: 600; text-align: left; }
+article td { padding: 9px 12px; border: 1px solid #e0e5f1; vertical-align: top; }
+footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid #e0e5f1; color: #a4a7ae; font-size: 12px; }
+@media print { main { max-width: none; padding: 0; } a { color: #5d36dc; } }
+`;
+function reportDocument(title, body, byline, date, word){
+  const meta = [byline, date].filter(Boolean).map(escapeHtml).join(" · ");
+  const head = word
+    ? '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    : '<!doctype html>\n<html lang="zh-CN">';
+  return `${head}
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<style>${DOC_CSS}</style>
+</head>
+<body>
+<main>
+<p class="eyebrow">PiResearch 研究报告</p>
+<h1 class="title">${escapeHtml(title)}</h1>
+${meta ? `<p class="meta">${meta}</p>` : ""}
+<hr class="rule">
+<article>${body}</article>
+<footer>由 PiResearch 深度研究生成 · ${escapeHtml(date)}</footer>
+</main>
+</body>
+</html>
+`;
+}
+function saveText(filename, text, mime){
+  const url = URL.createObjectURL(new Blob([text], {type:mime}));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+function printDocument(html){
+  return new Promise((resolve, reject) => {
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.tabIndex = -1;
+    Object.assign(frame.style, {position:"fixed", right:"0", bottom:"0", width:"0", height:"0", border:"0", opacity:"0"});
+    const pageTitle = document.title;
+    const cleanup = () => { document.title = pageTitle; setTimeout(() => frame.remove(), 1000); };
+    frame.onload = () => {
+      const win = frame.contentWindow;
+      if(!win){ frame.remove(); reject(new Error("print frame unavailable")); return; }
+      win.addEventListener("afterprint", cleanup, {once:true});
+      Promise.resolve(win.document.fonts && win.document.fonts.ready).then(() => {
+        document.title = win.document.title;
+        win.focus();
+        win.print();
+        resolve();
+      });
+    };
+    frame.srcdoc = html;
+    document.body.append(frame);
+  });
+}
+async function downloadReport(format){
+  const title = document.querySelector("#report-title").textContent || "研究报告";
+  const now = exportDate(new Date());
+  const agents = view && view.ok ? new Set(view.nodes.filter(node => !node.goal).flatMap(node => node.agents || [])).size : 0;
+  const byline = agents ? `${agents} 个研究智能体` : "";
+  if(format === "md"){
+    const meta = ["PiResearch 研究报告", byline, now].filter(Boolean).join(" · ");
+    saveText(reportFilename(title, "md"), `# ${title}\n\n> ${meta}\n\n${reportMarkdownText.replace(/^\s*#[ \t]+[^\n]*\n+/, "").trim()}\n`, "text/markdown;charset=utf-8");
+    return;
+  }
+  const body = articleHtml(document.querySelector("#report-body"));
+  if(format === "doc"){
+    saveText(reportFilename(title, "doc"), reportDocument(title, body, byline, now, true), "application/msword;charset=utf-8");
+    return;
+  }
+  await printDocument(reportDocument(title, body, byline, now, false));
+}
+async function chooseDownload(format){
+  setDlMenu(false);
+  dl.btn.focus({preventScroll:true});
+  if(dl.btn.disabled) return;
+  clearTimeout(dl.timer);
+  dl.btn.removeAttribute("data-done");
+  dl.btn.disabled = true;
+  try{
+    await downloadReport(format);
+    dl.btn.disabled = false;
+    void dl.btn.offsetWidth;
+    dl.btn.setAttribute("data-done", "");
+    dl.btn.querySelector(".dl-label").textContent = "已下载";
+    dl.timer = setTimeout(resetDownload, 2200);
+  }catch(error){
+    dl.btn.disabled = false;
+  }
+}
+function resetDownload(){
+  clearTimeout(dl.timer);
+  dl.btn.removeAttribute("data-done");
+  dl.btn.querySelector(".dl-label").textContent = "下载";
+}
+dl.btn.addEventListener("click", () => setDlMenu(dl.menu.hidden, true));
+dl.btn.addEventListener("keydown", event => {
+  if(event.key === "ArrowDown" && dl.menu.hidden){ event.preventDefault(); setDlMenu(true, true); }
+});
+dl.menu.addEventListener("click", event => {
+  const item = event.target.closest("[role=menuitem]");
+  if(item) void chooseDownload(item.dataset.format);
+});
+dl.menu.addEventListener("keydown", event => {
+  const items = dlItems();
+  const at = items.indexOf(document.activeElement);
+  const move = {ArrowDown:1, ArrowUp:-1}[event.key];
+  if(move){ event.preventDefault(); items[(at + move + items.length) % items.length].focus(); }
+  else if(event.key === "Home"){ event.preventDefault(); items[0].focus(); }
+  else if(event.key === "End"){ event.preventDefault(); items[items.length - 1].focus(); }
+  else if(event.key === "Tab"){ setDlMenu(false); }
+});
+document.addEventListener("pointerdown", event => { if(!dl.menu.hidden && !dl.root.contains(event.target)) setDlMenu(false); });
+document.addEventListener("keydown", event => {
+  if(event.key !== "Escape" || dl.menu.hidden) return;
+  event.stopPropagation();
+  setDlMenu(false);
+  dl.btn.focus();
+}, true);
 
 async function openReport(){
   const body = document.querySelector("#report-body");
@@ -1932,6 +2184,10 @@ async function openReport(){
   const reportTitle = researchTitle && !["正在读取","这份运行没有星图"].includes(researchTitle) ? selectionHeading(researchTitle,true) : "研究报告";
   document.querySelector("#report-title").textContent = reportTitle;
   body.innerHTML = '<p class="report-status">正在读取报告</p>';
+  reportMarkdownText = "";
+  dl.btn.disabled = true;
+  resetDownload();
+  setDlMenu(false);
   body.scrollTop = 0;
   body.scrollLeft = 0;
   document.querySelector("#modal").classList.add("open");
@@ -1944,8 +2200,10 @@ async function openReport(){
       body.innerHTML = '<p class="report-status">' + escapeHtml(text || "这份运行还没有报告。") + "</p>";
       return;
     }
-    body.innerHTML = renderMarkdown(prepareUserReport(text,reportTitle));
+    reportMarkdownText = prepareUserReport(text,reportTitle);
+    body.innerHTML = renderMarkdown(reportMarkdownText);
     body.scrollTop = 0;
+    dl.btn.disabled = false;
   } catch (error) {
     body.innerHTML = '<p class="report-status">报告没有读出来。刷新后再打开一次。</p>';
   }

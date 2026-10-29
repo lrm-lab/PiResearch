@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { navigate } from "./flags";
 import { enterAction } from "./format";
+import { getModelChoice } from "../lib/model";
+import { ModelChip } from "./ModelSettings";
 import { gallery } from "./motion";
 import { submitQuestion } from "./mutations";
 import { useHome } from "./store";
@@ -102,7 +104,7 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
       const question = value.trim();
       setError(null);
       setBusy(true);
-      const result = await submitQuestion(question);
+      const result = await submitQuestion(question, getModelChoice());
       if (!result.ok) {
         setError(result.error);
         setBusy(false);
@@ -174,6 +176,7 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
           </button>
         </div>
         <div className="home-composer-foot">
+          <ModelChip disabled={busy || launching} />
           <span id="home-ask-hint" className="home-composer-hint">
             <kbd>Enter</kbd> 开始研究 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 换行
           </span>

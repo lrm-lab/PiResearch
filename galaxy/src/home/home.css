@@ -1232,3 +1232,437 @@ body.home-confirm-open .home-composer-dock {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Research model: header gear + panel, composer chip (ModelSettings.tsx) */
+
+.home-settings,
+.home-model {
+  position: relative;
+  display: inline-flex;
+  pointer-events: auto;
+}
+
+.home-settings-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--g-hairline-strong);
+  border-radius: 50%;
+  background: rgba(12, 14, 24, 0.55);
+  backdrop-filter: blur(12px) saturate(140%);
+  color: var(--g-ink-dim);
+  cursor: pointer;
+  transition:
+    color 0.2s var(--g-ease),
+    border-color 0.2s var(--g-ease),
+    box-shadow 0.3s var(--g-ease);
+}
+
+.home-settings-btn svg {
+  width: 17px;
+  height: 17px;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.home-settings-btn:hover,
+.home-settings-btn.is-open {
+  color: #fff;
+  border-color: rgba(72, 211, 228, 0.45);
+  box-shadow: 0 0 18px -4px rgba(72, 211, 228, 0.5);
+}
+
+.home-settings-btn:hover svg {
+  transform: rotate(30deg);
+}
+
+.home-settings-btn.is-open svg {
+  transform: rotate(90deg);
+}
+
+.home-settings-btn:focus-visible {
+  outline: 2px solid var(--g-accent);
+  outline-offset: 2px;
+}
+
+.home-settings-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--g-accent);
+  box-shadow:
+    0 0 0 2px #0b0d16,
+    0 0 8px var(--g-accent);
+}
+
+.model-panel {
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.model-panel-label {
+  margin: 2px 2px 12px;
+  color: var(--g-ink-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+
+.model-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.model-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 10px 13px;
+  border: 1px solid var(--g-hairline);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--g-ink-dim);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.2s var(--g-ease),
+    color 0.2s var(--g-ease),
+    transform 0.25s var(--g-ease);
+}
+
+.model-card:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--g-ink);
+  transform: translateY(-1px);
+}
+
+.model-card:focus-visible {
+  outline: 2px solid var(--g-accent);
+  outline-offset: 2px;
+}
+
+.model-card[aria-checked="true"] {
+  background: rgba(72, 211, 228, 0.07);
+  color: #fff;
+}
+
+.model-card-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1.5px solid var(--g-accent);
+  box-shadow:
+    0 0 22px -6px rgba(72, 211, 228, 0.7),
+    inset 0 0 18px -10px rgba(72, 211, 228, 0.8);
+  pointer-events: none;
+}
+
+/* The mark sits like a star: a halo in the model's hue and, once chosen, a tilted orbit with a moon. */
+.model-card-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 64px;
+}
+
+.model-card-mark {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+}
+
+.model-card-halo {
+  position: absolute;
+  inset: 4px 10px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--halo, rgba(91, 116, 255, 0.5)), transparent);
+  opacity: 0.25;
+  filter: blur(6px);
+  transition: opacity 0.4s var(--g-ease);
+}
+
+.model-card[data-model="gpt-6.1-sol"] .model-card-halo {
+  --halo: rgba(255, 198, 92, 0.55);
+}
+
+.model-card[aria-checked="true"] .model-card-halo {
+  opacity: 1;
+}
+
+.model-card-orbit {
+  position: absolute;
+  inset: 12px 0;
+  border: 1px solid rgba(72, 211, 228, 0.32);
+  border-radius: 50%;
+  transform: rotate(-18deg) scale(0.7);
+  opacity: 0;
+  transition:
+    opacity 0.35s var(--g-ease),
+    transform 0.5s var(--g-ease);
+}
+
+.model-card-orbit i {
+  position: absolute;
+  inset: 0;
+  animation: model-orbit 4.8s linear infinite;
+  animation-play-state: paused;
+}
+
+.model-card-orbit i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -3px;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: #bff4fb;
+  box-shadow: 0 0 8px var(--g-accent);
+}
+
+.model-card[aria-checked="true"] .model-card-orbit {
+  opacity: 1;
+  transform: rotate(-18deg) scale(1);
+}
+
+.model-card[aria-checked="true"] .model-card-orbit i {
+  animation-play-state: running;
+}
+
+@keyframes model-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.model-card-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.model-card-default {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--g-ink-dim);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.model-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #7ee0ef, var(--g-accent));
+  color: #04161a;
+  box-shadow: 0 0 12px -2px var(--g-accent);
+}
+
+.model-card-check svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+
+/* Miniature composer under the cards. */
+.model-preview {
+  margin-top: 12px;
+  padding: 11px 12px 10px;
+  border: 1px solid var(--g-hairline);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 140% at 0% 100%, rgba(72, 211, 228, 0.08), transparent 60%),
+    rgba(6, 8, 14, 0.6);
+}
+
+.model-preview-lines {
+  display: grid;
+  gap: 6px;
+}
+
+.model-preview-lines i {
+  height: 5px;
+  width: 78%;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.model-preview-lines i + i {
+  width: 48%;
+}
+
+.model-preview-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.model-preview-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 4px;
+  border: 1px solid var(--g-hairline-strong);
+  border-radius: 8px;
+  color: var(--g-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.model-preview-ripple {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1.5px solid var(--g-accent);
+  animation: model-ripple 0.9s ease-out 0.15s both;
+  pointer-events: none;
+}
+
+@keyframes model-ripple {
+  from {
+    opacity: 0.85;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+.model-preview-launch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #7ee0ef, var(--g-accent));
+  box-shadow: 0 0 12px -3px var(--g-accent);
+}
+
+/* Composer chip and its menu (opens upward, over the composer). */
+.home-model-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 6px 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--g-ink-dim);
+  font: 600 11.5px/1 var(--home-ui);
+  cursor: pointer;
+  transition:
+    color 0.2s var(--g-ease),
+    background-color 0.2s var(--g-ease),
+    border-color 0.2s var(--g-ease);
+}
+
+.home-model-chip:hover,
+.home-model-chip[aria-expanded="true"] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(72, 211, 228, 0.35);
+}
+
+.home-model-chip:focus-visible {
+  outline: 2px solid var(--g-accent);
+  outline-offset: 1px;
+}
+
+.home-model-chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.home-model-chip-mark {
+  position: relative;
+  display: inline-grid;
+  width: 15px;
+  height: 15px;
+}
+
+.home-model-chip-mark > span {
+  grid-area: 1 / 1;
+  display: inline-flex;
+}
+
+.home-model-chev {
+  width: 13px;
+  height: 13px;
+  color: var(--g-ink-faint);
+  transition: transform 0.25s var(--g-ease);
+}
+
+.home-model-chev.is-open {
+  transform: rotate(180deg);
+}
+
+.model-menu {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 10px);
+  left: -6px;
+  min-width: 210px;
+  transform-origin: bottom left;
+}
+
+.model-menu-item {
+  gap: 10px;
+}
+
+.model-menu-check {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+  color: var(--g-accent) !important;
+}
+
+@media (max-width: 640px) {
+  .home-header-side {
+    gap: 10px;
+  }
+
+  .model-panel {
+    position: fixed;
+    top: 70px;
+    right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-settings-btn svg,
+  .model-card,
+  .model-card-orbit,
+  .home-model-chev {
+    transition: none;
+  }
+
+  .model-card-orbit i,
+  .model-preview-ripple {
+    animation: none;
+  }
+}
