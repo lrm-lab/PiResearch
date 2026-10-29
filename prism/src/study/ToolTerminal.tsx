@@ -100,7 +100,7 @@ export function ToolTerminal({
         {shown.length > 0 && (
           <ol className="space-y-0.5">
             {shown.map((step, index) => (
-              <StepLine key={`${hiddenCount + index}:${step.tool}:${step.label}`} step={step} expand={expand} />
+              <StepLine key={`${hiddenCount + index}:${step.tool}:${step.label}`} step={step} index={hiddenCount + index} expand={expand} />
             ))}
           </ol>
         )}
@@ -155,7 +155,7 @@ function toolName(tool: string): string {
   return TOOL[tool] ?? tool;
 }
 
-function StepLine({ step, expand }: { step: Step; expand: { all: boolean; tick: number } }) {
+function StepLine({ step, index, expand }: { step: Step; index: number; expand: { all: boolean; tick: number } }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (expand.tick) setOpen(expand.all);
@@ -194,7 +194,7 @@ function StepLine({ step, expand }: { step: Step; expand: { all: boolean; tick: 
     </>
   );
   return (
-    <li>
+    <li data-step={index}>
       {expandable ? (
         <button
           type="button"
