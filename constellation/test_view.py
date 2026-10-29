@@ -512,3 +512,54 @@ def test_home_delete_endpoint_removes_requested_study(tmp_path: Path) -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_new_study_records_the_chosen_model(tmp_path: Path) -> None:
+    runs = tmp_path / "runs"
+    started: list[Path] = []
+
+    def starter(path: Path) -> int:
+        started.append(path)
+        return os.getpid()
+
+    server = make_home_server(runs, "127.0.0.1", 0, starter=starter)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+
+        def submit(payload: dict[str, object]) -> dict[str, object]:
+            request = Request(
+                f"http://127.0.0.1:{port}/api/questions",
+                data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            with urlopen(request) as response:
+                return json.loads(response.read().decode("utf-8"))
+
+        chosen = submit({"question": "请比较两种房产税。", "model": "gpt-6.1-sol"})
+        assert chosen["model"] == "gpt-6.1-sol"
+        session = json.loads((started[-1] / "session.json").read_text(encoding="utf-8"))
+        assert session["model"] == "gpt-6.1-sol"
+        assert submit({"question": "不选模型时用默认的。"})["model"] == "deepseek"
+        try:
+            submit({"question": "不认识的模型要拒绝。", "model": "gpt-4o"})
+            raise AssertionError("unknown model should fail")
+        except Exception as exc:
+            assert getattr(exc, "code", None) == 400
+        assert len(started) == 2
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_research_job_switches_only_known_models(monkeypatch) -> None:
+    from constellation.models import apply_model
+
+    monkeypatch.setenv("OPENAI_MODEL", "deepseek-default")
+    apply_model("deepseek")
+    assert os.environ["OPENAI_MODEL"] == "deepseek-default"
+    apply_model("unknown")
+    assert os.environ["OPENAI_MODEL"] == "deepseek-default"
+    apply_model("gpt-6.1-sol")
+    assert os.environ["OPENAI_MODEL"] == "gpt-6.1-sol"

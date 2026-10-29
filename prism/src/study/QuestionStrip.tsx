@@ -8,6 +8,7 @@ import { goalActivity, phaseLabel } from "../lib/activity";
 import { TONE_CLASS } from "../lib/status";
 import type { Snapshot } from "../types/api";
 import { AgentAvatar } from "../ui/AgentAvatar";
+import { ModelTag } from "../ui/ModelMark";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
@@ -72,6 +73,7 @@ function ReadyStrip({ view }: { view: Snapshot }) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-3">
+          <ModelTag id={view.model} />
           <Badge color={activity || running ? "brand" : "gray"} dot={running && !activity}>
             <span className={cx(activity && "prism-shimmer")}>{phaseLabel(view)}</span>
           </Badge>

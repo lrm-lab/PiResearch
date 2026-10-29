@@ -2,15 +2,25 @@
 
 import { useEffect, useState, type RefObject } from "react";
 
-/** Closes the open menu on a pointer down outside `ref`. */
+/** Closes the open menu on a pointer down outside `ref` or on Esc. */
 export function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, close: () => void) {
   useEffect(() => {
     if (!open) return;
     const onDown = (event: PointerEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) close();
     };
+    // Esc closes the popover first, before page-level shortcuts see it.
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      close();
+    };
     document.addEventListener("pointerdown", onDown, true);
-    return () => document.removeEventListener("pointerdown", onDown, true);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("keydown", onKey, true);
+    };
   }, [ref, open, close]);
 }
 

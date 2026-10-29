@@ -10,6 +10,7 @@ import { HeaderControls } from "../ui/HeaderControls";
 import { PageHeader } from "../ui/PageHeader";
 import { Composer } from "./Composer";
 import { DeleteDialog } from "./DeleteDialog";
+import { SettingsButton } from "./ModelSettings";
 import { resetNavigation } from "./flags";
 import { startHomePolling } from "./polling";
 import { useHome } from "./store";
@@ -48,6 +49,7 @@ export function HomePage() {
             actions={
               <>
                 <HeaderControls />
+                <SettingsButton />
                 <Button color="secondary" size="sm" iconLeading={Plus} onClick={focusComposer} aria-label="新研究" className="max-sm:px-2.5">
                   <span className="max-sm:hidden">新研究</span>
                 </Button>

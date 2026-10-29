@@ -676,6 +676,7 @@ def _build_study_view(runs: Path, trial: Path) -> dict[str, Any]:
         if question:
             _remember_question(payload, question)
         payload["running"] = session.get("status") == "running"
+        payload["model"] = str(session.get("model") or "")
         return payload
     if session.get("status") == "running":
         payload["message"] = "研究已经开始，星图会在主 agent 派发任务后出现。"
@@ -810,7 +811,7 @@ def make_home_server(
                 return
             try:
                 kwargs = {"starter": starter} if starter is not None else {}
-                created = create_session(root, str(payload.get("question") or ""), **kwargs)
+                created = create_session(root, str(payload.get("question") or ""), model=payload.get("model"), **kwargs)
             except ValueError as exc:
                 self._json(400, {"error": str(exc)})
                 return

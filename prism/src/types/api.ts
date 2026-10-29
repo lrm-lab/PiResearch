@@ -97,6 +97,8 @@ export interface Snapshot {
   version?: number;
   /** Home mode only. Absent in single-trial mode. */
   running?: boolean;
+  /** Home mode only: the research model id; empty for studies that predate the choice. */
+  model?: string;
   revision?: string;
   detail_mode?: "on-demand";
 }
@@ -139,4 +141,6 @@ export interface HistoryRow {
   error: string;
   /** 2D page link, e.g. "/study/sessions/20261020-101500/1". */
   href: string;
+  /** Research model id ("deepseek", "gpt-6.1-sol"); empty for studies that predate the choice. */
+  model?: string;
 }
