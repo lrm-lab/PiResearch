@@ -63,7 +63,7 @@ SWITCH_TEMPLATE = """<style id="pr-ui-switch-style">
 <nav class="pr-ui-switch" id="pr-ui-switch" aria-label="切换界面"><a href="__GALAXY__" data-ui="galaxy" title="Galaxy 星系">Galaxy<span class="pr-zh">星系</span></a><a href="__PRISM__" data-ui="prism" title="Prism 棱镜">Prism<span class="pr-zh">棱镜</span></a><a href="__2D__" data-ui="2d" title="2D 经典" aria-current="page">2D<span class="pr-zh">经典</span></a></nav>
 <script>(function(){var s=document.getElementById("pr-ui-switch");if(!s)return;
 try{if(window.self!==window.top){s.remove();return}}catch(e){s.remove();return}
-var r=document.getElementById("open-report");if(r&&r.parentNode){s.classList.add("in-bar");r.parentNode.insertBefore(s,r)}
+var r=document.getElementById("open-report")||document.getElementById("settings");if(r&&r.parentNode){s.classList.add("in-bar");r.parentNode.insertBefore(s,r)}
 function save(e){var a=e.target&&e.target.closest?e.target.closest("a[data-ui]"):null;if(!a)return;try{localStorage.setItem("piresearch-ui",a.getAttribute("data-ui"))}catch(x){}}
 s.addEventListener("click",save);s.addEventListener("auxclick",save);
 function fix(a){if(a&&a.getAttribute&&a.getAttribute("href")==="/")a.setAttribute("href","/index.html")}

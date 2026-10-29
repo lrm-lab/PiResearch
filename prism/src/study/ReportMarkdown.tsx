@@ -6,12 +6,14 @@ import { LinkExternal01 } from "@untitledui/icons";
 import { motion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import Markdown, { type Components } from "react-markdown";
+import remarkCjkFriendly from "remark-cjk-friendly";
 import remarkGfm from "remark-gfm";
 import { cx } from "../ui/cx";
 import { EASE_OUT } from "./primitives";
 import "./report.css";
 
-const REMARK_PLUGINS = [remarkGfm];
+// remark-cjk-friendly: bold that touches CJK punctuation (是**“引号”**：) would otherwise show raw **.
+const REMARK_PLUGINS = [remarkGfm, remarkCjkFriendly];
 
 interface OutlineItem {
   id: string;

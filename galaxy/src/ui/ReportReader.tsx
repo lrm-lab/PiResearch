@@ -15,6 +15,7 @@ import {
   type RefObject,
 } from "react";
 import Markdown, { type Components } from "react-markdown";
+import remarkCjkFriendly from "remark-cjk-friendly";
 import remarkGfm from "remark-gfm";
 import { fetchReport, studyApiPrefix } from "../lib/api";
 import { selectionHeading } from "../lib/heading";
@@ -28,7 +29,8 @@ import { alignNumericColumns, stripLeadingTitle } from "./reportTables";
 import { useUi } from "./uiStore";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const REMARK_PLUGINS = [remarkGfm];
+// remark-cjk-friendly: bold that touches CJK punctuation (是**“引号”**：) would otherwise show raw **.
+const REMARK_PLUGINS = [remarkGfm, remarkCjkFriendly];
 
 type Loaded = { kind: "loading" } | { kind: "ready"; markdown: string } | { kind: "message"; text: string };
 

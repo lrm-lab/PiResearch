@@ -1596,7 +1596,20 @@ function labelInside(gap){
   return {keep: gap.replace(/[ \t]*$/, ""), text: "来源"};
 }
 
+// URLs inside code (fenced blocks and `spans`) are literal text, so fold only the prose between them.
 function foldUrls(source){
+  const code = /```[\s\S]*?```|`[^`\n]+`/g;
+  let out = "";
+  let cursor = 0;
+  let match;
+  while((match = code.exec(source))){
+    out += foldProseUrls(source.slice(cursor, match.index)) + match[0];
+    cursor = match.index + match[0].length;
+  }
+  return out + foldProseUrls(source.slice(cursor));
+}
+
+function foldProseUrls(source){
   const found = [];
   const re = /https?:\/\/[^\s<）)，。；、]+/g;
   let match;
@@ -1624,24 +1637,38 @@ function linkHost(href){
   catch(error){ return ""; }
 }
 
+// The ** that closes a bold run starting at `from`, skipping any inside `code`.
+function closingBold(text, from){
+  let i = from;
+  while(i < text.length){
+    if(text[i] === "`"){
+      const end = text.indexOf("`", i + 1);
+      if(end > i + 1){ i = end + 1; continue; }
+    }
+    if(text.startsWith("**", i)) return i;
+    i += 1;
+  }
+  return -1;
+}
+
 function inlineMarkdown(source){
   const text = String(source);
   let html = "";
   let i = 0;
   while(i < text.length){
-    if(text.startsWith("**", i)){
-      const end = text.indexOf("**", i + 2);
-      if(end !== -1){
-        html += "<strong>" + inlineMarkdown(text.slice(i + 2, end)) + "</strong>";
-        i = end + 2;
-        continue;
-      }
-    }
     if(text[i] === "`"){
       const end = text.indexOf("`", i + 1);
       if(end > i + 1){
         html += "<code>" + escapeHtml(text.slice(i + 1, end)) + "</code>";
         i = end + 1;
+        continue;
+      }
+    }
+    if(text.startsWith("**", i)){
+      const end = closingBold(text, i + 2);
+      if(end !== -1){
+        html += "<strong>" + inlineMarkdown(text.slice(i + 2, end)) + "</strong>";
+        i = end + 2;
         continue;
       }
     }
@@ -1919,7 +1946,7 @@ function renderMarkdown(source){
       const th = head.map((cell, index) => aligned("th", cell, index)).join("");
       const body = rows.map(row => "<tr>" + row.map((cell, index) => aligned("td", cell, index)).join("") + "</tr>").join("");
       const columns = layout.columns.map(width => '<col style="width:' + width + '%">').join("");
-      const name = escapeHtml("表格：" + head.join("、"));
+      const name = escapeHtml("表格：" + head.map(cell => cell.replace(/\*\*|`/g, "")).join("、"));
       blocks.push('<div class="table-wrap" role="region" aria-label="' + name + '" tabindex="0"><table style="min-width:' + layout.minimum + 'px"><colgroup>' + columns + '</colgroup><thead><tr>' + th + "</tr></thead><tbody>" + body + "</tbody></table></div>");
       continue;
     }

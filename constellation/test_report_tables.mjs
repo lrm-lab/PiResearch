@@ -93,3 +93,16 @@ test("uneven rows keep the declared column count and retain overflow text", () =
   for(const row of body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)) assert.equal([...row[1].matchAll(/<td /g)].length,2);
   assert.ok(html.includes("第一段 | 第二段"));
 });
+
+test("a URL inside inline code stays code and later code spans keep their pairs", () => {
+  const html = renderMarkdown("命令 `uv run https://example.com/a.py sprint`，再 `uv sync` 与 **加粗** 结束。");
+  assert.match(html, /<code>uv run https:\/\/example\.com\/a\.py sprint<\/code>/);
+  assert.match(html, /<code>uv sync<\/code>/);
+  assert.match(html, /<strong>加粗<\/strong>/);
+  assert.doesNotMatch(html.replace(/<code>[\s\S]*?<\/code>/g, ""), /`|<a /);
+});
+
+test("bold does not close on ** inside code", () => {
+  const html = renderMarkdown("**用 `a**b` 计算**");
+  assert.match(html, /<strong>用 <code>a\*\*b<\/code> 计算<\/strong>/);
+});
