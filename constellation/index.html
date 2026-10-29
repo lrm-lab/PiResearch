@@ -323,6 +323,9 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
 .prose blockquote{margin-top:24px;margin-bottom:28px;padding:20px 24px;border:0;border-radius:10px;background:#eef3f0}
 .prose blockquote p{margin:0;color:#344940;font-size:16px;line-height:1.85}
 .prose blockquote p+p{margin-top:12px}
+.prose blockquote .bq-label{color:#1d4f46;font-weight:600}
+.prose blockquote .bq-note{display:block;margin-top:10px;color:#7d8f8a;font-size:13.5px;line-height:1.7}
+.prose blockquote .bq-note .bq-label{color:inherit;font-weight:500}
 .prose ul,.prose ol{margin-top:8px;margin-bottom:24px;padding-left:1.4em}
 .prose li{margin:9px 0;padding-left:3px}
 .prose li::marker{color:#537c75}
@@ -1931,6 +1934,14 @@ function inlineMarkdown(source, allowBareUrl = true){
   return html;
 }
 
+// One blockquote line: "标签：内容" emphasises the label; 来源/数据 lines render as quiet notes.
+function bqLine(line){
+  const m = /^([^：:]{1,24})[：:](.*)$/.exec(line);
+  if(!m) return "<span>" + inlineMarkdown(line) + "</span>";
+  const note = /来源|备注/.test(m[1]);
+  return '<span class="' + (note ? "bq-note" : "bq-line") + '"><b class="bq-label">' + escapeHtml(m[1].trim()) + "：</b>" + inlineMarkdown(m[2].trim()) + "</span>";
+}
+
 function joinParagraph(parts){
   return parts.reduce((acc, part) => {
     if(!acc) return part;
@@ -2154,8 +2165,9 @@ function renderMarkdown(source){
       }
       if(current.length) paragraphs.push(current);
       // Each ">" source line stays on its own line: meta blocks (研究对象/资料截止/说明…) would
-      // otherwise merge into one run-on paragraph.
-      blocks.push("<blockquote>" + paragraphs.map(part => "<p>" + part.map(line => inlineMarkdown(line)).join("<br>") + "</p>").join("") + "</blockquote>");
+      // otherwise merge into one run-on paragraph. A leading "标签：" gets set off, and
+      // 来源 lines read as footnotes.
+      blocks.push("<blockquote>" + paragraphs.map(part => "<p>" + part.map(bqLine).join("<br>") + "</p>").join("") + "</blockquote>");
       continue;
     }
     if(trimmed.startsWith("|") && i + 1 < lines.length && isTableRule(lines[i + 1])){
