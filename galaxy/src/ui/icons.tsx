@@ -39,12 +39,6 @@ export const IconFlat = (p: P) => (
   </Icon>
 );
 
-export const IconLens = (p: P) => (
-  <Icon {...p}>
-    <circle cx="11" cy="11" r="6.5" />
-    <path d="m16 16 4.5 4.5M8.3 11.2l1.9 1.9 3.6-3.8" />
-  </Icon>
-);
 export const IconQuality = (p: P) => (
   <Icon {...p}>
     <path d="M12 3.5 14 9l5.5 2-5.5 2-2 5.5-2-5.5L4.5 11 10 9z" />

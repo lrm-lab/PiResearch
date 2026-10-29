@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Edge } from "../types/api";
-import { drawnRelation, edgeKey, errorTargets, linkedIds, verificationIds } from "./edges";
+import { drawnRelation, edgeKey, errorTargets, linkedIds } from "./edges";
 
 const edges: Edge[] = [
   { from: "goal", to: "t1", relation: "parent" },
@@ -25,10 +25,6 @@ describe("edges", () => {
   it("links a node to its neighbours over any relation", () => {
     expect([...linkedIds(edges, "t1")].sort()).toEqual(["goal", "t1", "t2", "t4"]);
     expect([...linkedIds(edges, "zzz")]).toEqual(["zzz"]);
-  });
-
-  it("collects verification endpoints", () => {
-    expect([...verificationIds(edges)].sort()).toEqual(["t1", "t2", "t3", "t4", "t5", "t6"]);
   });
 
   it("builds stable keys", () => {

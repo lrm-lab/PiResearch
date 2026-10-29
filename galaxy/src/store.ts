@@ -48,8 +48,6 @@ export interface GalaxyState {
   errorKind: LoadErrorKind | null;
   selectedId: string | null;
   hoveredId: string | null;
-  /** 核验透镜 (verification lens). */
-  lens: boolean;
   quality: Quality;
   /** What the scene renders. With quality "auto" the scene's monitor sets it. */
   effectiveQuality: QualityTier;
@@ -66,7 +64,6 @@ export interface GalaxyState {
   hover(id: string | null): void;
   /** Clear the hover only if `id` still holds it (another label or body may already have taken it). */
   unhover(id: string): void;
-  toggleLens(): void;
   setQuality(quality: Quality): void;
   /** Used by the scene's frame-time monitor; ignored unless quality is "auto". */
   setAutoTier(tier: QualityTier): void;
@@ -117,7 +114,6 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
     errorKind: null,
     selectedId: null,
     hoveredId: null,
-    lens: false,
     quality: "auto",
     effectiveQuality: "high",
     reducedMotion: initialReducedMotion(),
@@ -177,10 +173,6 @@ export const useGalaxy = create<GalaxyState>()((set, get) => {
 
     unhover(id) {
       if (get().hoveredId === id) set({ hoveredId: null });
-    },
-
-    toggleLens() {
-      set((state) => ({ lens: !state.lens }));
     },
 
     setQuality(quality) {

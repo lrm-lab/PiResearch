@@ -115,7 +115,6 @@ export function Legend() {
   const open = useUi((state) => state.legendOpen);
   const setOpen = useUi((state) => state.setLegendOpen);
   const selected = useGalaxy((state) => state.selectedId !== null);
-  const lens = useGalaxy((state) => state.lens);
   const ok = useGalaxy((state) => state.view?.ok === true);
   // Nothing to explain when the page shows the no-WebGL notice instead of the scene.
   if (!ok || !hasWebGL2()) return null;
@@ -128,11 +127,6 @@ export function Legend() {
     >
       <button type="button" className="legend-toggle" aria-expanded={open} aria-controls="galaxy-legend-body" onClick={() => setOpen(!open)}>
         图例
-        {lens && (
-          <span className="g-chip" style={{ ["--chip-color" as string]: TONE_COLOR.cyan, height: 20, letterSpacing: 0, fontSize: 11 }}>
-            核验透镜
-          </span>
-        )}
         <IconChevronDown />
       </button>
       <AnimatePresence initial={false}>
@@ -149,7 +143,7 @@ export function Legend() {
             <div className="legend-body">
               <ul className="legend-list">
                 {RELATIONS.map((relation) => (
-                  <li key={relation} style={{ opacity: lens && relation === "parent" ? 0.4 : 1 }}>
+                  <li key={relation}>
                     <Swatch relation={relation} />
                     {REL[relation]}
                     <small>{RELATION_HINT[relation]}</small>

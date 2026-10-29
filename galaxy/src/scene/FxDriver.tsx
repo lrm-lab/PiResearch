@@ -12,7 +12,6 @@ export function FxDriver({ fx, graph }: { fx: SceneFx; graph: SceneGraph }) {
   const view = useGalaxy((state) => state.view);
   const selectedId = useGalaxy((state) => state.selectedId);
   const hoveredId = useGalaxy((state) => state.hoveredId);
-  const lens = useGalaxy((state) => state.lens);
   const reducedMotion = useGalaxy((state) => state.reducedMotion);
 
   useLayoutEffect(() => {
@@ -30,9 +29,9 @@ export function FxDriver({ fx, graph }: { fx: SceneFx; graph: SceneGraph }) {
   }, [fx, view]);
 
   useLayoutEffect(() => {
-    const focus = { selectedId, hoveredId, lens };
+    const focus = { selectedId, hoveredId };
     fx.setTargets(nodeTargets(graph, focus), edgeTargets(graph, focus), hoveredId);
-  }, [fx, graph, selectedId, hoveredId, lens]);
+  }, [fx, graph, selectedId, hoveredId]);
 
   useFrame((state, delta) => {
     const dpr = state.viewport.dpr;

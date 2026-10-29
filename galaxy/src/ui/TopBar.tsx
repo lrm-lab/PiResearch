@@ -12,7 +12,6 @@ import {
   IconCore,
   IconDownload,
   IconHelp,
-  IconLens,
   IconMore,
   IconQuality,
   IconReport,
@@ -105,8 +104,6 @@ function StudyMeta() {
 function Actions() {
   const view = useGalaxy((state) => state.view);
   const studyId = useGalaxy((state) => state.studyId);
-  const lens = useGalaxy((state) => state.lens);
-  const toggleLens = useGalaxy((state) => state.toggleLens);
   const emitCamera = useGalaxy((state) => state.emitCamera);
   const quality = useGalaxy((state) => state.quality);
   const effective = useGalaxy((state) => state.effectiveQuality);
@@ -201,19 +198,6 @@ function Actions() {
       {studyId && <UiSwitch studyId={studyId} className="topbar-ui-switch" />}
 
       <span className="wide-only topbar-actions">
-        <button
-          type="button"
-          className="g-btn g-btn-toggle g-tip"
-          aria-pressed={lens}
-          aria-keyshortcuts="V"
-          data-tip="核验透镜：只看审核、支持、挑战和错误（V）"
-          data-tip-align="end"
-          onClick={toggleLens}
-        >
-          <IconLens />
-          <span className="btn-label">核验透镜</span>
-        </button>
-
         <span className="relative">
           <button
             id="galaxy-export-button"
@@ -310,11 +294,6 @@ function Actions() {
           <IconMore />
         </button>
         <MenuPopover open={menu === "more"} label="更多操作" onClose={close} triggerId="galaxy-more-button">
-          <button type="button" role="menuitemcheckbox" aria-checked={lens} className="g-menu-item" onClick={() => toggleLens()}>
-            <IconLens />
-            核验透镜
-            <span className="hint">V</span>
-          </button>
           <button
             type="button"
             role="menuitem"
@@ -364,7 +343,6 @@ function Actions() {
 
 function ShortcutList() {
   const rows: [string[], string][] = [
-    [["V"], "核验透镜"],
     [["F"], "回到主节点"],
     [["R"], "重置视角"],
     [["Tab"], "在节点之间移动"],
