@@ -7,6 +7,7 @@ import { APP_BASE } from "../lib/api";
 import { cx } from "../ui/cx";
 import { HeaderControls } from "../ui/HeaderControls";
 import { PageHeader } from "../ui/PageHeader";
+import { Wordmark } from "../ui/Wordmark";
 import { ExportMenu } from "./ExportMenu";
 import type { StudyTab } from "./model";
 import { LinkButton, Skeleton } from "./primitives";
@@ -27,9 +28,12 @@ export function StudyHeader({
   const setTab = useStudy((state) => state.setTab);
 
   const back = (
-    <LinkButton href={APP_BASE} color="tertiary" icon={ArrowLeft} iconOnly className="-ml-2">
-      返回研究列表
-    </LinkButton>
+    <>
+      <LinkButton href={APP_BASE} color="tertiary" icon={ArrowLeft} iconOnly className="-ml-2">
+        返回研究列表
+      </LinkButton>
+      <Wordmark />
+    </>
   );
 
   if (!view && loadState === "error" && errorKind === "missing") {
