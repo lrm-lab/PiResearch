@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from constellation.models import resolve_model
+
 _SAFE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
@@ -127,6 +129,7 @@ def _entry(study_id: str, trial: Path, session: dict[str, Any] | None) -> dict[s
         "report": report.is_file(),
         "created_at": created,
         "error": str((session or {}).get("error") or ""),
+        "model": str((session or {}).get("model") or ""),
         "href": "/study/" + study_id,
     }
 
@@ -269,12 +272,14 @@ def create_session(
     question: str,
     *,
     starter: Callable[[Path], int] | None = spawn_job,
+    model: object = None,
 ) -> dict[str, Any]:
     text = " ".join(str(question or "").split())
     if len(text) < 4:
         raise ValueError("问题太短了。")
     if len(text) > 8000:
         raise ValueError("问题太长了，请收在 8000 字以内。")
+    model_key = resolve_model(model)
 
     stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
     session_dir = runs / "sessions" / stamp
@@ -301,6 +306,7 @@ def create_session(
         "status": "running",
         "error": "",
         "pid": 0,
+        "model": model_key,
     }
     session_path = session_dir / "session.json"
     session_path.write_text(json.dumps(session, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -12,6 +12,7 @@ import type { HistoryRow, Thumbnail } from "../types/api";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
+import { ModelTag } from "../ui/ModelMark";
 import { formatWhen, missingGraph, rowTitle, STATUS_LABEL, thumbStats } from "./format";
 import { MiniMap } from "./MiniMap";
 import { setThumbVisible } from "./polling";
@@ -145,6 +146,7 @@ export const StudyCard = memo(function StudyCard({
                   {STATUS_LABEL[row.status] ?? row.status}
                 </Badge>
               </span>
+              <ModelTag id={row.model} />
               {when && <span className="ml-auto shrink-0 font-mono text-xs text-tertiary tabular">{when}</span>}
             </div>
           </div>

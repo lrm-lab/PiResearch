@@ -53,6 +53,9 @@ async def _run(session_dir: Path) -> None:
     trial = session_dir / "generation" / "trials" / "1"
     task = session_dir / "generation" / "tasks" / "1"
     _prepare_env(project, trial)
+    from constellation.models import apply_model
+
+    apply_model(session.get("model"))
     if not os.environ.get("OPENAI_API_KEY"):
         raise RuntimeError("没有找到模型密钥，研究没有启动。")
 

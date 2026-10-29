@@ -9,11 +9,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEve
 import { AlertCircle, Stars02 } from "@untitledui/icons";
 import { AnimatePresence, motion } from "motion/react";
 import { useMediaQuery, REDUCED_MOTION_QUERY } from "../lib/media";
+import { getModelChoice } from "../lib/model";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { COMPOSER_PLACEHOLDER, EXAMPLE_QUESTIONS } from "./examples";
 import { flags, navigate } from "./flags";
 import { enterAction } from "./format";
+import { ModelChip } from "./ModelSettings";
 import { submitQuestion } from "./mutations";
 import { useHome } from "./store";
 
@@ -147,7 +149,8 @@ export function Composer({ className }: { className?: string }) {
       }
       setError(null);
       setBusy(true);
-      const result = await submitQuestion(question);
+      const model = getModelChoice();
+      const result = await submitQuestion(question, model);
       if (!result.ok) {
         setError(result.error);
         setBusy(false);
@@ -156,7 +159,7 @@ export function Composer({ className }: { className?: string }) {
       }
       submitted.current = true;
       // The new card slides in at the top of the grid, then the page opens the study.
-      useHome.getState().setPending({ question, href: result.href, phase: "fly" });
+      useHome.getState().setPending({ question, href: result.href, phase: "fly", model });
       setTimeout(
         () => {
           navigate(result.href);
@@ -213,9 +216,12 @@ export function Composer({ className }: { className?: string }) {
           )}
         </div>
         <div className="flex items-center justify-between gap-3 px-3 pt-1 pb-3">
-          <span id="home-ask-hint" className="truncate pl-1 font-mono text-xs text-quaternary">
-            ⏎ 发送 · ⇧⏎ 换行
-          </span>
+          <div className="flex min-w-0 items-center gap-3">
+            <ModelChip disabled={busy} />
+            <span id="home-ask-hint" className="truncate font-mono text-xs text-quaternary max-sm:hidden">
+              ⏎ 发送 · ⇧⏎ 换行
+            </span>
+          </div>
           <div className="flex items-center gap-3">
             {count > MAX_LENGTH * 0.8 && (
               <span className="font-mono text-xs text-tertiary tabular" aria-live="polite">

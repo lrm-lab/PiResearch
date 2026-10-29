@@ -11,6 +11,7 @@ export interface Pending {
   href: string;
   /** `crystal`: the ghost forms over the composer; `fly`: it has moved into the first grid slot. */
   phase: "crystal" | "fly";
+  model?: string;
 }
 
 export interface HomeState {

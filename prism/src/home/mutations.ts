@@ -1,6 +1,7 @@
 // The only two writes the home page makes: POST /api/questions and
 // DELETE /api/studies/<id>. Dev mock flags (flags.ts) short-circuit both.
 
+import type { ModelId } from "../lib/model";
 import { flags } from "./flags";
 import { DELETE_FAILED, DELETE_NETWORK, deleteUrl, prismHrefFromApi, SUBMIT_FAILED, SUBMIT_NETWORK } from "./format";
 import { useHome } from "./store";
@@ -18,14 +19,14 @@ async function mockSubmit(mode: string): Promise<SubmitResult> {
   return { ok: true, href: prismHrefFromApi(target?.href ?? "/study/sessions/mock/1") };
 }
 
-/** POST {question}. Errors carry `payload.error`, 没有提交成功。 or the network copy. */
-export async function submitQuestion(question: string): Promise<SubmitResult> {
+/** POST {question, model}. Errors carry `payload.error`, 没有提交成功。 or the network copy. */
+export async function submitQuestion(question: string, model: ModelId): Promise<SubmitResult> {
   if (flags.mockSubmit) return mockSubmit(flags.mockSubmit);
   try {
     const response = await fetch("/api/questions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, model }),
     });
     let payload: { error?: unknown; href?: unknown } = {};
     try {

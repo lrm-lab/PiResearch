@@ -9,6 +9,7 @@ import { AlertCircle, SearchLg, Telescope, XClose } from "@untitledui/icons";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
+import { ModelTag } from "../ui/ModelMark";
 import { Tabs, type TabItem } from "../ui/Tabs";
 import { EXAMPLE_CHIPS } from "./examples";
 import { rowTitle } from "./format";
@@ -86,7 +87,7 @@ export function Studies({ scroller }: { scroller: HTMLElement | null }) {
       <div className="relative mt-5">
         <motion.div layout="position" className={GRID}>
           <AnimatePresence mode="popLayout" initial>
-            {showPending && <PendingCard key={`pending-${pending!.href}`} question={pending!.question} />}
+            {showPending && <PendingCard key={`pending-${pending!.href}`} question={pending!.question} model={pending!.model} />}
             {visible.map((row, index) => (
               <StudyCard
                 key={row.id}
@@ -129,7 +130,7 @@ export function Studies({ scroller }: { scroller: HTMLElement | null }) {
 }
 
 /** The card of a question that was just submitted, before the study page opens. */
-function PendingCard({ question, ref }: { question: string; ref?: React.Ref<HTMLElement> }) {
+function PendingCard({ question, model, ref }: { question: string; model?: string; ref?: React.Ref<HTMLElement> }) {
   return (
     <motion.article
       ref={ref}
@@ -149,6 +150,7 @@ function PendingCard({ question, ref }: { question: string; ref?: React.Ref<HTML
             <LiveDot />
             进行中
           </Badge>
+          <ModelTag id={model} />
           <span className="ml-auto text-xs text-tertiary">刚刚提交</span>
         </div>
       </div>
