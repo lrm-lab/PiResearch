@@ -6,6 +6,7 @@ import { memo, useCallback, useMemo, type KeyboardEvent, type MouseEvent } from 
 import { galaxyStudyHref } from "../lib/api";
 import type { HistoryRow } from "../types/api";
 import { IconTrash } from "../ui/icons";
+import { ModelTag } from "../ui/ModelMark";
 import { captionLine, rowTitle, splitRows, thumbStats } from "./format";
 import { galleryLines, neighbour, type ArrowKey } from "./layout";
 import { emptyEls, gallery, registerCaption, rowLabelEls } from "./motion";
@@ -121,6 +122,7 @@ const Caption = memo(function Caption({ row }: { row: HistoryRow }) {
         <span className="home-cap-meta">
           <span className="home-cap-dot" aria-hidden="true" />
           {line}
+          <ModelTag id={row.model} />
         </span>
         <span className="home-cap-title">{title}</span>
         <span className="home-cap-more" aria-hidden="true">

@@ -20,6 +20,7 @@ import {
 } from "./icons";
 import { exportAll, useExport } from "./exportRun";
 import { MenuPopover } from "./Menu";
+import { ModelTag } from "./ModelMark";
 import { UiSwitch } from "./UiSwitch";
 import { REPORT_BUTTON_ID, useUi } from "./uiStore";
 
@@ -93,6 +94,7 @@ function StudyMeta() {
           <b>{resolved}</b> / {total}
         </span>
       </span>
+      <ModelTag id={view?.model} />
       <span className="topbar-progress-line" aria-hidden="true">
         <span style={{ width: `${ratio * 100}%` }} />
       </span>

@@ -2517,3 +2517,66 @@
   transform: translateY(-1px);
   border-color: var(--g-hairline-strong);
 }
+
+/* ------------------------------------------------------------ model marks */
+/* A model's tile (ModelMark.tsx): DeepSeek is a blue wave, GPT-6.1 Sol a gold sun on near-black. */
+.model-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+}
+.model-mark.is-xs {
+  width: 15px;
+  height: 15px;
+  border-radius: 4.5px;
+}
+.model-mark.is-lg {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+}
+.model-mark[data-model="deepseek"] {
+  --model-hue: #5b74ff;
+  color: #fff;
+  background: linear-gradient(145deg, #6b84ff, #3b5bfd);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.model-mark[data-model="gpt-6.1-sol"] {
+  --model-hue: #ffc65c;
+  color: #ffc65c;
+  background: linear-gradient(145deg, #2f2c3a, #0f0e14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 198, 92, 0.16);
+}
+.model-mark-glyph {
+  width: 64%;
+  height: 64%;
+}
+.model-tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--g-ink-dim);
+  font: 500 11px/1 var(--font-ui);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.topbar-meta .model-tag {
+  padding: 5px 9px 5px 6px;
+  border: 1px solid var(--g-hairline);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+@media (max-width: 640px) {
+  .topbar-meta .model-tag {
+    padding: 4px;
+    font-size: 0;
+    gap: 0;
+  }
+}

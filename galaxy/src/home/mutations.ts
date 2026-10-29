@@ -18,14 +18,14 @@ async function mockSubmit(mode: string): Promise<SubmitResult> {
   return { ok: true, href: galaxyHrefFromApi(target?.href ?? "/study/sessions/mock/1") };
 }
 
-/** POST {question}. Errors carry `payload.error`, 没有提交成功。 or the network copy. */
-export async function submitQuestion(question: string): Promise<SubmitResult> {
+/** POST {question, model}. Errors carry `payload.error`, 没有提交成功。 or the network copy. */
+export async function submitQuestion(question: string, model: string): Promise<SubmitResult> {
   if (flags.mockSubmit) return mockSubmit(flags.mockSubmit);
   try {
     const response = await fetch("/api/questions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, model }),
     });
     let payload: { error?: unknown; href?: unknown } = {};
     try {

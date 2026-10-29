@@ -7,6 +7,7 @@ import { galaxyStudyHref } from "../lib/api";
 import { RELATION_COLOR, TONE_COLOR, toneColor } from "../lib/palette";
 import type { HistoryRow, Thumbnail } from "../types/api";
 import { IconTrash } from "../ui/icons";
+import { ModelTag } from "../ui/ModelMark";
 import { captionLine, rowTitle, splitRows, thumbFrame } from "./format";
 import { setThumbVisible } from "./polling";
 import { useHome } from "./store";
@@ -86,6 +87,7 @@ const Card = memo(function Card({ row, observer }: { row: HistoryRow; observer: 
           <span className="home-cap-meta">
             <span className="home-cap-dot" aria-hidden="true" />
             {captionLine(row)}
+            <ModelTag id={row.model} />
           </span>
           <span className="home-cap-title">{title}</span>
         </span>

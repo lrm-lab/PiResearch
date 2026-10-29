@@ -1,8 +1,9 @@
-// Brand (with a slow shimmer), live counts and the Galaxy / Prism / 2D switch.
+// Brand (with a slow shimmer), live counts, the Galaxy / Prism / 2D switch and the settings gear.
 
 import { useMemo } from "react";
 import { splitRows } from "./format";
 import { UiSwitch } from "../ui/UiSwitch";
+import { SettingsButton } from "./ModelSettings";
 import { useHome } from "./store";
 
 export function Header() {
@@ -21,6 +22,7 @@ export function Header() {
           </p>
         )}
         <UiSwitch />
+        <SettingsButton />
       </div>
     </header>
   );
