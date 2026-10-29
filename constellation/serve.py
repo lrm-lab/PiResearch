@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from constellation import chat
 from constellation.home import create_session, delete_study, list_history, resolve_trial
 from constellation.layout import GOAL_RADIUS, HUB_RADIUS, RADIUS, place_constellation
 from constellation.node_size import apply_call_radii
@@ -21,7 +22,7 @@ _TONES = ("green", "cyan", "violet", "amber", "blue", "teal")
 
 MISSING_GRAPH = "这份运行没有星图，页面不会从轨迹反推关系。"
 _TASK_HEAD = re.compile(r"^#\s*Task\s*", re.I)
-_CONTRACT = re.compile(r"\n*##\s*Submission contract\b.*", re.I | re.S)
+_CONTRACT = re.compile(r"\n*##\s*(?:Prior research|Submission contract)\b.*", re.I | re.S)
 _HERE = Path(__file__).resolve().parent
 _INDEX = _HERE / "index.html"
 _HOME = _HERE / "home.html"
@@ -732,13 +733,45 @@ def _node_payload(trial: Path, query: str, *, session: bool = True) -> dict[str,
     return _cached_entry(trial, session=session)["details"].get(node_id)
 
 
+def _lineage(runs: Path, study_id: str) -> dict[str, Any]:
+    """The study this one continues, and the follow-ups started from it."""
+    rows = list_history(runs)
+    own = next((row for row in rows if row["id"] == study_id), None)
+    parent_id = (own or {}).get("parent") or ""
+    parent = next(({"id": row["id"], "title": row["title"]} for row in rows if parent_id and row["id"] == parent_id), None)
+    followups = [
+        {"id": row["id"], "title": row["title"], "status": row["status"]}
+        for row in sorted(rows, key=lambda row: row.get("created_at") or "")
+        if row.get("parent") == study_id
+    ]
+    return {"parent": parent, "followups": followups}
+
+
+def _chat_target(trial: Path) -> tuple[Path, dict[str, Any]]:
+    """The session folder and session of a study one can talk about (finished, with a report)."""
+    session_dir = chat.session_dir_of(trial)
+    if session_dir is None or not chat.report_text(trial):
+        raise LookupError("这项研究还没有报告，暂时不能对话。")
+    session = _session_for(trial) or {}
+    return session_dir, session
+
+
+def _sse(handler: Any, event: str, payload: Any) -> None:
+    data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    handler.wfile.write(f"event: {event}\ndata: {data}\n\n".encode("utf-8"))
+    handler.wfile.flush()
+
+
 def make_home_server(
     runs: Path,
     host: str = "127.0.0.1",
     port: int = 8765,
     starter: Any = None,
+    opener: Any = None,
 ) -> ThreadingHTTPServer:
+    """`opener` replaces the model endpoint call (tests); `starter` the research job spawn."""
     root = runs.resolve()
+    opener = opener or chat.default_open
 
     class Handler(ResponseHandler):
         def log_message(self, fmt: str, *args: Any) -> None:
@@ -785,6 +818,19 @@ def make_home_server(
                     return
                 self._json(200, _study_view(root, trial))
                 return
+            trial = self._study(path, "/chat")
+            if trial is not None:
+                if not trial.is_dir():
+                    self._json(404, {"error": "没有这项研究。"})
+                    return
+                study_id = path[len("/api/studies/"):-len("/chat")].strip("/")
+                session_dir = chat.session_dir_of(trial)
+                self._json(200, {
+                    "available": bool(session_dir and chat.report_text(trial)),
+                    "messages": chat.read_thread(session_dir) if session_dir else [],
+                    **_lineage(root, study_id),
+                })
+                return
             trial = self._study(path, "/report")
             if trial is not None:
                 text = read_report(trial)
@@ -795,23 +841,120 @@ def make_home_server(
                 return
             self._send(404, b"not found", "text/plain; charset=utf-8")
 
-        def do_POST(self) -> None:  # noqa: N802
-            path = urlparse(self.path).path
-            if path != "/api/questions":
-                self._send(404, b"not found", "text/plain; charset=utf-8")
-                return
+        def _payload(self) -> dict[str, Any] | None:
             length = int(self.headers.get("Content-Length") or "0")
             if length > 100_000:
-                self._json(413, {"error": "问题太长了。"})
-                return
+                self._json(413, {"error": "内容太长了。"})
+                return None
             try:
                 payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
             except json.JSONDecodeError:
                 self._json(400, {"error": "提交的内容无法读取。"})
+                return None
+            if not isinstance(payload, dict):
+                self._json(400, {"error": "提交的内容无法读取。"})
+                return None
+            return payload
+
+        def _chat(self, trial: Path) -> None:
+            """POST {message}: the main agent's reply as server-sent events (delta… then done or error)."""
+            payload = self._payload()
+            if payload is None:
+                return
+            try:
+                session_dir, session = _chat_target(trial)
+                message = chat.clean_message(payload.get("message"))
+            except LookupError as exc:
+                self._json(409, {"error": str(exc)})
+                return
+            except ValueError as exc:
+                self._json(400, {"error": str(exc)})
+                return
+            chat.prepare_llm_env()
+            thread = chat.read_thread(session_dir)
+            messages = chat.build_messages(trial, str(session.get("question") or ""), thread, message)
+            user = {"role": "user", "content": message, "at": chat.now()}
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Accel-Buffering", "no")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            parts: list[str] = []
+            try:
+                _sse(self, "start", {"user": user})
+                for delta in chat.with_pings(chat.stream_completion(chat.model_name(session.get("model")), messages, opener)):
+                    if delta is None:
+                        self.wfile.write(b": ping\n\n")
+                        self.wfile.flush()
+                        continue
+                    parts.append(delta)
+                    _sse(self, "delta", {"text": delta})
+            except (BrokenPipeError, ConnectionResetError):
+                return
+            except Exception as exc:  # noqa: BLE001 - the model endpoint failed; tell the page
+                try:
+                    _sse(self, "error", {"error": str(exc) if isinstance(exc, RuntimeError) else "主 agent 暂时没有回应，稍后再试。"})
+                except OSError:
+                    pass
+                return
+            reply = {"role": "assistant", "content": "".join(parts).strip(), "at": chat.now()}
+            if not reply["content"]:
+                _sse(self, "error", {"error": "主 agent 没有给出回答，再问一次试试。"})
+                return
+            chat.append_thread(session_dir, user, reply)
+            try:
+                _sse(self, "done", {"message": reply})
+            except OSError:
+                pass
+
+        def _followup(self, trial: Path) -> None:
+            """POST {hint?}: a drafted follow-up question built from the report and the chat."""
+            payload = self._payload()
+            if payload is None:
+                return
+            try:
+                session_dir, session = _chat_target(trial)
+            except LookupError as exc:
+                self._json(409, {"error": str(exc)})
+                return
+            chat.prepare_llm_env()
+            hint = " ".join(str(payload.get("hint") or "").split())[: chat.MAX_MESSAGE]
+            try:
+                question = chat.draft_followup(
+                    trial, str(session.get("question") or ""), chat.read_thread(session_dir), hint,
+                    chat.model_name(session.get("model")), opener,
+                )
+            except RuntimeError as exc:
+                self._json(502, {"error": str(exc)})
+                return
+            except Exception:  # noqa: BLE001 - the model endpoint failed
+                self._json(502, {"error": "主 agent 暂时没有回应，稍后再试。"})
+                return
+            self._json(200, {"question": question})
+
+        def do_POST(self) -> None:  # noqa: N802
+            path = urlparse(self.path).path
+            for suffix, action in (("/chat", self._chat), ("/followup", self._followup)):
+                trial = self._study(path, suffix)
+                if trial is not None:
+                    if not trial.is_dir():
+                        self._json(404, {"error": "没有这项研究。"})
+                        return
+                    action(trial)
+                    return
+            if path != "/api/questions":
+                self._send(404, b"not found", "text/plain; charset=utf-8")
+                return
+            payload = self._payload()
+            if payload is None:
                 return
             try:
                 kwargs = {"starter": starter} if starter is not None else {}
-                created = create_session(root, str(payload.get("question") or ""), model=payload.get("model"), **kwargs)
+                created = create_session(
+                    root, str(payload.get("question") or ""), model=payload.get("model"), parent=payload.get("parent"), **kwargs
+                )
             except ValueError as exc:
                 self._json(400, {"error": str(exc)})
                 return
@@ -822,6 +965,15 @@ def make_home_server(
 
         def do_DELETE(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
+            trial = self._study(path, "/chat")
+            if trial is not None:
+                session_dir = chat.session_dir_of(trial) if trial.is_dir() else None
+                if session_dir is None:
+                    self._json(404, {"error": "没有这项研究。"})
+                    return
+                chat.clear_thread(session_dir)
+                self._json(200, {"ok": True})
+                return
             marker = "/api/studies/"
             if not path.startswith(marker) or path == marker:
                 self._send(404, b"not found", "text/plain; charset=utf-8")

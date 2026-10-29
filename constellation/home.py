@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from constellation.chat import prior_instruction, read_thread, session_dir_of, write_prior
 from constellation.models import resolve_model
 
 _SAFE = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -43,7 +44,7 @@ def _question_text(trial: Path, session: dict[str, Any] | None) -> str:
     instruction = trial.parent.parent / "tasks" / trial.name / "instruction.md"
     if instruction.is_file():
         text = instruction.read_text(encoding="utf-8")
-        return text.split("\n## Submission contract", 1)[0].strip()
+        return re.split(r"\n## (?:Prior research|Submission contract)", text, maxsplit=1)[0].strip()
     result = _read_json(trial / "result.json")
     if result and str(result.get("question") or "").strip():
         return str(result["question"]).strip()
@@ -130,6 +131,7 @@ def _entry(study_id: str, trial: Path, session: dict[str, Any] | None) -> dict[s
         "created_at": created,
         "error": str((session or {}).get("error") or ""),
         "model": str((session or {}).get("model") or ""),
+        "parent": str((session or {}).get("parent") or ""),
         "href": "/study/" + study_id,
     }
 
@@ -273,6 +275,7 @@ def create_session(
     *,
     starter: Callable[[Path], int] | None = spawn_job,
     model: object = None,
+    parent: object = None,
 ) -> dict[str, Any]:
     text = " ".join(str(question or "").split())
     if len(text) < 4:
@@ -280,6 +283,7 @@ def create_session(
     if len(text) > 8000:
         raise ValueError("问题太长了，请收在 8000 字以内。")
     model_key = resolve_model(model)
+    prior = _parent_study(runs, parent)
 
     stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
     session_dir = runs / "sessions" / stamp
@@ -308,9 +312,12 @@ def create_session(
         "pid": 0,
         "model": model_key,
     }
+    if prior:
+        session["parent"] = prior[0]
+        write_prior(trial / "sandbox" / "inputs", prior[1], prior[2], prior[3])
     session_path = session_dir / "session.json"
     session_path.write_text(json.dumps(session, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (task / "instruction.md").write_text(_instruction(text), encoding="utf-8")
+    (task / "instruction.md").write_text(_instruction(text, prior_instruction(prior[1], bool(prior[3])) if prior else ""), encoding="utf-8")
     (task / "task.toml").write_text(_task_toml(), encoding="utf-8")
     (trial / "config.json").write_text(
         json.dumps({"task": {"path": str(task.resolve())}}, ensure_ascii=False) + "\n",
@@ -326,10 +333,24 @@ def create_session(
     return _entry(study_id, trial, session) or session
 
 
-def _instruction(question: str) -> str:
+def _parent_study(runs: Path, parent: object) -> tuple[str, str, Path, list[dict[str, str]]] | None:
+    """(id, question, trial, chat thread) of a finished study a follow-up builds on; None without one."""
+    study = str(parent or "").strip()
+    if not study:
+        return None
+    trial = resolve_trial(runs, study)
+    session_dir = session_dir_of(trial) if trial else None
+    if trial is None or session_dir is None or not (trial / "sandbox" / "outputs" / "report.md").is_file():
+        raise ValueError("要接着的研究不存在，或者还没有报告。")
+    session = _read_json(session_dir / "session.json")
+    return study, _question_text(trial, session), trial, read_thread(session_dir)
+
+
+def _instruction(question: str, prior: str = "") -> str:
     return (
         "# Task\n\n"
         f"{question}\n\n"
+        f"{prior}"
         "## Submission contract (mandatory)\n\n"
         "Work in three phases. Do not skip phase 2.\n\n"
         "Phase 1 — research. Cover every deliverable in the user prompt. "

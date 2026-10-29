@@ -4,7 +4,7 @@
 
 import { LinkExternal01 } from "@untitledui/icons";
 import { motion } from "motion/react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode, type RefObject } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkCjkFriendly from "remark-cjk-friendly";
 import remarkGfm from "remark-gfm";
@@ -13,7 +13,7 @@ import { EASE_OUT } from "./primitives";
 import "./report.css";
 
 // remark-cjk-friendly: bold that touches CJK punctuation (是**“引号”**：) would otherwise show raw **.
-const REMARK_PLUGINS = [remarkGfm, remarkCjkFriendly];
+export const REMARK_PLUGINS = [remarkGfm, remarkCjkFriendly];
 
 interface OutlineItem {
   id: string;
@@ -25,9 +25,12 @@ export default function ReportMarkdown({
   markdown,
   header,
   scrollRef,
+  compact = false,
 }: {
   markdown: string;
   header: ReactNode;
+  /** Narrow reading column (the chat panel is open): no table of contents. */
+  compact?: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
 }) {
   const articleRef = useRef<HTMLElement>(null);
@@ -82,8 +85,13 @@ export default function ReportMarkdown({
   }, [outline, scrollRef]);
 
   return (
-    <div className="mx-auto grid max-w-[84rem] grid-cols-1 gap-x-10 px-5 pt-10 pb-24 sm:px-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)]">
-      <div className="mx-auto w-full max-w-3xl min-w-0 xl:col-start-2">
+    <div
+      className={cx(
+        "mx-auto grid max-w-[84rem] grid-cols-1 gap-x-10 px-5 pt-10 pb-32 sm:px-8",
+        !compact && "xl:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)]",
+      )}
+    >
+      <div className={cx("mx-auto w-full max-w-3xl min-w-0", !compact && "xl:col-start-2")}>
         {header}
         <motion.article
           ref={articleRef}
@@ -95,7 +103,7 @@ export default function ReportMarkdown({
           {content}
         </motion.article>
       </div>
-      {outline.length > 0 && (
+      {outline.length > 0 && !compact && (
         <nav aria-label="目录" className="sticky top-10 hidden max-h-[calc(100dvh-12rem)] self-start overflow-y-auto pb-4 xl:col-start-3 xl:block">
           <p className="mb-3 text-xs font-semibold text-tertiary">目录</p>
           <ol className="border-l border-secondary">
@@ -156,16 +164,18 @@ function headerLabels(node: HastLike | undefined): string {
   return cells.filter(Boolean).join("、") || "表格";
 }
 
-const COMPONENTS: Components = {
-  a({ node: _node, href, children, ...rest }) {
-    const external = Boolean(href && /^https?:\/\//i.test(href));
-    return (
-      <a href={href} {...rest} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
-        {children}
-        {external && <LinkExternal01 aria-hidden="true" className="prism-doc-ext" />}
-      </a>
-    );
-  },
+export function DocLink({ node: _node, href, children, ...rest }: ComponentProps<"a"> & { node?: unknown }) {
+  const external = Boolean(href && /^https?:\/\//i.test(href));
+  return (
+    <a href={href} {...rest} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+      {children}
+      {external && <LinkExternal01 aria-hidden="true" className="prism-doc-ext" />}
+    </a>
+  );
+}
+
+export const COMPONENTS: Components = {
+  a: DocLink,
   table({ node, children, ...rest }) {
     return (
       <div className="prism-doc-table" role="region" tabIndex={0} aria-label={headerLabels(node as HastLike | undefined)}>

@@ -297,6 +297,9 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         except (URLError, OSError, ValueError):
             self._send_unavailable()
             return
+        if response.headers.get("Content-Type", "").startswith("text/event-stream"):
+            self._stream(response)
+            return
         try:
             payload = response.read()
             status = response.status
@@ -307,6 +310,29 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         finally:
             response.close()
         self._relay(status, upstream_headers, payload, target)
+
+    def _stream(self, response) -> None:
+        """Relay a server-sent event stream (the report chat) chunk by chunk, then close."""
+        self.close_connection = True
+        try:
+            self.send_response(response.status)
+            for name in ("Content-Type", "Cache-Control"):
+                value = response.headers.get(name)
+                if value is not None:
+                    self.send_header(name, value)
+            self.send_header("X-Accel-Buffering", "no")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            while True:
+                chunk = response.read1(65536)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                self.wfile.flush()
+        except OSError:
+            pass
+        finally:
+            response.close()
 
     def _send_unavailable(self) -> None:
         """502 with the JSON body the front end shows (星图服务暂时不可用。)."""

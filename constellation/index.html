@@ -413,6 +413,240 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
 @media(prefers-reduced-motion:reduce){.modal.open,.modal.open .report{animation:none}.report header button{transition:none}}
 @media(prefers-reduced-motion:reduce){.question-details summary svg{transition:none}}
 @media(prefers-reduced-motion:reduce){.edge.focus-trace,.node.selected.focus-in,.node.dim.focus-away,.drawer.focus-in,.drawer.focus-in::before,.drawer.focus-in .drawer-head,.drawer.focus-in .drawer-body{animation:none}}
+/* ---- report chat ---- */
+@property --cw{syntax:"<length>";inherits:true;initial-value:0px}
+.report{position:relative;grid-template-columns:minmax(0,1fr) var(--cw);transition:width .42s cubic-bezier(.34,1.18,.5,1),--cw .42s cubic-bezier(.34,1.18,.5,1)}
+.report header{grid-column:1/-1}
+.report.chat-open{--cw:410px;width:min(1456px,calc(100vw - 64px))}
+.rh-text{display:flex;flex-direction:column;gap:5px;min-width:0}
+.report.has-chat .prose{padding-bottom:132px}
+.lineage{display:flex;flex-wrap:wrap;align-items:center;gap:6px;position:relative}
+.lineage[hidden]{display:none}
+.lin{display:inline-flex;align-items:center;gap:5px;max-width:300px;height:22px;padding:0 9px;border:1px solid #dfe5e2;border-radius:999px;background:#f6f8f7;color:#5c6b71;font-size:12px;font-weight:540;line-height:1;text-decoration:none;white-space:nowrap;transition:background .16s,color .16s,border-color .16s}
+.lin span{overflow:hidden;text-overflow:ellipsis}
+.lin svg{flex:none;width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.lin:hover,.lin[aria-expanded="true"]{background:#eaf1ef;border-color:#c5d4cf;color:#1f4f5c}
+.report header button.lin{display:inline-flex;flex-direction:row;gap:6px;width:auto;height:22px;padding:0 6px 0 9px;border:1px solid #dfe5e2;border-radius:999px;background:#f6f8f7;font-size:12px;font-weight:540;color:#5c6b71}
+.report header button.lin:hover,.report header button.lin[aria-expanded="true"]{background:#eaf1ef;color:#1f4f5c}
+.lin b{display:inline-block;min-width:14px;padding:1px 4px;border-radius:99px;background:#246477;color:#fff;font-size:10px;font-weight:650;text-align:center;line-height:1.3;-webkit-line-clamp:unset}
+.report header .lin b{display:inline-block;font-size:10px;color:#fff;line-height:1.3}
+.lin.pop b{animation:lin-pop .6s cubic-bezier(.34,1.8,.5,1)}
+@keyframes lin-pop{0%{transform:scale(.4)}60%{transform:scale(1.5)}100%{transform:scale(1)}}
+.lin-menu{position:absolute;left:0;top:calc(100% + 6px);z-index:8;min-width:240px;max-width:min(420px,80vw);padding:5px;border:1px solid #e1e6e3;border-radius:12px;background:#fff;box-shadow:0 16px 44px rgba(20,40,40,.2);transform-origin:0 0;animation:dl-menu-in .18s cubic-bezier(.16,1,.3,1)}
+.lin-menu[hidden]{display:none}
+.lin-menu a{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;color:#34434a;font-size:13px;font-weight:540;line-height:1.4;text-decoration:none}
+.lin-menu a span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lin-menu a:hover,.lin-menu a:focus-visible{background:#f1f4f3;color:#1c2b31;outline:none}
+.sdot{flex:none;width:7px;height:7px;border-radius:50%;background:#a8b3b8}
+.sdot.running{background:#25b6c8;box-shadow:0 0 0 0 #25b6c888;animation:sdot 1.6s ease-out infinite}
+.sdot.finished{background:#3aa876}
+.sdot.failed{background:#e0525f}
+@keyframes sdot{to{box-shadow:0 0 0 6px #25b6c800}}
+
+/* orb */
+.orb-wrap{position:relative;flex:none;display:inline-block;width:24px;height:24px}
+.orb-wrap.big{width:64px;height:64px}
+.orb{position:absolute;inset:0;display:block;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 32% 28%,#e6fdff 0,#48d3e4 26%,#6d9cff 60%,#8d6bff 100%);box-shadow:0 0 12px rgba(72,211,228,.55),0 0 28px rgba(109,156,255,.28),inset -3px -4px 8px rgba(50,24,130,.5);animation:orb-breathe 3.8s ease-in-out infinite}
+.orb::before{content:"";position:absolute;inset:-20%;background:conic-gradient(from 0deg,transparent 0,rgba(255,255,255,.55) 14%,transparent 38%,rgba(170,140,255,.5) 70%,transparent 90%);mix-blend-mode:soft-light;animation:orb-spin 7s linear infinite}
+.orb::after{content:"";position:absolute;left:20%;top:14%;width:34%;height:24%;border-radius:50%;background:rgba(255,255,255,.55);filter:blur(1.5px);transform:rotate(-24deg)}
+.orb-wrap.big .orb{box-shadow:0 0 28px rgba(72,211,228,.5),0 0 70px rgba(109,156,255,.3),inset -8px -10px 18px rgba(50,24,130,.5)}
+.sat{position:absolute;inset:-7px;opacity:0;pointer-events:none;transition:opacity .25s;animation:orb-spin 1.15s linear infinite}
+.sat::after{content:"";position:absolute;left:50%;top:0;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:#aef4fb;box-shadow:0 0 6px #48d3e4,0 0 12px #48d3e4aa}
+.sat.s2{inset:-10px;animation-duration:1.7s;animation-direction:reverse;animation-delay:-.5s}
+.sat.s2::after{background:#cdbfff;box-shadow:0 0 6px #aa8cff}
+.sat.s3{inset:-4px;animation-duration:.9s;animation-delay:-.3s}
+.orb-wrap.big .sat{inset:-14px}.orb-wrap.big .sat.s2{inset:-20px}.orb-wrap.big .sat.s3{inset:-8px}
+.orb-wrap.thinking .sat{opacity:1}
+.orb-wrap.pulse::before{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 2px #7ee6f2;animation:orb-ring .7s ease-out forwards}
+@keyframes orb-breathe{0%,100%{transform:scale(.94);filter:brightness(.95)}50%{transform:scale(1.04);filter:brightness(1.12)}}
+@keyframes orb-spin{to{transform:rotate(360deg)}}
+@keyframes orb-ring{from{opacity:.9;transform:scale(1)}to{opacity:0;transform:scale(2.2)}}
+
+/* ask bar */
+.ask-dock{position:absolute;left:0;right:var(--cw);bottom:22px;z-index:5;display:flex;justify-content:center;padding:0 20px;pointer-events:none}
+.ask-dock[hidden]{display:none}
+.ask-pill{pointer-events:auto;display:flex;align-items:center;gap:4px;width:min(440px,100%);height:50px;padding:0 7px 0 8px;border:1px solid #2c363b;border-radius:999px;background:linear-gradient(180deg,#1b2327,#12171a);box-shadow:0 14px 40px rgba(10,24,28,.34),0 2px 0 rgba(255,255,255,.04) inset;transition:opacity .16s ease,transform .3s cubic-bezier(.34,1.5,.5,1),box-shadow .2s,border-color .2s;animation:ask-in .6s cubic-bezier(.34,1.4,.5,1) .15s both}
+.ask-pill:hover{border-color:#3d4b52;box-shadow:0 18px 46px rgba(10,24,28,.42),0 0 0 4px rgba(72,211,228,.1)}
+.ask-dock.gone .ask-pill{opacity:0;pointer-events:none;animation:none}
+.ask-main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;height:100%;padding:0 4px;border:0;background:transparent;color:#8d9aa0;font-size:14px;text-align:left;border-radius:999px}
+.ask-main:focus-visible,.ask-fork:focus-visible{outline:2px solid #48d3e4;outline-offset:2px}
+.ask-main span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ask-fork{flex:none;display:grid;place-items:center;width:38px;height:38px;padding:0;border:1px solid #2f3a40;border-radius:50%;background:#1f282c;color:#9fe8f1;transition:background .16s,color .16s,transform .25s cubic-bezier(.34,1.8,.5,1)}
+.ask-fork:hover{background:#27343a;color:#fff;transform:rotate(-12deg) scale(1.08)}
+.ask-fork svg,.cp-fork svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+@keyframes ask-in{from{opacity:0;transform:translateY(16px) scale(.9)}to{opacity:1;transform:none}}
+
+/* selection button */
+.ask-sel{position:fixed;z-index:40;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px 0 10px;border:1px solid #33414a;border-radius:999px;background:#151b1e;color:#e8f6f8;font-size:13px;font-weight:560;box-shadow:0 10px 28px rgba(0,0,0,.35);animation:sel-in .22s cubic-bezier(.34,1.6,.5,1);transform-origin:50% 100%}
+.ask-sel[hidden]{display:none}
+.ask-sel svg{width:15px;height:15px;fill:none;stroke:#6fdbe9;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ask-sel:hover{background:#1f292e;border-color:#48d3e4}
+@keyframes sel-in{from{opacity:0;transform:translateY(6px) scale(.8)}to{opacity:1;transform:none}}
+
+/* panel */
+.cp{position:absolute;right:0;top:var(--head-h,64px);bottom:0;z-index:6;width:410px;transform-origin:0 0;background:#10161a;color:#dde6e9;border-left:1px solid #1e282d;visibility:hidden;overflow:hidden}
+.cp.on{visibility:visible}
+.cp-inner{position:relative;display:flex;flex-direction:column;width:100%;height:100%;min-height:0}
+.cp-head{display:flex;align-items:center;gap:10px;padding:14px 14px 12px 16px;border-bottom:1px solid #1d272c}
+.cp-head b{font-size:14px;font-weight:620;color:#f0f6f7;letter-spacing:.01em}
+.cp-model{display:inline-flex;align-items:center;gap:5px;color:#7f8d93;font-size:12px;font-weight:560}
+.cp-model:empty{display:none}
+.grow{flex:1}
+.cp-head button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:8px;background:transparent;color:#80919a;transition:background .16s,color .16s}
+.cp-head button[hidden]{display:none}
+.cp-head button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.cp-head button:hover{background:#1c262b;color:#e8f2f4}
+.cp-head button.armed{background:#3a1c22;color:#ff7d8a;animation:armed .3s}
+.cp-head button:focus-visible{outline:2px solid #48d3e4;outline-offset:1px}
+@keyframes armed{50%{transform:scale(1.18)}}
+.cp-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 16px 12px;scrollbar-width:thin;scrollbar-color:#2a363c transparent}
+.cp-empty{display:flex;flex-direction:column;align-items:center;gap:30px;padding:46px 0 8px}
+.cp-empty[hidden]{display:none}
+.cp-sugs{display:flex;flex-direction:column;align-items:stretch;gap:9px;width:100%}
+.cp-sugs button{padding:11px 16px;border:1px solid #243038;border-radius:14px;background:#151d21;color:#c3d1d6;font-size:14px;text-align:left;opacity:0;animation:sug-in .5s cubic-bezier(.34,1.3,.5,1) calc(.25s + var(--i)*.09s) forwards;transition:background .16s,border-color .16s,color .16s,transform .2s}
+.cp-sugs button:hover{background:#1b272c;border-color:#3b8d99;color:#fff;transform:translateX(3px)}
+.cp-sugs button:focus-visible{outline:2px solid #48d3e4;outline-offset:2px}
+@keyframes sug-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.msg{margin:0 0 16px;animation:msg-in .32s cubic-bezier(.22,1,.36,1)}
+@keyframes msg-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.msg.u{display:flex;justify-content:flex-end}
+.bub{max-width:88%;padding:9px 14px;border-radius:18px 18px 4px 18px;background:linear-gradient(145deg,#1f6f7c,#2a4f9a);color:#f3fbfc;font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.bub .q{display:block;margin:0 0 6px;padding:4px 9px;border-left:2px solid #9ff0f8;border-radius:4px;background:rgba(0,0,0,.2);color:#d3eef3;font-size:12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.md{color:#d6e1e5;font-size:14px;line-height:1.75;overflow-wrap:anywhere}
+.md>:first-child{margin-top:0}.md>:last-child{margin-bottom:0}
+.md p{margin:0 0 12px}
+.md h1,.md h2,.md h3,.md h4{margin:18px 0 8px;color:#f0f6f7;font-size:15px;font-weight:640;line-height:1.5}
+.md strong{color:#f4fafb;font-weight:640}
+.md a{color:#74dbe8}
+.md ul,.md ol{margin:0 0 12px;padding-left:1.3em}
+.md li{margin:5px 0}.md li::marker{color:#4aa6b3}
+.md blockquote{margin:0 0 12px;padding:6px 12px;border-left:2px solid #3b8d99;background:#151d21;border-radius:0 8px 8px 0}
+.md blockquote p{margin:0}
+.md code{padding:1px 5px;border-radius:4px;background:#1a252a;color:#9fe1ea;font-family:var(--mono);font-size:.88em}
+.md pre{margin:0 0 12px;padding:12px 14px;overflow:auto;border-radius:10px;background:#0b1013}
+.md pre code{padding:0;background:transparent}
+.md hr{height:1px;margin:16px 0;border:0;background:#25323a}
+.md .table-wrap{display:block;margin:0 0 14px;overflow-x:auto;border:1px solid #243038;border-radius:10px}
+.md table{width:100%;border-collapse:collapse;font-size:12.5px;line-height:1.6}
+.md th{padding:7px 10px;background:#18222a;color:#9fb4bc;font-size:11.5px;font-weight:620;text-align:left}
+.md td{padding:7px 10px;border-top:1px solid #213039;color:#cbd8dc;vertical-align:top;min-width:70px}
+.md a.bookmark{display:block;text-decoration:none}
+.md .caret::after{content:"";display:inline-block;width:7px;height:1.05em;margin-left:3px;border-radius:2px;vertical-align:-.17em;background:#6fe3f0;box-shadow:0 0 10px #48d3e4,0 0 20px #48d3e488;animation:caret 1s steps(2,jump-none) infinite}
+@keyframes caret{50%{opacity:.25}}
+.cite{display:inline-flex;align-items:center;gap:3px;max-width:100%;height:20px;margin:0 2px;padding:0 8px 0 6px;border:1px solid #2e5964;border-radius:999px;background:#12292f;color:#8fe6f0;font:inherit;font-size:12px;font-weight:560;line-height:1;vertical-align:1px;white-space:nowrap;transition:background .16s,border-color .16s,transform .2s cubic-bezier(.34,1.8,.5,1)}
+.cite:hover{background:#17394180;background:#173941;border-color:#48d3e4;transform:translateY(-1px)}
+.cite:focus-visible{outline:2px solid #48d3e4;outline-offset:1px}
+.cite i{font-style:normal;color:#48d3e4;font-weight:700}
+.cite span{overflow:hidden;text-overflow:ellipsis}
+.cite.miss{opacity:.45;cursor:default;border-color:#2a3338;background:#161d20;color:#8a979c}
+.cite.miss:hover{transform:none;border-color:#2a3338;background:#161d20}
+.think{display:inline-flex;align-items:center;height:30px;padding-left:10px}
+.err{margin:2px 0 0;padding:8px 12px;border:1px solid #5a2a32;border-radius:10px;background:#2a161a;color:#ff9aa5;font-size:13px;line-height:1.5}
+.prose :is(h1,h2,h3,h4,h5,h6).flash{position:relative}
+.prose .flash::after{content:"";position:absolute;inset:-6px -14px;z-index:2;border-radius:8px;pointer-events:none;background:linear-gradient(90deg,rgba(72,211,228,.55),rgba(170,140,255,.3) 60%,transparent);mix-blend-mode:multiply;transform-origin:0 50%;animation:flash-sweep 1.25s cubic-bezier(.22,1,.36,1) both}
+@keyframes flash-sweep{0%{transform:scaleX(0);opacity:1}35%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+
+/* draft card */
+.draft{position:relative;margin:2px 0 16px;padding:13px 14px 12px;border:1px solid #2b4e57;border-radius:16px;background:linear-gradient(160deg,#142228,#10181c);overflow:hidden;animation:msg-in .36s cubic-bezier(.22,1,.36,1)}
+.draft::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(120deg,#48d3e4,transparent 30%,transparent 70%,#aa8cff);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.55;pointer-events:none}
+.dr-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#9fb6bd;font-size:13px;font-weight:560}
+.dr-top .orb-wrap{width:20px;height:20px}
+.dr-top .sat{inset:-5px}
+.dr-top .fk{display:none;width:18px;height:18px;fill:none;stroke:#6fdbe9;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.draft:not([data-s="loading"]) .dr-top .orb-wrap{display:none}
+.draft:not([data-s="loading"]) .dr-top .fk{display:block}
+.draft:not([data-s="loading"]) .dr-top{color:#d7edf1}
+.dr-lines{display:flex;flex-direction:column;gap:9px;padding:2px 0 6px}
+.dr-lines i{display:block;height:11px;border-radius:6px;background:linear-gradient(100deg,#1b2a30 20%,#2f5560 45%,#1b2a30 70%);background-size:220% 100%;animation:shimmer 1.4s linear infinite}
+.dr-lines i:nth-child(2){width:86%}.dr-lines i:nth-child(3){width:58%}
+@keyframes shimmer{from{background-position:120% 0}to{background-position:-100% 0}}
+.dr-ta{display:block;width:100%;min-height:78px;max-height:240px;padding:10px 12px;resize:none;border:1px solid #28404a;border-radius:11px;background:#0d1417;color:#e6f2f5;font:inherit;font-size:14px;line-height:1.65;outline:none;transition:border-color .16s,box-shadow .16s}
+.dr-ta:focus{border-color:#48d3e4;box-shadow:0 0 0 3px rgba(72,211,228,.15)}
+.dr-ta.typing{caret-color:transparent;border-color:#2f6470}
+.dr-foot{display:flex;align-items:center;gap:8px;margin-top:11px}
+.dr-foot .grow{flex:1}
+.dr-foot button.ghost{height:32px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:#8d9da4;font-size:13px;font-weight:560}
+.dr-foot button.ghost:hover{background:#1c282d;color:#e5eef0}
+.dr-foot button.go{height:32px;padding:0 16px;border:0;border-radius:9px;background:linear-gradient(135deg,#48d3e4,#6d9cff);color:#04161a;font-size:13px;font-weight:660;box-shadow:0 6px 18px rgba(72,211,228,.25);transition:transform .2s cubic-bezier(.34,1.8,.5,1),filter .16s,opacity .16s}
+.dr-foot button.go:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.1)}
+.dr-foot button.go:disabled{opacity:.4;cursor:default;box-shadow:none}
+.dr-foot button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.draft[data-s="loading"] .dr-ta,.draft[data-s="loading"] .dr-foot .go,.draft[data-s="loading"] .dr-chip,.draft[data-s="error"] .dr-lines,.draft[data-s="error"] .dr-ta,.draft[data-s="error"] .go,.draft[data-s="error"] .dr-chip{display:none}
+.draft:not([data-s="loading"]):not([data-s="error"]) .dr-lines{display:none}
+.dr-err{color:#ff9aa5;font-size:13px;line-height:1.5}
+.dr-err[hidden]{display:none}
+.dr-chip-wrap{position:relative}
+.dr-chip{position:relative;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 7px 0 5px;border:1px solid #333f45;border-radius:9px;background:#1a2428;color:#c8d4d8;font-size:12px;font-weight:600;white-space:nowrap;transition:background .16s,border-color .16s}
+.dr-chip .mm{width:18px;height:18px;border-radius:5px}
+.dr-chip svg.chev{width:12px;height:12px;fill:none;stroke:#7d8e95;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+.dr-chip[aria-expanded="true"] svg.chev{transform:rotate(180deg)}
+.dr-chip:hover,.dr-chip[aria-expanded="true"]{background:#233036;border-color:#4a5b62;color:#fff}
+.dr-chip:focus-visible{outline:2px solid #48d3e4;outline-offset:2px}
+.dr-chip.swap .mm{animation:chip-swap2 .42s cubic-bezier(.34,1.56,.64,1)}
+@keyframes chip-swap2{from{transform:scale(.4) rotate(-40deg);opacity:0}}
+.dr-menu{position:absolute;left:0;bottom:calc(100% + 6px);z-index:12;width:180px;padding:5px;border:1px solid #33414a;border-radius:12px;background:#171f23;box-shadow:0 18px 50px rgba(0,0,0,.6);transform-origin:0 100%;animation:sel-in .18s cubic-bezier(.16,1,.3,1)}
+.dr-menu[hidden]{display:none}
+.dr-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border:0;border-radius:8px;background:transparent;color:#d0dade;font-size:13px;font-weight:550;text-align:left}
+.dr-menu button:hover,.dr-menu button:focus-visible{background:#26343a;color:#fff;outline:none}
+.dr-menu .grow{flex:1}
+.dr-menu svg.ok{width:14px;height:14px;fill:none;stroke:#48d3e4;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.dr-menu .mm{width:16px;height:16px;border-radius:5px}
+.draft[data-s="ok"]{padding:0 14px;height:48px;border-color:#2c6a56;background:linear-gradient(160deg,#112a24,#10181c)}
+.dr-ok{display:flex;align-items:center;gap:11px;height:46px;font-size:13.5px;color:#d3efe5;animation:ok-in .4s ease .55s both}
+.dr-ok svg.nd{flex:none;width:22px;height:22px}
+.dr-ok b{font-weight:620;color:#eafaf3}
+.dr-ok a{margin-left:auto;color:#7ee9bb;font-weight:600;text-decoration:none;white-space:nowrap}
+.dr-ok a:hover{text-decoration:underline}
+@keyframes ok-in{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.draft.leaving>*{opacity:0;transition:opacity .2s}
+.spawn{position:absolute;inset:0;z-index:9;width:100%;height:100%;pointer-events:none;overflow:visible}
+.spawn path{fill:none;stroke:#58d69a;stroke-width:1.6;stroke-linecap:round;filter:drop-shadow(0 0 4px #58d69a)}
+.spawn .nd-c{fill:#143a2d;stroke:#58d69a;stroke-width:1.6;filter:drop-shadow(0 0 6px #58d69acc);transform-box:fill-box;transform-origin:center}
+.spawn .nd-r{fill:none;stroke:#58d69a;stroke-width:1.4;transform-box:fill-box;transform-origin:center}
+
+/* composer */
+.cp-foot{padding:6px 14px 14px}
+.cp-quote{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:6px 6px 6px 10px;border:1px solid #2a4650;border-left:3px solid #48d3e4;border-radius:10px;background:#12222a;color:#a9d3da;font-size:12.5px;line-height:1.4;animation:msg-in .25s cubic-bezier(.22,1,.36,1)}
+.cp-quote[hidden]{display:none}
+.cp-quote>svg{flex:none;width:15px;height:15px;fill:none;stroke:#48d3e4;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.cp-quote span{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.cp-quote button{flex:none;display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:6px;background:transparent;color:#7fa0a8}
+.cp-quote button:hover{background:#1c3640;color:#fff}
+.cp-quote button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.cp-box{border:1px solid #28343b;border-radius:16px;background:#151d21;transition:border-color .16s,box-shadow .16s}
+.cp-box:focus-within{border-color:#48d3e4;box-shadow:0 0 0 3px rgba(72,211,228,.13)}
+.cp-box textarea{display:block;width:100%;min-height:24px;max-height:150px;padding:11px 14px 4px;resize:none;border:0;border-radius:16px 16px 0 0;background:transparent;color:#eaf3f5;font:inherit;font-size:14px;line-height:1.55;outline:none}
+.cp-box textarea::placeholder{color:#6d7e85}
+.cp-bar{display:flex;align-items:center;justify-content:space-between;padding:3px 7px 7px 8px}
+.cp-fork{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px 0 8px;border:1px solid #2c4a52;border-radius:999px;background:#13262c;color:#8fe6f0;font-size:12.5px;font-weight:580;transition:background .16s,border-color .16s,color .16s}
+.cp-fork svg{width:16px;height:16px}
+.cp-fork:hover{background:#18343c;border-color:#48d3e4;color:#fff}
+.cp-fork:focus-visible,.cp-send:focus-visible{outline:2px solid #48d3e4;outline-offset:2px}
+.cp-send{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:linear-gradient(135deg,#48d3e4,#6d9cff);color:#04161a;transition:transform .2s cubic-bezier(.34,1.8,.5,1),opacity .16s,filter .16s}
+.cp-send svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.cp-send:disabled{opacity:.28;cursor:default}
+.cp-send:hover:not(:disabled){transform:translateY(-2px) scale(1.06);filter:brightness(1.08)}
+
+@media(max-width:760px){
+  .report.chat-open{--cw:0px;width:100%}
+  .cp{left:0;right:0;top:auto;width:auto;height:78%;border-left:0;border-top:1px solid #26333a;border-radius:20px 20px 0 0;box-shadow:0 -20px 50px rgba(0,0,0,.35)}
+  .cp-inner{min-width:0}
+  .ask-dock{bottom:14px;padding:0 14px}
+  .report.has-chat .prose{padding-bottom:120px}
+  .cp-empty{padding-top:22px;gap:22px}
+  .cp-foot{padding-bottom:max(14px,env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){
+  .report{transition:none}
+  .orb,.orb::before,.sat,.ask-pill,.sdot.running,.md .caret::after,.dr-lines i{animation:none}
+  .cp-sugs button{animation:none;opacity:1}
+  .msg,.draft,.cp-quote,.ask-sel,.lin-menu,.dr-menu{animation:none}
+  .dr-ok{animation:none}
+  .ask-pill,.ask-fork,.cp-send,.cite{transition:none}
+  .prose .flash::after{animation:none;opacity:0}
+  .lin.pop b{animation:none}
+}
+
 </style>
 </head>
 <body>
@@ -459,7 +693,7 @@ button.child:focus-visible{outline:2px solid var(--ring,#fff);outline-offset:2px
     </aside>
   </div>
 </div>
-<div class="modal" id="modal"><article class="report" role="dialog" aria-modal="true" aria-labelledby="report-title"><header><div class="report-heading"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 2.5h-6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-10zM11.5 2.5v4h4M7.5 10h5M7.5 13h5"/></svg><b id="report-title">研究报告</b></div><div class="dl" id="dl"><button type="button" class="dl-btn" id="dl-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="dl-menu" disabled><i class="dl-ripple" aria-hidden="true"></i><span class="dl-icon" aria-hidden="true"><svg class="ic-down" viewBox="0 0 20 20"><path d="M10 3.5v9M6.2 9.2 10 13l3.8-3.8M4 16.2h12"/></svg><svg class="ic-check" viewBox="0 0 20 20"><path d="m4.6 10.4 3.6 3.6 7.2-8"/></svg></span><span class="dl-label">下载</span><svg class="dl-chev" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="dl-menu" id="dl-menu" role="menu" aria-label="下载报告" hidden><button type="button" role="menuitem" data-format="pdf"><span class="dl-ext" data-format="pdf">PDF</span>PDF</button><button type="button" role="menuitem" data-format="doc"><span class="dl-ext" data-format="doc">DOC</span>Word 文档</button><button type="button" role="menuitem" data-format="md"><span class="dl-ext" data-format="md">MD</span>Markdown</button></div></div><button id="close-report" type="button" aria-label="关闭报告"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8"/></svg></button></header><div class="prose" id="report-body"></div></article></div>
+<div class="modal" id="modal"><article class="report" role="dialog" aria-modal="true" aria-labelledby="report-title"><header><div class="report-heading"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 2.5h-6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-10zM11.5 2.5v4h4M7.5 10h5M7.5 13h5"/></svg><div class="rh-text"><b id="report-title">研究报告</b><div class="lineage" id="lineage" hidden></div></div></div><div class="dl" id="dl"><button type="button" class="dl-btn" id="dl-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="dl-menu" disabled><i class="dl-ripple" aria-hidden="true"></i><span class="dl-icon" aria-hidden="true"><svg class="ic-down" viewBox="0 0 20 20"><path d="M10 3.5v9M6.2 9.2 10 13l3.8-3.8M4 16.2h12"/></svg><svg class="ic-check" viewBox="0 0 20 20"><path d="m4.6 10.4 3.6 3.6 7.2-8"/></svg></span><span class="dl-label">下载</span><svg class="dl-chev" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="dl-menu" id="dl-menu" role="menu" aria-label="下载报告" hidden><button type="button" role="menuitem" data-format="pdf"><span class="dl-ext" data-format="pdf">PDF</span>PDF</button><button type="button" role="menuitem" data-format="doc"><span class="dl-ext" data-format="doc">DOC</span>Word 文档</button><button type="button" role="menuitem" data-format="md"><span class="dl-ext" data-format="md">MD</span>Markdown</button></div></div><button id="close-report" type="button" aria-label="关闭报告"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8"/></svg></button></header><div class="prose" id="report-body"></div><div class="ask-dock" id="ask-dock" hidden><div class="ask-pill" id="ask-pill"><button type="button" class="ask-main" id="ask-main"><span class="orb-wrap"><i class="orb"></i><i class="sat"></i><i class="sat s2"></i><i class="sat s3"></i></span><span>问问主 agent…</span></button><button type="button" class="ask-fork" id="ask-fork" aria-label="继续调研" title="继续调研"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5.5" cy="4.5" r="1.8"/><circle cx="5.5" cy="15.5" r="1.8"/><circle cx="14.5" cy="7.5" r="1.8"/><path d="M5.5 6.3v7.4M14.5 9.3c0 3-3 3.2-7.2 4.6"/></svg></button></div></div><aside class="cp" id="cp" aria-label="主 agent" inert><div class="cp-inner"><div class="cp-head"><span class="orb-wrap"><i class="orb"></i><i class="sat"></i><i class="sat s2"></i><i class="sat s3"></i></span><b>主 agent</b><span class="cp-model" id="cp-model"></span><i class="grow"></i><button type="button" id="cp-clear" aria-label="清空对话" title="清空对话" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 6h11M8 6V4.2h4V6M6 6l.6 9.3h6.8L14 6M8.6 9v4M11.4 9v4"/></svg></button><button type="button" id="cp-collapse" aria-label="收起" title="收起"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 4.5 5.5 5.5-5.5 5.5"/></svg></button></div><div class="cp-scroll" id="cp-scroll"><div class="cp-empty" id="cp-empty"><span class="orb-wrap big"><i class="orb"></i><i class="sat"></i><i class="sat s2"></i><i class="sat s3"></i></span><div class="cp-sugs"><button type="button" style="--i:0">用三句话总结结论</button><button type="button" style="--i:1">哪些结论证据最弱？</button><button type="button" style="--i:2">下一步值得深挖什么？</button></div></div><div id="cp-thread"></div><div id="cp-tail"></div></div><div class="cp-foot"><div class="cp-quote" id="cp-quote" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 6.5h3.5V10H5.2c0 2 .8 3 2.3 3.5M11.5 6.5H15V10h-3.3c0 2 .8 3 2.3 3.5"/></svg><span id="cp-quote-text"></span><button type="button" id="cp-quote-x" aria-label="移除引用"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8"/></svg></button></div><div class="cp-box"><textarea id="cp-input" rows="1" maxlength="4000" placeholder="问问主 agent…" aria-label="问问主 agent…"></textarea><div class="cp-bar"><button type="button" class="cp-fork" id="cp-fork"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5.5" cy="4.5" r="1.8"/><circle cx="5.5" cy="15.5" r="1.8"/><circle cx="14.5" cy="7.5" r="1.8"/><path d="M5.5 6.3v7.4M14.5 9.3c0 3-3 3.2-7.2 4.6"/></svg><span>继续调研</span></button><button type="button" class="cp-send" id="cp-send" aria-label="发送" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16V4.5M5 9.2l5-4.7 5 4.7"/></svg></button></div></div></div></div></aside><button type="button" class="ask-sel" id="ask-sel" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 6.5h3.5V10H5.2c0 2 .8 3 2.3 3.5M11.5 6.5H15V10h-3.3c0 2 .8 3 2.3 3.5"/></svg>问这段</button></article></div>
 <script>
 const studyMatch = location.pathname.match(/^\/study\/(.+?)\/?$/);
 const API = studyMatch ? "/api/studies/" + studyMatch[1].replace(/\/$/, "") : "";
@@ -2207,6 +2441,7 @@ document.addEventListener("keydown", event => {
 
 async function openReport(){
   const body = document.querySelector("#report-body");
+  document.dispatchEvent(new Event("report-open"));
   const researchTitle = (view && view.goal && view.goal.title) || document.querySelector("#goal-text").textContent;
   const reportTitle = researchTitle && !["正在读取","这份运行没有星图"].includes(researchTitle) ? selectionHeading(researchTitle,true) : "研究报告";
   document.querySelector("#report-title").textContent = reportTitle;
@@ -2541,6 +2776,628 @@ if(entryPreview){
     },
   };
 }
+
+
+/* ---- report chat + follow-up ---- */
+(() => {
+  if(!API) return;
+  const $ = selector => document.querySelector(selector);
+  const report = $(".report"), body = $("#report-body"), modal = $("#modal");
+  const dock = $("#ask-dock"), cp = $("#cp"), scroller = $("#cp-scroll"), thread = $("#cp-thread"), tail = $("#cp-tail");
+  const input = $("#cp-input"), sendBtn = $("#cp-send"), clearBtn = $("#cp-clear"), emptyEl = $("#cp-empty");
+  const quoteBox = $("#cp-quote"), selBtn = $("#ask-sel"), lineage = $("#lineage");
+  const STUDY_ID = API.slice("/api/studies/".length);
+  const MODEL_KEY = "prism-model";
+  const reduce = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const st = {gen:0, open:false, avail:false, msgs:[], sending:false, quote:"", stick:true, ctl:null, parent:null, followups:[], draft:null, raf:0, clearTimer:0};
+  const SPRING = "cubic-bezier(.34,1.32,.5,1)";
+  const ORB = '<span class="orb-wrap"><i class="orb"></i><i class="sat"></i><i class="sat s2"></i><i class="sat s3"></i></span>';
+  const FORK = '<svg class="fk" viewBox="0 0 20 20" aria-hidden="true"><circle cx="5.5" cy="4.5" r="1.8"/><circle cx="5.5" cy="15.5" r="1.8"/><circle cx="14.5" cy="7.5" r="1.8"/><path d="M5.5 6.3v7.4M14.5 9.3c0 3-3 3.2-7.2 4.6"/></svg>';
+  const CHEV = '<svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>';
+  const CHECK = '<svg class="ok" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>';
+  const headerEl = report.querySelector("header");
+  new ResizeObserver(() => report.style.setProperty("--head-h", headerEl.offsetHeight + "px")).observe(headerEl);
+
+  const orbs = () => [...document.querySelectorAll(".cp-head .orb-wrap, .ask-main .orb-wrap")];
+  function setThinking(on){ orbs().forEach(orb => orb.classList.toggle("thinking", on)); }
+  function pulse(){
+    orbs().forEach(orb => { orb.classList.remove("pulse"); void orb.offsetWidth; orb.classList.add("pulse"); setTimeout(() => orb.classList.remove("pulse"), 800); });
+  }
+
+  /* ---- markdown + citations ---- */
+  const norm = text => String(text).replace(/\s+/g, " ").trim();
+  function headings(){ return [...body.querySelectorAll("h1,h2,h3,h4,h5,h6")]; }
+  function findHeading(title){
+    const want = norm(title);
+    const list = headings().map(el => [el, norm(el.textContent)]);
+    if(!want || !list.length) return null;
+    return (list.find(([, t]) => t === want) || list.find(([, t]) => t.startsWith(want) || want.startsWith(t)) || list.find(([, t]) => t.includes(want) || want.includes(t)) || [])[0] || null;
+  }
+  function chipHtml(title){
+    const short = title.length > 18 ? title.slice(0, 17) + "…" : title;
+    const miss = headings().length && !findHeading(title) ? " miss" : "";
+    return `<button type="button" class="cite${miss}" data-title="${escapeHtml(title)}" title="${escapeHtml(title)}"><i>§</i><span>${escapeHtml(short)}</span></button>`;
+  }
+  function mdHtml(text, streaming){
+    const titles = [];
+    let src = String(text).replace(/【§([^】]*)】/g, (_, title) => { titles.push(title.trim()); return "" + (titles.length - 1) + ""; });
+    if(streaming) src = src.replace(/【[^】]*$/, "");
+    return renderMarkdown(src).replace(/(\d+)/g, (_, i) => chipHtml(titles[+i]));
+  }
+  function setCaret(el, on){
+    el.querySelectorAll(".caret").forEach(node => node.classList.remove("caret"));
+    if(!on) return;
+    let node = el;
+    while(node.lastElementChild && /^(UL|OL|LI|BLOCKQUOTE|DIV)$/.test(node.lastElementChild.tagName) && !node.lastElementChild.classList.contains("table-wrap")) node = node.lastElementChild;
+    (node.lastElementChild || node).classList.add("caret");
+  }
+  function flash(el){
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    setTimeout(() => el.classList.remove("flash"), 1400);
+  }
+  function jump(title){
+    const target = findHeading(title);
+    if(!target) return false;
+    const box = body.getBoundingClientRect(), at = target.getBoundingClientRect();
+    body.scrollTo({top: Math.max(0, body.scrollTop + at.top - box.top - 28), behavior: reduce() ? "auto" : "smooth"});
+    flash(target);
+    return true;
+  }
+  thread.addEventListener("click", event => {
+    const chip = event.target.closest(".cite");
+    if(!chip) return;
+    if(!jump(chip.dataset.title)) chip.classList.add("miss");
+  });
+
+  /* ---- thread ---- */
+  function nearBottom(){ return scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 48; }
+  scroller.addEventListener("scroll", () => { st.stick = nearBottom(); }, {passive:true});
+  function toBottom(force){
+    if(force) st.stick = true;
+    if(st.stick) scroller.scrollTop = scroller.scrollHeight;
+  }
+  function splitQuote(content){
+    const lines = String(content).split("\n");
+    const quote = [];
+    while(lines.length && lines[0].startsWith(">")) quote.push(lines.shift().replace(/^>\s?/, ""));
+    return quote.length ? {quote: quote.join("\n").trim(), text: lines.join("\n").trim()} : {quote: "", text: String(content)};
+  }
+  function userEl(content){
+    const {quote, text} = splitQuote(content);
+    const el = document.createElement("div");
+    el.className = "msg u";
+    el.innerHTML = `<div class="bub">${quote ? `<span class="q">${escapeHtml(quote)}</span>` : ""}${escapeHtml(text)}</div>`;
+    return el;
+  }
+  function assistantEl(content){
+    const el = document.createElement("div");
+    el.className = "msg a";
+    el.innerHTML = `<div class="md">${mdHtml(content)}</div>`;
+    return el;
+  }
+  function syncChrome(){
+    const has = st.msgs.length > 0 || st.sending;
+    emptyEl.hidden = has || !!st.draft;
+    clearBtn.hidden = !has;
+    sendBtn.disabled = st.sending || !input.value.trim();
+  }
+  function renderThread(){
+    thread.replaceChildren(...st.msgs.map(message => message.role === "user" ? userEl(message.content) : assistantEl(message.content)));
+    thread.querySelectorAll(".msg").forEach(el => { el.style.animation = "none"; });
+    syncChrome();
+    toBottom(true);
+  }
+  function restagger(){
+    // make the empty-state chips replay their stagger when it is shown again
+    emptyEl.querySelectorAll(".cp-sugs button").forEach(btn => { btn.style.animation = "none"; void btn.offsetWidth; btn.style.animation = ""; });
+  }
+
+  /* ---- lineage ---- */
+  function studyHref(id){ return "/study/" + id; }
+  function renderLineage(popCount){
+    const parts = [];
+    if(st.parent) parts.push(`<a class="lin" href="${escapeHtml(studyHref(st.parent.id))}" title="${escapeHtml(st.parent.title)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3 3 6l3 3M3 6h6.5A3.5 3.5 0 0 1 13 9.5V13"/></svg><span>接续自 ${escapeHtml(st.parent.title)}</span></a>`);
+    if(st.followups.length) parts.push(`<button type="button" class="lin${popCount ? " pop" : ""}" id="lin-more" aria-haspopup="menu" aria-expanded="false"><span>后续研究</span><b>${st.followups.length}</b></button><div class="lin-menu" id="lin-menu" role="menu" hidden>${st.followups.map(item => `<a role="menuitem" href="${escapeHtml(studyHref(item.id))}" title="${escapeHtml(item.title)}"><i class="sdot ${escapeHtml(item.status || "")}"></i><span>${escapeHtml(item.title)}</span></a>`).join("")}</div>`);
+    lineage.hidden = !parts.length;
+    lineage.innerHTML = parts.join("");
+  }
+  function setLinMenu(open){
+    const menu = $("#lin-menu"), btn = $("#lin-more");
+    if(!menu) return;
+    menu.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+  }
+  lineage.addEventListener("click", event => {
+    const btn = event.target.closest("#lin-more");
+    if(btn) setLinMenu($("#lin-menu").hidden);
+  });
+  document.addEventListener("pointerdown", event => { if(!lineage.contains(event.target)) setLinMenu(false); });
+  document.addEventListener("keydown", event => {
+    if(event.key !== "Escape" || event.cancelBubble) return;
+    const menu = $("#lin-menu");
+    if(menu && !menu.hidden){ event.stopPropagation(); setLinMenu(false); $("#lin-more").focus(); }
+  }, true);
+
+  /* ---- panel open / close (shared-element morph from the ask pill) ---- */
+  function syncModelTag(){
+    const tag = $("#model-tag");
+    $("#cp-model").innerHTML = tag && !tag.hidden ? tag.innerHTML : "";
+  }
+  function openPanel(focus = true){
+    if(st.open || !st.avail) return;
+    st.open = true;
+    syncModelTag();
+    const pill = $("#ask-pill").getBoundingClientRect();
+    const from = cp.getBoundingClientRect();
+    cp.classList.add("on");
+    cp.removeAttribute("inert");
+    cp.setAttribute("aria-hidden", "false");
+    dock.classList.add("gone");
+    report.classList.add("chat-open");
+    if(!reduce() && from.width){
+      const dx = pill.left - from.left, dy = pill.top - from.top;
+      cp.animate([
+        {transform:`translate(${dx}px,${dy}px) scale(${pill.width / from.width},${pill.height / from.height})`, borderRadius:"999px", opacity:.9},
+        {transform:"none", borderRadius:"0px", opacity:1},
+      ], {duration:440, easing:SPRING});
+      cp.firstElementChild.animate([{opacity:0},{opacity:0, offset:.4},{opacity:1}], {duration:440, easing:"ease-out"});
+    }else{
+      cp.animate([{opacity:0},{opacity:1}], {duration:140});
+    }
+    restagger();
+    toBottom(true);
+    if(focus) setTimeout(() => input.focus({preventScroll:true}), reduce() ? 0 : 260);
+  }
+  async function closePanel(){
+    if(!st.open) return;
+    st.open = false;
+    const pill = $("#ask-pill").getBoundingClientRect();
+    const from = cp.getBoundingClientRect();
+    dock.classList.remove("gone");
+    report.classList.remove("chat-open");
+    cp.setAttribute("aria-hidden", "true");
+    cp.setAttribute("inert", "");
+    const gen = st.gen;
+    if(!reduce() && from.width){
+      const dx = pill.left - from.left, dy = pill.top - from.top;
+      cp.firstElementChild.animate([{opacity:1},{opacity:0, offset:.45},{opacity:0}], {duration:300, fill:"forwards"});
+      const anim = cp.animate([
+        {transform:"none", opacity:1},
+        {transform:`translate(${dx}px,${dy}px) scale(${pill.width / from.width},${pill.height / from.height})`, opacity:.2},
+      ], {duration:300, easing:"cubic-bezier(.5,0,.6,1)"});
+      await anim.finished.catch(() => {});
+    }
+    if(!st.open && gen === st.gen){
+      cp.classList.remove("on");
+      cp.getAnimations({subtree:true}).forEach(a => a.cancel());
+    }
+    if(!st.open) $("#ask-main").focus({preventScroll:true});
+  }
+  $("#ask-main").addEventListener("click", () => openPanel());
+  $("#ask-fork").addEventListener("click", () => { openPanel(false); startFollowup(); });
+  $("#cp-collapse").addEventListener("click", closePanel);
+  document.addEventListener("keydown", event => {
+    if(event.key !== "Escape" || event.cancelBubble || !st.open || !modal.classList.contains("open")) return;
+    event.stopPropagation();
+    closePanel();
+  }, true);
+
+  /* ---- composer ---- */
+  function grow(){
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 150) + "px";
+    sendBtn.disabled = st.sending || !input.value.trim();
+  }
+  input.addEventListener("input", grow);
+  input.addEventListener("keydown", event => {
+    if(event.key === "Enter" && !event.shiftKey && !event.isComposing && event.keyCode !== 229){
+      event.preventDefault();
+      submit();
+    }
+  });
+  sendBtn.addEventListener("click", submit);
+  $("#cp-fork").addEventListener("click", startFollowup);
+  emptyEl.addEventListener("click", event => {
+    const btn = event.target.closest(".cp-sugs button");
+    if(btn) send(btn.textContent);
+  });
+  function setQuote(text){
+    st.quote = String(text || "").trim().slice(0, 600);
+    quoteBox.hidden = !st.quote;
+    $("#cp-quote-text").textContent = st.quote;
+  }
+  $("#cp-quote-x").addEventListener("click", () => { setQuote(""); input.focus(); });
+  function submit(){
+    const text = input.value.trim();
+    if(!text || st.sending) return;
+    input.value = "";
+    grow();
+    send(text);
+  }
+
+  async function send(text){
+    if(st.sending || !text) return;
+    const gen = st.gen;
+    const quote = st.quote;
+    setQuote("");
+    st.sending = true;
+    // drop a previous failed turn
+    thread.querySelectorAll(".msg.failed").forEach(el => el.remove());
+    const content = quote ? quote.split("\n").map(line => "> " + line).join("\n") + "\n\n" + text : text;
+    const uel = userEl(content);
+    const ael = document.createElement("div");
+    ael.className = "msg a";
+    ael.innerHTML = `<div class="md"><span class="think">${ORB}</span></div>`;
+    ael.querySelector(".orb-wrap").classList.add("thinking");
+    thread.append(uel, ael);
+    const md = ael.firstElementChild;
+    syncChrome();
+    setThinking(true);
+    toBottom(true);
+    let buf = "", doneMsg = null, failure = "";
+    st.ctl = new AbortController();
+    const paint = () => {
+      st.raf = 0;
+      md.innerHTML = mdHtml(buf, true);
+      setCaret(md, true);
+      toBottom();
+    };
+    try{
+      const res = await fetch(`${API}/chat`, {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({message:content}), signal:st.ctl.signal});
+      if(!res.ok){
+        let payload = {};
+        try{ payload = await res.json(); }catch(error){}
+        throw new ChatError(payload.error || "网络断了，稍后再试。");
+      }
+      for await (const event of sse(res)){
+        if(gen !== st.gen) return;
+        if(event.ev === "delta"){
+          buf += event.data.text || "";
+          setThinking(false);
+          if(!st.raf) st.raf = requestAnimationFrame(paint);
+        }else if(event.ev === "done"){
+          doneMsg = event.data.message;
+        }else if(event.ev === "error"){
+          throw new ChatError(event.data.error || "网络断了，稍后再试。");
+        }
+      }
+      if(!doneMsg) throw new ChatError("网络断了，稍后再试。");
+    }catch(error){
+      if(gen !== st.gen) return;
+      failure = error instanceof ChatError ? error.message : "网络断了，稍后再试。";
+    }
+    if(gen !== st.gen) return;
+    cancelAnimationFrame(st.raf); st.raf = 0;
+    st.sending = false;
+    st.ctl = null;
+    setThinking(false);
+    if(failure){
+      uel.classList.add("failed"); ael.classList.add("failed");
+      md.innerHTML = (buf ? mdHtml(buf) : "") + `<div class="err"></div>`;
+      md.querySelector(".err").textContent = failure;
+      if(!input.value.trim()){ input.value = text; grow(); }
+      if(quote && !st.quote) setQuote(quote);
+    }else{
+      md.innerHTML = mdHtml(doneMsg.content);
+      setCaret(md, false);
+      st.msgs.push({role:"user", content}, doneMsg);
+      pulse();
+    }
+    syncChrome();
+    toBottom();
+  }
+  class ChatError extends Error {}
+  async function* sse(res){
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for(;;){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf = (buf + dec.decode(value, {stream:true})).replace(/\r\n/g, "\n");
+      let at;
+      while((at = buf.indexOf("\n\n")) >= 0){
+        const block = buf.slice(0, at);
+        buf = buf.slice(at + 2);
+        let ev = "message"; const data = [];
+        for(const line of block.split("\n")){
+          if(line.startsWith(":")) continue;
+          if(line.startsWith("event:")) ev = line.slice(6).trim();
+          else if(line.startsWith("data:")) data.push(line.slice(5).replace(/^ /, ""));
+        }
+        if(data.length){
+          let parsed = null;
+          try{ parsed = JSON.parse(data.join("\n")); }catch(error){}
+          if(parsed) yield {ev, data:parsed};
+        }
+      }
+    }
+  }
+
+  /* ---- clear ---- */
+  clearBtn.addEventListener("click", async () => {
+    if(!clearBtn.classList.contains("armed")){
+      clearBtn.classList.add("armed");
+      clearTimeout(st.clearTimer);
+      st.clearTimer = setTimeout(() => clearBtn.classList.remove("armed"), 3000);
+      return;
+    }
+    clearTimeout(st.clearTimer);
+    clearBtn.classList.remove("armed");
+    if(st.sending && st.ctl) st.ctl.abort();
+    st.gen++;
+    st.sending = false; setThinking(false);
+    try{ await fetch(`${API}/chat`, {method:"DELETE"}); }catch(error){}
+    st.msgs = [];
+    thread.replaceChildren();
+    syncChrome();
+    restagger();
+  });
+
+  /* ---- selection -> 问这段 ---- */
+  let selText = "";
+  function updateSel(){
+    const sel = window.getSelection();
+    const hide = () => { selBtn.hidden = true; };
+    if(!st.avail || !modal.classList.contains("open") || !sel || sel.isCollapsed || !sel.rangeCount) return hide();
+    const range = sel.getRangeAt(0);
+    if(!body.contains(range.commonAncestorContainer)) return hide();
+    const text = sel.toString().trim();
+    if(text.length < 4) return hide();
+    const rects = range.getClientRects();
+    const last = rects[rects.length - 1] || range.getBoundingClientRect();
+    if(!last || (!last.width && !last.height)) return hide();
+    selText = text;
+    selBtn.hidden = false;
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    const w = selBtn.offsetWidth || 86;
+    let left = Math.min(Math.max(8, last.right - w / 2), window.innerWidth - w - 8);
+    let top = coarse || last.top < 56 ? last.bottom + 10 : last.top - 42;
+    top = Math.min(top, window.innerHeight - 44);
+    selBtn.style.left = left + "px";
+    selBtn.style.top = top + "px";
+  }
+  let selTimer = 0;
+  document.addEventListener("selectionchange", () => { clearTimeout(selTimer); selTimer = setTimeout(updateSel, 120); });
+  body.addEventListener("scroll", () => { selBtn.hidden = true; }, {passive:true});
+  selBtn.addEventListener("mousedown", event => event.preventDefault());
+  selBtn.addEventListener("pointerdown", event => event.preventDefault());
+  selBtn.addEventListener("click", () => {
+    setQuote(selText);
+    selBtn.hidden = true;
+    window.getSelection().removeAllRanges();
+    if(st.open) input.focus({preventScroll:true}); else openPanel();
+  });
+
+  /* ---- follow-up draft ---- */
+  function readModel(){
+    try{ const value = localStorage.getItem(MODEL_KEY); return Object.hasOwn(MODELS, value) ? value : "deepseek"; }catch(error){ return "deepseek"; }
+  }
+  const markHtml = id => `<i class="mm mm-${id}" aria-hidden="true">${MODEL_GLYPH[id]}</i>`;
+  function draftHtml(){
+    const id = readModel();
+    return `<div class="dr-top">${ORB}${FORK}<span class="dr-status">整理中…</span></div>
+<div class="dr-lines"><i></i><i></i><i></i></div>
+<div class="dr-err" hidden></div>
+<textarea class="dr-ta" rows="3" maxlength="4000" aria-label="继续调研" hidden></textarea>
+<div class="dr-foot"><div class="dr-chip-wrap"><button type="button" class="dr-chip" aria-haspopup="menu" aria-expanded="false" aria-label="研究模型">${markHtml(id)}<span>${MODELS[id].short}</span>${CHEV}</button><div class="dr-menu" role="menu" hidden>${Object.keys(MODELS).map(key => `<button type="button" role="menuitemradio" data-id="${key}" aria-checked="${key === id}">${markHtml(key)}<span class="grow">${MODELS[key].name}</span>${CHECK}</button>`).join("")}</div></div><i class="grow"></i><button type="button" class="ghost">取消</button><button type="button" class="go" disabled>开始调研</button></div>`;
+  }
+  function paintModel(card){
+    const id = card.model;
+    const chip = card.el.querySelector(".dr-chip");
+    chip.innerHTML = `${markHtml(id)}<span>${MODELS[id].short}</span>${CHEV}`;
+    chip.classList.remove("swap"); void chip.offsetWidth; if(!reduce()) chip.classList.add("swap");
+    card.el.querySelectorAll(".dr-menu button").forEach(btn => {
+      const on = btn.dataset.id === id;
+      btn.setAttribute("aria-checked", String(on));
+      btn.querySelector(".ok").style.visibility = on ? "visible" : "hidden";
+    });
+  }
+  function dropDraft(){
+    const card = st.draft;
+    if(!card) return;
+    card.dead = true;
+    if(card.ctl) card.ctl.abort();
+    card.el.remove();
+    st.draft = null;
+    syncChrome();
+  }
+  async function startFollowup(){
+    if(!st.avail || (st.draft && st.draft.busy)) return;
+    if(!st.open) openPanel(false);
+    const hint = input.value.trim();
+    input.value = ""; grow();
+    dropDraft();
+    const el = document.createElement("div");
+    el.className = "draft";
+    el.dataset.s = "loading";
+    el.innerHTML = draftHtml();
+    el.querySelector(".orb-wrap").classList.add("thinking");
+    tail.append(el);
+    const card = st.draft = {el, model:readModel(), busy:false, dead:false, ctl:new AbortController(), question:"", typing:false};
+    paintModel(card); el.querySelector(".dr-chip").classList.remove("swap");
+    syncChrome();
+    toBottom(true);
+    setThinking(true);
+    const ta = el.querySelector(".dr-ta"), go = el.querySelector(".go"), errEl = el.querySelector(".dr-err");
+    const fail = message => {
+      el.dataset.s = "error";
+      errEl.hidden = false;
+      errEl.textContent = message;
+      el.querySelector(".dr-status").textContent = "";
+    };
+    el.querySelector(".ghost").addEventListener("click", dropDraft);
+    const chip = el.querySelector(".dr-chip"), menu = el.querySelector(".dr-menu");
+    chip.addEventListener("click", () => { menu.hidden = !menu.hidden; chip.setAttribute("aria-expanded", String(!menu.hidden)); });
+    menu.addEventListener("click", event => {
+      const btn = event.target.closest("button");
+      if(!btn) return;
+      card.model = btn.dataset.id;
+      try{ localStorage.setItem(MODEL_KEY, card.model); }catch(error){}
+      menu.hidden = true; chip.setAttribute("aria-expanded", "false");
+      paintModel(card);
+    });
+    ta.addEventListener("input", () => { sizeTa(ta); go.disabled = !ta.value.trim() || card.busy; });
+    go.addEventListener("click", () => spawn(card));
+    let question = "";
+    try{
+      const res = await fetch(`${API}/followup`, {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(hint ? {hint} : {}), signal:card.ctl.signal});
+      const payload = await res.json().catch(() => ({}));
+      if(card.dead) return;
+      if(!res.ok || !payload.question) throw new ChatError(payload.error || "网络断了，稍后再试。");
+      question = String(payload.question).trim();
+    }catch(error){
+      if(card.dead) return;
+      setThinking(false);
+      fail(error instanceof ChatError ? error.message : "网络断了，稍后再试。");
+      return;
+    }
+    setThinking(false);
+    pulse();
+    el.dataset.s = "ready";
+    el.querySelector(".dr-status").textContent = "继续调研";
+    ta.hidden = false;
+    ta.classList.add("typing");
+    card.typing = true;
+    if(reduce()){ ta.value = question; }
+    else{
+      const step = Math.max(1, Math.ceil(question.length / 90));
+      for(let i = 0; i < question.length && !card.dead; i += step){
+        ta.value = question.slice(0, i + step);
+        sizeTa(ta);
+        toBottom();
+        await wait(16);
+      }
+    }
+    if(card.dead) return;
+    ta.value = question;
+    ta.classList.remove("typing");
+    card.typing = false;
+    sizeTa(ta);
+    go.disabled = !ta.value.trim();
+    toBottom();
+    ta.focus({preventScroll:true});
+  }
+  function sizeTa(ta){
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight + 2, 240) + "px";
+  }
+
+  async function spawn(card){
+    const el = card.el, ta = el.querySelector(".dr-ta"), go = el.querySelector(".go");
+    const question = ta.value.trim();
+    if(!question || card.busy || card.typing) return;
+    card.busy = true;
+    go.disabled = true;
+    go.textContent = "开始调研";
+    let row;
+    try{
+      const res = await fetch("/api/questions", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({question, model:card.model, parent:STUDY_ID})});
+      const payload = await res.json().catch(() => ({}));
+      if(!res.ok || !payload.id) throw new ChatError(payload.error || "网络断了，稍后再试。");
+      row = payload;
+    }catch(error){
+      card.busy = false;
+      go.disabled = false;
+      const errEl = el.querySelector(".dr-err");
+      errEl.hidden = false;
+      errEl.textContent = error instanceof ChatError ? error.message : "网络断了，稍后再试。";
+      return;
+    }
+    const href = row.href || studyHref(row.id);
+    const rect = el.getBoundingClientRect();
+    const h0 = rect.height;
+    const area = cp.getBoundingClientRect();
+    const orbBox = cp.querySelector(".cp-head .orb-wrap").getBoundingClientRect();
+    const start = {x: orbBox.left + orbBox.width / 2 - area.left, y: orbBox.top + orbBox.height / 2 - area.top};
+    const end = {x: rect.left + 25 - area.left, y: rect.top + 24 - area.top};
+    const anim = !reduce();
+    if(anim){
+      el.classList.add("leaving");
+      await wait(180);
+    }
+    el.classList.remove("leaving");
+    el.dataset.s = "ok";
+    el.innerHTML = `<div class="dr-ok"><svg class="nd" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8" fill="#143a2d" stroke="#58d69a" stroke-width="1.6"/><circle cx="11" cy="11" r="3" fill="#58d69a"/></svg><b>新研究已开始</b><a href="${escapeHtml(href)}">前往 →</a></div>`;
+    if(anim){
+      const h1 = el.getBoundingClientRect().height;
+      el.animate([{height: h0 + "px"}, {height: h1 + "px"}], {duration:320, easing:"cubic-bezier(.22,1,.36,1)"});
+      drawSpawn(start, end);
+    }
+    st.draft = null;
+    st.followups.push({id:row.id, title:row.title || question, status:row.status || "running"});
+    renderLineage(true);
+    pulse();
+    syncChrome();
+  }
+  function drawSpawn(a, b){
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("class", "spawn");
+    const bend = Math.max(60, Math.abs(b.y - a.y) * .35);
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", `M${a.x} ${a.y} C${a.x - bend} ${a.y + 30},${b.x - bend} ${b.y - 40},${b.x} ${b.y}`);
+    const circle = document.createElementNS(NS, "circle");
+    circle.setAttribute("class", "nd-c"); circle.setAttribute("cx", b.x); circle.setAttribute("cy", b.y); circle.setAttribute("r", 8);
+    const ring = document.createElementNS(NS, "circle");
+    ring.setAttribute("class", "nd-r"); ring.setAttribute("cx", b.x); ring.setAttribute("cy", b.y); ring.setAttribute("r", 8);
+    svg.append(path, ring, circle);
+    cp.querySelector(".cp-inner").append(svg);
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = len;
+    const draw = path.animate([{strokeDashoffset:len, opacity:1},{strokeDashoffset:0, opacity:1}], {duration:620, easing:"cubic-bezier(.5,0,.2,1)", fill:"forwards"});
+    circle.animate([{transform:"scale(0)", opacity:0, offset:0},{transform:"scale(0)", opacity:0, offset:.6},{transform:"scale(1.35)", opacity:1, offset:.82},{transform:"scale(1)", opacity:1}], {duration:760, easing:"ease-out", fill:"forwards"});
+    ring.animate([{transform:"scale(1)", opacity:0, offset:.55},{transform:"scale(1)", opacity:.9, offset:.6},{transform:"scale(3.2)", opacity:0}], {duration:1100, easing:"ease-out", fill:"forwards"});
+    draw.finished.then(() => wait(700)).then(() => {
+      svg.animate([{opacity:1},{opacity:0}], {duration:320, fill:"forwards"}).finished.then(() => svg.remove());
+    }).catch(() => svg.remove());
+  }
+  document.addEventListener("pointerdown", event => {
+    document.querySelectorAll(".dr-menu:not([hidden])").forEach(menu => {
+      if(menu.parentElement.contains(event.target)) return;
+      menu.hidden = true;
+      menu.previousElementSibling.setAttribute("aria-expanded", "false");
+    });
+  });
+
+  /* ---- lifecycle ---- */
+  function reset(){
+    st.gen++;
+    if(st.ctl) st.ctl.abort();
+    if(st.draft && st.draft.ctl) st.draft.ctl.abort();
+    cancelAnimationFrame(st.raf); st.raf = 0;
+    Object.assign(st, {open:false, avail:false, msgs:[], sending:false, quote:"", stick:true, ctl:null, parent:null, followups:[], draft:null});
+    cp.getAnimations({subtree:true}).forEach(a => a.cancel());
+    cp.classList.remove("on"); cp.setAttribute("inert", ""); cp.setAttribute("aria-hidden", "true");
+    report.classList.remove("chat-open", "has-chat");
+    dock.hidden = true; dock.classList.remove("gone");
+    thread.replaceChildren(); tail.replaceChildren();
+    input.value = ""; input.style.height = ""; setQuote("");
+    clearBtn.classList.remove("armed");
+    selBtn.hidden = true;
+    setThinking(false);
+    renderLineage();
+    syncChrome();
+  }
+  async function load(){
+    const gen = st.gen;
+    try{
+      const res = await fetch(`${API}/chat`);
+      if(!res.ok) return;
+      const data = await res.json();
+      if(gen !== st.gen) return;
+      st.avail = !!data.available;
+      st.msgs = Array.isArray(data.messages) ? data.messages : [];
+      st.parent = data.parent || null;
+      st.followups = Array.isArray(data.followups) ? data.followups : [];
+    }catch(error){ return; }
+    renderLineage();
+    report.classList.toggle("has-chat", st.avail);
+    dock.hidden = !st.avail;
+    renderThread();
+  }
+  document.addEventListener("report-open", () => { reset(); load(); });
+})();
 
 </script>
 </body>

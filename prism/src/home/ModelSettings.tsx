@@ -145,7 +145,7 @@ export function SettingsButton() {
 }
 
 /** The composer's model chip: the current model, switchable in place. */
-export function ModelChip({ disabled }: { disabled?: boolean }) {
+export function ModelChip({ disabled, side }: { disabled?: boolean; side?: "top" | "bottom" }) {
   const choice = useModelChoice();
   const [open, setOpen] = useState(false);
   const model = MODELS.find((option) => option.id === choice)!;
@@ -155,6 +155,7 @@ export function ModelChip({ disabled }: { disabled?: boolean }) {
       onClose={() => setOpen(false)}
       label="研究模型"
       align="start"
+      side={side}
       className="w-52 p-1.5"
       trigger={
         <button
