@@ -179,7 +179,7 @@ export function Composer({ className }: { className?: string }) {
         onSubmit={onSubmit}
         noValidate
         className={cx(
-          "flex flex-col rounded-xl border bg-primary text-left shadow-xs transition-colors duration-150",
+          "home-ask flex flex-col rounded-[20px] border bg-primary text-left transition-[border-color,box-shadow] duration-200",
           error ? "border-error" : "border-primary focus-within:border-brand",
         )}
       >

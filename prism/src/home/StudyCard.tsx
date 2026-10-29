@@ -78,11 +78,13 @@ export const StudyCard = memo(function StudyCard({
   row,
   scroller,
   delay,
+  featured = false,
   ref,
 }: {
   row: HistoryRow;
   scroller: HTMLElement | null;
   delay: number;
+  featured?: boolean;
   ref?: Ref<HTMLElement>;
 }) {
   const thumb = useHome((state) => state.thumbs[row.id]);
@@ -123,7 +125,7 @@ export const StudyCard = memo(function StudyCard({
   );
 
   return (
-    <motion.article ref={setRef} layout="position" data-study-card {...cardMotion(delay)} className={cx(CARD_CLASS, running && BEAM_CLASS)}>
+    <motion.article ref={setRef} layout="position" data-study-card {...cardMotion(delay)} className={cx(CARD_CLASS, running && BEAM_CLASS, featured && "home-featured")}>
       <a
         href={prismStudyHref(row.id)}
         data-study-link

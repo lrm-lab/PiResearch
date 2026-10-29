@@ -48,7 +48,9 @@ export function HomePage() {
           />
           <motion.main ref={setScroller} layoutScroll className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
             <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
-              <Composer className="max-w-[760px] pt-6 pb-6" />
+              <div className="home-hero">
+                <Composer className="mx-auto max-w-[820px] pt-7 pb-6" />
+              </div>
               <Studies scroller={scroller} />
             </div>
           </motion.main>
