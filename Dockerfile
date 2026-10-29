@@ -21,6 +21,14 @@ RUN pnpm build
 # ---------- stage 3: python runtime ----------
 FROM python:3.12-slim AS app
 
+# WeasyPrint (report PDF export) needs Pango; fonts-noto-cjk keeps Chinese text from rendering as
+# tofu. constellation/pdf.py degrades to 501 when the module is absent, so a slim dev image keeps
+# working.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libfontconfig1 fonts-noto-cjk \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ENV PYTHONUNBUFFERED=1 \
@@ -35,6 +43,9 @@ WORKDIR /app
 # which is exactly where constellation.home.job_interpreter looks for it.
 COPY FrontierAgent/ ./FrontierAgent/
 RUN cd FrontierAgent && uv sync --frozen --no-dev --extra eval
+
+# Report PDF export (POST /api/report.pdf). System Python, not the FrontierAgent venv.
+RUN uv pip install --system --no-cache "weasyprint==70.0"
 
 # The 2D viewer + homepage server.
 COPY constellation/ ./constellation/

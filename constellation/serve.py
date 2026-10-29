@@ -10,9 +10,9 @@ import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
-from constellation import chat
+from constellation import chat, pdf
 from constellation.home import create_session, delete_study, list_history, resolve_trial
 from constellation.layout import GOAL_RADIUS, HUB_RADIUS, RADIUS, place_constellation
 from constellation.node_size import apply_call_radii
@@ -934,8 +934,39 @@ def make_home_server(
                 return
             self._json(200, {"question": question})
 
+        def _report_pdf(self) -> None:
+            """POST the page's export HTML, return the rendered PDF as an attachment."""
+            length = int(self.headers.get("Content-Length") or "0")
+            if length <= 0:
+                self._json(400, {"error": "没有内容。"})
+                return
+            if length > pdf.MAX_HTML_BYTES:
+                self._json(413, {"error": "报告太长了。"})
+                return
+            html = self.rfile.read(length).decode("utf-8", "replace")
+            title = parse_qs(urlparse(self.path).query).get("filename", ["研究报告"])[0]
+            name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', " ", title).strip()[:80] or "研究报告"
+            try:
+                body = pdf.render_pdf(html)
+            except pdf.PdfUnavailable as exc:
+                self._json(501, {"error": str(exc)})
+                return
+            except Exception:  # noqa: BLE001 - rendering failed; tell the page, keep it generic
+                self._json(500, {"error": "PDF 生成失败了，请稍后再试。"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
+            self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{quote(name)}.pdf")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
+            if path == "/api/report.pdf":
+                self._report_pdf()
+                return
             for suffix, action in (("/chat", self._chat), ("/followup", self._followup)):
                 trial = self._study(path, suffix)
                 if trial is not None:

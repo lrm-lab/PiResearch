@@ -20,7 +20,7 @@ import remarkGfm from "remark-gfm";
 import { fetchReport, studyApiPrefix } from "../lib/api";
 import { selectionHeading } from "../lib/heading";
 import { useFocusTrap } from "../lib/hooks";
-import { isUsableTitle, prepareUserReport } from "../lib/report";
+import { breakBlockquoteLines, isUsableTitle, prepareUserReport } from "../lib/report";
 import type { ReportExport } from "../lib/reportExport";
 import { useGalaxy } from "../store";
 import { IconChevron, IconClose, IconExternal, IconReport } from "./icons";
@@ -300,7 +300,7 @@ function Article({ markdown, scrollRef }: { markdown: string; scrollRef: RefObje
   const content = useMemo(
     () => (
       <Markdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTS}>
-        {markdown}
+        {breakBlockquoteLines(markdown)}
       </Markdown>
     ),
     [markdown],

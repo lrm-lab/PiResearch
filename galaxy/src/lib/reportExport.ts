@@ -127,6 +127,31 @@ ${meta ? `<p class="meta">${meta}</p>` : ""}
 `;
 }
 
+/** The server renders the export document to a real PDF; resolves false when it cannot. */
+async function serverPdf(filename: string, html: string): Promise<boolean> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/report.pdf?filename=${encodeURIComponent(filename)}`, {
+      method: "POST",
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+      body: html,
+    });
+  } catch {
+    return false;
+  }
+  if (!response.ok) return false;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return true;
+}
+
 /** Opens the browser's print dialog on the report document; "另存为 PDF" saves it. */
 function printDocument(html: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -171,5 +196,8 @@ export async function downloadReport(format: ReportFormat, report: ReportExport)
     downloadText(reportFilename(report.title, "doc"), reportDocument(doc, true), "application/msword;charset=utf-8");
     return;
   }
-  await printDocument(reportDocument(doc));
+  const html = reportDocument(doc);
+  // One click → a real .pdf file; the print dialog stays as the fallback.
+  if (await serverPdf(reportFilename(report.title, "pdf"), html)) return;
+  await printDocument(html);
 }

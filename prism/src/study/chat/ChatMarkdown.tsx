@@ -5,7 +5,7 @@ import { memo, useMemo } from "react";
 import Markdown, { defaultUrlTransform, type Components } from "react-markdown";
 import { CITE_SCHEME, citationFromHref, citationsToMarkdown, shortTitle, trimOpenCitation } from "../../lib/citations";
 import { cx } from "../../ui/cx";
-import { COMPONENTS, DocLink, REMARK_PLUGINS } from "../ReportMarkdown";
+import { COMPONENTS, DocLink, REMARK_PLUGINS, breakBlockquoteLines } from "../ReportMarkdown";
 import "../report.css";
 import "./chat.css";
 
@@ -51,7 +51,7 @@ function ChatMarkdown({
   return (
     <div className={cx("prism-doc prism-chat-doc", live && "prism-chat-live")}>
       <Markdown remarkPlugins={REMARK_PLUGINS} components={components} urlTransform={urlTransform}>
-        {source}
+        {breakBlockquoteLines(source)}
       </Markdown>
     </div>
   );

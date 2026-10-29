@@ -15,6 +15,24 @@ import "./report.css";
 // remark-cjk-friendly: bold that touches CJK punctuation (是**“引号”**：) would otherwise show raw **.
 export const REMARK_PLUGINS = [remarkGfm, remarkCjkFriendly];
 
+/**
+ * Reports write meta blocks (研究对象/资料截止/说明…) as consecutive ">" lines; standard Markdown
+ * joins them into one run-on paragraph. Add a hard break to each ">" line that is followed by
+ * another, so every source line stays on its own line.
+ */
+export function breakBlockquoteLines(markdown: string): string {
+  const lines = markdown.split("\n");
+  let fence = false;
+  return lines
+    .map((line, index) => {
+      if (/^\s*```/.test(line)) fence = !fence;
+      if (fence || !/^\s*>/.test(line)) return line;
+      if (!/^\s*>/.test(lines[index + 1] ?? "") || /\s{2}$|\\$/.test(line)) return line;
+      return line + "  ";
+    })
+    .join("\n");
+}
+
 interface OutlineItem {
   id: string;
   text: string;
@@ -40,7 +58,7 @@ export default function ReportMarkdown({
   const content = useMemo(
     () => (
       <Markdown remarkPlugins={REMARK_PLUGINS} components={COMPONENTS}>
-        {markdown}
+        {breakBlockquoteLines(markdown)}
       </Markdown>
     ),
     [markdown],

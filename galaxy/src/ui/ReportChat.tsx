@@ -35,6 +35,7 @@ import {
   type ChatState,
 } from "../lib/chat";
 import { MODELS, setModelChoice, useModelChoice } from "../lib/model";
+import { breakBlockquoteLines } from "../lib/report";
 import { useGalaxy } from "../store";
 import { IconChevronDown, IconClose, IconExternal, IconTrash } from "./icons";
 import { ModelMark, ModelTag } from "./ModelMark";
@@ -307,7 +308,7 @@ function ChatMarkdown({ text }: { text: string }) {
   return (
     <div className="chat-md">
       <Markdown remarkPlugins={REMARK_PLUGINS} components={CHAT_COMPONENTS}>
-        {linkCitations(text)}
+        {breakBlockquoteLines(linkCitations(text))}
       </Markdown>
     </div>
   );
