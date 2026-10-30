@@ -8,6 +8,7 @@ import { goalActivity, isErroneous, toolCount } from "../lib/activity";
 import { taskTone } from "../lib/status";
 import type { Edge, ViewNode } from "../types/api";
 import { AgentAvatar } from "../ui/AgentAvatar";
+import { agentMood } from "../lib/mood";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { StatusIcon } from "../ui/StatusIcon";
@@ -190,7 +191,7 @@ const Row = memo(function Row({
           <span className="mt-1 flex min-w-0 items-center gap-x-3 gap-y-1 text-sm text-tertiary">
             {node.agents.length ? (
               <span className="inline-flex shrink-0 items-center gap-1.5">
-                <AgentAvatar name={node.agents[0]!} tone={node.tone} size="xxs" />
+                <AgentAvatar name={node.agents[0]!} tone={node.tone} size="xxs" mood={agentMood(node, erroneous)} />
                 <span className="text-secondary">{node.agents[0]}</span>
                 {node.agents.length > 1 && <span className="text-quaternary">+{node.agents.length - 1}</span>}
               </span>
