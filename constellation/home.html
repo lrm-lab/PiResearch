@@ -111,7 +111,8 @@ button.chip:focus-visible{outline:2px solid #8b7cf6;outline-offset:2px}
 .ask-error[hidden]{display:none}
 .group{margin-top:36px}
 .group h2{margin:0 0 14px;color:#a3a3a3;font-size:13px;font-weight:600;letter-spacing:.08em}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 16px}
+.grid{column-count:4;column-gap:16px}
+.grid>.card{break-inside:avoid;margin:0 0 18px}
 .card{position:relative;min-width:0}
 .card-link{display:block;color:inherit;text-decoration:none}
 .thumb-frame{position:relative;display:block}
@@ -172,13 +173,13 @@ body.confirm-open{overflow:hidden}
 @media(prefers-reduced-motion:reduce){.composer.launching,.composer.launching .launch,.launch-spark{animation:none}.launch-spark{display:none}}
 .group.is-empty h2{margin-bottom:8px}
 ::selection{background:#333;color:#fff}
-@media(max-width:980px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:980px){.grid{column-count:3}}
 @media(max-width:720px){
   .top{padding:0 14px}
   .page{width:calc(100% - 28px);padding-top:12px}
-  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+  .grid{column-count:2;column-gap:12px}
 }
-@media(max-width:460px){.grid{grid-template-columns:1fr}.confirm{padding:24px}.confirm .actions{display:grid;grid-template-columns:1fr 1fr}}
+@media(max-width:460px){.grid{column-count:1}.confirm{padding:24px}.confirm .actions{display:grid;grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -422,6 +423,8 @@ function viewUrl(row){
 function paint(svg, view){
   const nodes = (view && view.ok && view.nodes) || [];
   svg.replaceChildren();
+  const thumb = svg.closest(".thumb");
+  if(thumb) thumb.style.height = nodes.length ? `${Math.max(120, Math.min(300, 104 + nodes.length * 11))}px` : "";
   if(!nodes.length) return;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   nodes.forEach(node => {
