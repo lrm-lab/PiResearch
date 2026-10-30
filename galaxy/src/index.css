@@ -778,6 +778,30 @@
   height: 1px;
   background: linear-gradient(90deg, var(--g-hairline-strong), transparent);
 }
+.detail-fail {
+  margin: 14px 0;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 93, 108, 0.38);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 93, 108, 0.12), rgba(255, 93, 108, 0.05));
+}
+
+.detail-fail-title {
+  margin: 0 0 5px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  color: #ff8a93;
+}
+
+.detail-fail-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #ffd6da;
+  white-space: pre-wrap;
+}
+
 .detail-notes {
   margin: 0;
   color: var(--g-ink);

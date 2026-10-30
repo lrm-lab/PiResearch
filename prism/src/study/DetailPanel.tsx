@@ -3,7 +3,7 @@
 //   column  — desktop task list: the column beside the narrowed list, divided by a 1px border;
 //   sheet   — below `lg`: a draggable bottom sheet (peek / full, drag down to close).
 
-import { BookOpen01, ChevronRight, Download01, XClose } from "@untitledui/icons";
+import { AlertCircle, BookOpen01, ChevronRight, Download01, XClose } from "@untitledui/icons";
 import { AnimatePresence, motion, useDragControls, type PanInfo } from "motion/react";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { goalActivity, isErroneous, phaseLabel, progress, stateText, toolCount } from "../lib/activity";
@@ -264,6 +264,10 @@ function TaskBody({ node }: { node: ViewNode }) {
   const relations = useMemo(() => relationsOf(view, node.id), [view, node.id]);
   const calls = toolCount(node);
   const notes = node.notes.trim();
+  const cancelled = node.status === "cancelled";
+  const flagEdge = isErroneous(view, node.id) ? (view?.edges ?? []).find((edge) => edge.relation === "error" && edge.to === node.id) : undefined;
+  const failed = node.status !== "resolved" && (cancelled || Boolean(flagEdge));
+  const flagTitle = flagEdge ? (findNode(view, flagEdge.from)?.title ?? flagEdge.from) : null;
   const state = detail?.state ?? (node.step_count ? "loading" : "ready");
   const ended = view?.running === false;
 
@@ -278,6 +282,18 @@ function TaskBody({ node }: { node: ViewNode }) {
           </summary>
           <p className="mt-2 max-h-60 overflow-y-auto whitespace-pre-wrap text-secondary">{pane.full}</p>
         </details>
+      )}
+
+      {failed && (
+        <div className="mb-3 rounded-xl border border-error bg-error-primary px-3.5 py-3" role="note">
+          <p className="flex items-center gap-1.5 text-sm font-medium text-error-primary">
+            <AlertCircle aria-hidden="true" className="size-4" />
+            没有完成{flagTitle ? ` · 被「${flagTitle}」标记` : ""}
+          </p>
+          <p className="mt-1 text-sm whitespace-pre-wrap text-secondary">
+            {cancelled && !flagEdge ? "这项任务已被取消。" : notes || "核验流程标记这项任务存在错误。"}
+          </p>
+        </div>
       )}
 
       <dl>
@@ -326,7 +342,7 @@ function TaskBody({ node }: { node: ViewNode }) {
         </Field>
       </dl>
 
-      {notes && (
+      {notes && !failed && (
         <Section title="备注">
           <p className="text-sm whitespace-pre-wrap text-secondary">{notes}</p>
         </Section>
