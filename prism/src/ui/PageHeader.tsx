@@ -25,10 +25,10 @@ export function PageHeader({
         {leading}
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <h1 className="truncate text-lg font-semibold text-primary">{title}</h1>
-          {meta && <span className="hidden shrink-0 text-sm text-tertiary tabular @md:inline">{meta}</span>}
+          {meta && <span className="hidden shrink-0 text-sm text-tertiary tabular @2xl:inline">{meta}</span>}
         </div>
-        {tabs && <div className="absolute inset-y-0 left-1/2 hidden -translate-x-1/2 @3xl:flex">{tabs}</div>}
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        {tabs && <div className="hidden shrink-0 items-stretch self-stretch @3xl:flex">{tabs}</div>}
+        {actions && <div className="flex min-w-0 shrink-0 items-center justify-end gap-2">{actions}</div>}
       </div>
       {tabs && <div className="flex h-11 justify-center border-t border-secondary @3xl:hidden">{tabs}</div>}
     </header>
