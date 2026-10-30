@@ -563,3 +563,28 @@ def test_research_job_switches_only_known_models(monkeypatch) -> None:
     assert os.environ["OPENAI_MODEL"] == "deepseek-default"
     apply_model("gpt-6.1-sol")
     assert os.environ["OPENAI_MODEL"] == "gpt-6.1-sol"
+
+
+def test_create_session_keeps_attached_images(tmp_path: Path) -> None:
+    import base64
+
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    # A 1×1 PNG is enough: the endpoint only checks the mime and that the bytes decode.
+    png = base64.b64encode(
+        bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000100ffff03000006000557bfabd40000000049454e44ae426082")
+    ).decode()
+    started: list[Path] = []
+    created = create_session(
+        runs,
+        "这张图里的表格讲了什么？",
+        starter=lambda path: started.append(path) or 1,
+        images=[{"name": "chart.png", "mime": "image/png", "data": f"data:image/png;base64,{png}"}],
+    )
+    session_dir = runs / created["href"].split("/study/", 1)[1].rsplit("/", 1)[0]
+    trial = session_dir / "generation" / "trials" / "1"
+    session = json.loads((session_dir / "session.json").read_text(encoding="utf-8"))
+    assert session["images"] == [{"name": "01-chart.png", "mime": "image/png", "path": "sandbox/inputs/images/01-chart.png"}]
+    assert (trial / "sandbox" / "inputs" / "images" / "01-chart.png").is_file()
+    instruction = (session_dir / "generation" / "tasks" / "1" / "instruction.md").read_text(encoding="utf-8")
+    assert "Attached images" in instruction and "sandbox/inputs/images/01-chart.png" in instruction
