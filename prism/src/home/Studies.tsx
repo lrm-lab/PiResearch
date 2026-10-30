@@ -3,14 +3,14 @@
 // inline error banner and the CoForge empty state (featured icon, title, line, example chips that
 // fill the composer). Filtering animates with layout; a submitted question appears as a card on top.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { AlertCircle, SearchLg, Telescope, XClose } from "@untitledui/icons";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { ModelTag } from "../ui/ModelMark";
-import { Tabs, type TabItem } from "../ui/Tabs";
+import type { TabItem } from "../ui/Tabs";
 import { EXAMPLE_CHIPS } from "./examples";
 import { rowTitle } from "./format";
 import { MiniMap } from "./MiniMap";
@@ -73,8 +73,8 @@ export function Studies({ scroller }: { scroller: HTMLElement | null }) {
 
   return (
     <div className="pb-12">
-      <div className="sticky top-0 z-10 flex h-11 items-stretch justify-between gap-4 border-b border-secondary bg-primary/95 backdrop-blur">
-        <Tabs items={tabs} value={filter} onChange={setFilter} label="筛选研究" className="min-w-0 overflow-x-auto" />
+      <div className="sticky top-0 z-10 flex h-12 items-center justify-between gap-4 bg-primary/90 backdrop-blur">
+        <FilterPills items={tabs} value={filter} onChange={setFilter} />
         <label className="relative my-auto block w-28 shrink-0 sm:w-56">
           <SearchLg aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-fg-quaternary" />
           <input
@@ -83,7 +83,7 @@ export function Studies({ scroller }: { scroller: HTMLElement | null }) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索标题"
             aria-label="按标题搜索研究"
-            className="h-9 w-full appearance-none rounded-lg border border-primary bg-primary pr-2.5 pl-8 text-sm text-primary shadow-xs outline-none transition-colors duration-150 placeholder:text-quaternary hover:border-secondary focus:border-brand [&::-webkit-search-cancel-button]:hidden"
+            className="h-9 w-full appearance-none rounded-full border border-secondary bg-primary pr-3 pl-8 text-sm text-primary shadow-xs outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-quaternary hover:border-primary focus:border-brand focus:shadow-[0_0_0_3px_var(--color-bg-brand-primary)] [&::-webkit-search-cancel-button]:hidden"
           />
         </label>
       </div>
@@ -233,3 +233,50 @@ function EmptyState() {
   );
 }
 
+
+/** Filter chips: one light track, the active chip is a white pill that springs between slots. */
+function FilterPills<K extends string>({ items, value, onChange }: { items: readonly TabItem<K>[]; value: K; onChange: (id: K) => void }) {
+  const layoutId = useId();
+  return (
+    <div role="tablist" aria-label="筛选研究" className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full bg-secondary p-1">
+      {items.map((item) => {
+        const active = item.id === value;
+        return (
+          <button
+            key={item.id}
+            role="tab"
+            type="button"
+            aria-selected={active}
+            tabIndex={active ? 0 : -1}
+            onClick={() => onChange(item.id)}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+              event.preventDefault();
+              const index = items.findIndex((entry) => entry.id === value);
+              const next = items[(index + (event.key === "ArrowRight" ? 1 : items.length - 1)) % items.length]!;
+              onChange(next.id);
+              (event.currentTarget.parentElement?.querySelector(`[data-pill="${next.id}"]`) as HTMLElement | null)?.focus();
+            }}
+            data-pill={item.id}
+            className={cx(
+              "relative flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring",
+              active ? "text-brand-secondary" : "text-tertiary hover:text-secondary",
+            )}
+          >
+            {active && (
+              <motion.span
+                layoutId={layoutId}
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                className="absolute inset-0 rounded-full bg-primary shadow-xs ring-1 ring-secondary ring-inset"
+              />
+            )}
+            <span className="relative">{item.label}</span>
+            {item.badge !== undefined && item.badge !== 0 && (
+              <span className={cx("relative rounded-full px-1.5 text-xs tabular", active ? "bg-brand-primary text-brand-secondary" : "bg-primary/60 text-quaternary")}>{item.badge}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

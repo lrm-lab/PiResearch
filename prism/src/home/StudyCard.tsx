@@ -36,7 +36,7 @@ export function cardMotion(delay = 0) {
 }
 
 export const CARD_CLASS =
-  "group relative flex flex-col rounded-xl border border-secondary bg-primary shadow-xs transition-[box-shadow,translate] duration-300 ease-[var(--ease-out-quint)] hover:-translate-y-px hover:shadow-md focus-within:shadow-md";
+  "home-card group relative flex flex-col rounded-xl border border-secondary bg-primary shadow-xs transition-[box-shadow,translate,border-color] duration-300 ease-[var(--ease-out-quint)] hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md focus-within:shadow-md dark:hover:border-brand-800";
 export const BEAM_CLASS = "prism-beam [--beam-from:var(--color-status-progress)] [--beam-to:var(--color-brand-400)] [--beam-duration:7s] [--beam-width:1px]";
 
 /** A pulsing dot for work in progress. */
@@ -132,7 +132,7 @@ export const StudyCard = memo(function StudyCard({
         data-id={row.id}
         className="flex min-h-0 flex-1 flex-col rounded-xl outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
-        <div className="overflow-hidden rounded-t-[11px] border-b border-secondary">
+        <div className="home-card-map overflow-hidden rounded-t-[11px] border-b border-secondary">
           <MiniMap thumb={thumb} running={running} noGraph={noGraph} />
         </div>
         <div className="flex flex-1 flex-col px-4 pt-3.5 pb-4">

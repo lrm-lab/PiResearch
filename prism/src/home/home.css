@@ -156,3 +156,21 @@
     animation: none;
   }
 }
+
+/* The card's map leans in on hover; nothing moves in a reduced-motion session. */
+.home-card-map > * {
+  transition: transform 520ms var(--ease-out-quint);
+}
+.home-card:hover .home-card-map > *,
+.home-card:focus-within .home-card-map > * {
+  transform: scale(1.035);
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-card-map > * {
+    transition: none;
+  }
+  .home-card:hover .home-card-map > *,
+  .home-card:focus-within .home-card-map > * {
+    transform: none;
+  }
+}
