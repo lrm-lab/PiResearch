@@ -174,3 +174,30 @@
     transform: none;
   }
 }
+
+/* Waterfall: equal columns, cards packed tight, no gaps and no overhang. */
+.home-masonry {
+  column-count: 1;
+  column-gap: 1.25rem;
+}
+@media (min-width: 640px) {
+  .home-masonry {
+    column-count: 2;
+  }
+}
+@media (min-width: 1024px) {
+  .home-masonry {
+    column-count: 3;
+  }
+}
+@media (min-width: 1440px) {
+  .home-masonry {
+    column-count: 4;
+  }
+}
+.home-masonry > * {
+  break-inside: avoid;
+  margin: 0 0 1.25rem;
+  display: inline-flex;
+  width: 100%;
+}
