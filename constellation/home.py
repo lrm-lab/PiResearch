@@ -269,6 +269,47 @@ def spawn_job(session_dir: Path) -> int:
     return proc.pid
 
 
+_IMAGE_MIME = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+_IMAGE_TOTAL_BYTES = 12 * 1024 * 1024
+
+
+def _write_images(trial: Path, images: object) -> list[dict[str, str]]:
+    """Save the question's pictures under the sandbox inputs; returns what session.json records."""
+    import base64
+    import binascii
+
+    if not images:
+        return []
+    if not isinstance(images, list):
+        raise ValueError("图片格式不对。")
+    folder = trial / "sandbox" / "inputs" / "images"
+    folder.mkdir(parents=True, exist_ok=True)
+    saved: list[dict[str, str]] = []
+    total = 0
+    for index, item in enumerate(images, start=1):
+        if not isinstance(item, dict):
+            raise ValueError("图片格式不对。")
+        mime = str(item.get("mime") or "").split(";")[0].strip().lower()
+        if mime not in _IMAGE_MIME:
+            raise ValueError("只支持 PNG、JPEG、WebP 图片。")
+        data = str(item.get("data") or "").strip()
+        if data.startswith("data:"):
+            data = data.split(",", 1)[-1]
+        try:
+            blob = base64.b64decode(data, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError("图片数据读不出来。") from exc
+        total += len(blob)
+        if total > _IMAGE_TOTAL_BYTES:
+            raise ValueError("图片总共不能超过 12MB。")
+        stem = re.sub(r"[^A-Za-z0-9._-]+", "-", str(item.get("name") or "image"))[:60].strip("-") or "image"
+        stem = re.sub(r"\.(png|jpe?g|webp)$", "", stem, flags=re.I) or "image"
+        name = f"{index:02d}-{stem}{_IMAGE_MIME[mime]}"
+        (folder / name).write_bytes(blob)
+        saved.append({"name": name, "mime": mime, "path": f"sandbox/inputs/images/{name}"})
+    return saved
+
+
 def create_session(
     runs: Path,
     question: str,
@@ -276,6 +317,7 @@ def create_session(
     starter: Callable[[Path], int] | None = spawn_job,
     model: object = None,
     parent: object = None,
+    images: object = None,
 ) -> dict[str, Any]:
     text = " ".join(str(question or "").split())
     if len(text) < 4:
@@ -312,12 +354,17 @@ def create_session(
         "pid": 0,
         "model": model_key,
     }
+    saved_images = _write_images(trial, images)
+    if saved_images:
+        session["images"] = saved_images
     if prior:
         session["parent"] = prior[0]
         write_prior(trial / "sandbox" / "inputs", prior[1], prior[2], prior[3])
     session_path = session_dir / "session.json"
     session_path.write_text(json.dumps(session, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (task / "instruction.md").write_text(_instruction(text, prior_instruction(prior[1], bool(prior[3])) if prior else ""), encoding="utf-8")
+    (task / "instruction.md").write_text(
+        _instruction(text, prior_instruction(prior[1], bool(prior[3])) if prior else "", saved_images), encoding="utf-8"
+    )
     (task / "task.toml").write_text(_task_toml(), encoding="utf-8")
     (trial / "config.json").write_text(
         json.dumps({"task": {"path": str(task.resolve())}}, ensure_ascii=False) + "\n",
@@ -346,10 +393,20 @@ def _parent_study(runs: Path, parent: object) -> tuple[str, str, Path, list[dict
     return study, _question_text(trial, session), trial, read_thread(session_dir)
 
 
-def _instruction(question: str, prior: str = "") -> str:
+def _instruction(question: str, prior: str = "", images: list[dict[str, str]] | None = None) -> str:
+    attached = ""
+    if images:
+        listing = "\n".join(f"- `{item['path']}`（{item['mime']}）" for item in images)
+        attached = (
+            "## Attached images\n\n"
+            "The user attached these pictures with the question. Read every one of them before researching, "
+            "and use what they show (text, tables, charts, screenshots) as part of the question:\n\n"
+            f"{listing}\n\n"
+        )
     return (
         "# Task\n\n"
         f"{question}\n\n"
+        f"{attached}"
         f"{prior}"
         "## Submission contract (mandatory)\n\n"
         "Work in three phases. Do not skip phase 2.\n\n"

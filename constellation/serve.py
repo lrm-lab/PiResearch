@@ -984,7 +984,12 @@ def make_home_server(
             try:
                 kwargs = {"starter": starter} if starter is not None else {}
                 created = create_session(
-                    root, str(payload.get("question") or ""), model=payload.get("model"), parent=payload.get("parent"), **kwargs
+                    root,
+                    str(payload.get("question") or ""),
+                    model=payload.get("model"),
+                    parent=payload.get("parent"),
+                    images=payload.get("images"),
+                    **kwargs,
                 )
             except ValueError as exc:
                 self._json(400, {"error": str(exc)})
