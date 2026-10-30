@@ -38,12 +38,15 @@ export function agentInitials(name: string): string {
 
 export function AgentAvatar({
   name,
+  seed,
   size = "xs",
   mood = "calm",
   className,
   ring = false,
 }: {
   name: string;
+  /** What picks the mascot: a task id (its own face) or nothing (the agent's face). */
+  seed?: string;
   /** Kept for call sites that still pass the task tone; the mascot carries the colour. */
   tone?: string;
   size?: AvatarSize;
@@ -52,7 +55,7 @@ export function AgentAvatar({
   /** Separator ring for stacked avatars. */
   ring?: boolean;
 }) {
-  const mascot = useMemo(() => mascotOf(name), [name]);
+  const mascot = useMemo(() => mascotOf(seed ?? name), [seed, name]);
   const reduced = useMediaQuery(REDUCED_MOTION_QUERY);
   const [hovered, setHovered] = useState(false);
   const [drawn, setDrawn] = useState(false);

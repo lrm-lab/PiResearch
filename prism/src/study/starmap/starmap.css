@@ -109,10 +109,18 @@
 .sm-goal + .sm-sel {
   inset: -4px;
 }
-.sm-node[data-selected] + .sm-sel,
 .sm-node:focus-visible + .sm-sel {
   opacity: 1;
   transform: scale(1);
+}
+/* Selected: a stroke drawn along the sticker's own silhouette (no box). */
+.sm-node[data-selected] .prism-avatar {
+  filter:
+    drop-shadow(2px 0 0 var(--color-focus-ring))
+    drop-shadow(-2px 0 0 var(--color-focus-ring))
+    drop-shadow(0 2px 0 var(--color-focus-ring))
+    drop-shadow(0 -2px 0 var(--color-focus-ring))
+    drop-shadow(0 4px 10px rgb(16 19 25 / 0.22));
 }
 
 /* In progress: a thin conic beam around the tile, blue into lavender. */

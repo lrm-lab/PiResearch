@@ -1,7 +1,4 @@
-/* The mascot sticker: the figure fills its avatar box, no circle or fill behind it. */
+/* The mascot sticker: the figure fills its avatar box — no fill, no frame, no shadow. */
 .prism-avatar {
   background: transparent;
-}
-.prism-avatar img {
-  filter: drop-shadow(0 1px 2px rgb(16 19 25 / 0.18));
 }

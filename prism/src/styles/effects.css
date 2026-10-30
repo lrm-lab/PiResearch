@@ -4,21 +4,6 @@
  * components/magicui and components/spell). All motion stops under prefers-reduced-motion.
  */
 
-/* Avatar frame: light violet top-left → brand violet 50% bottom-right, 1.5px. */
-.prism-avatar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 1.5px solid transparent;
-  background: linear-gradient(135deg, var(--color-avatar-border-start) 0%, var(--color-avatar-border-end) 100%) border-box;
-  mask:
-    linear-gradient(#fff 0 0) padding-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
 /* Border beam: a short bright arc travelling around a rounded box's edge. Put `.prism-beam` on a
    positioned element with a border radius; set --beam-from / --beam-to / --beam-duration. */
 @property --beam-angle {
