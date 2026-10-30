@@ -79,10 +79,8 @@
 
 .sm-node {
   outline: none;
-  box-shadow: var(--shadow-xs);
-  transition:
-    transform 0.2s var(--ease-out-quint),
-    box-shadow 0.2s var(--ease-out-quint);
+  background: transparent;
+  transition: transform 0.2s var(--ease-out-quint);
 }
 /* A little more hit area than the visible tile. */
 .sm-node::before {
@@ -93,8 +91,7 @@
 }
 .sm-node:hover,
 .sm-node[data-hot] {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-1px) scale(1.03);
 }
 
 /* Selection / keyboard focus: a 2px brand ring, offset from the tile. */

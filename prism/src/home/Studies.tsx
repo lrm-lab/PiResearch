@@ -20,7 +20,7 @@ import { BEAM_CLASS, CARD_CLASS, cardMotion, LiveDot, StudyCard } from "./StudyC
 
 type Filter = "all" | "running" | "finished" | "failed";
 
-const GRID = "grid grid-cols-1 gap-5 sm:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]";
+const GRID = "home-masonry";
 
 export function Studies({ scroller }: { scroller: HTMLElement | null }) {
   const rows = useHome((state) => state.rows);

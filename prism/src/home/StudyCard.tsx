@@ -35,6 +35,11 @@ export function cardMotion(delay = 0) {
   } as const;
 }
 
+/** Map height from the node count: a dense study gets a taller picture, a thin one a short card. */
+function mapHeight(nodes: number): number {
+  return Math.max(120, Math.min(300, 104 + nodes * 11));
+}
+
 export const CARD_CLASS =
   "home-card group relative flex flex-col rounded-xl border border-secondary bg-primary shadow-xs transition-[box-shadow,translate,border-color] duration-300 ease-[var(--ease-out-quint)] hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md focus-within:shadow-md dark:hover:border-brand-800";
 export const BEAM_CLASS = "prism-beam [--beam-from:var(--color-status-progress)] [--beam-to:var(--color-brand-400)] [--beam-duration:7s] [--beam-width:1px]";
@@ -132,7 +137,7 @@ export const StudyCard = memo(function StudyCard({
         data-id={row.id}
         className="flex min-h-0 flex-1 flex-col rounded-xl outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
-        <div className="home-card-map overflow-hidden rounded-t-[11px] border-b border-secondary">
+        <div className="home-card-map overflow-hidden rounded-t-[11px] border-b border-secondary" style={{ height: mapHeight(thumb?.nodes?.length ?? 0) }}>
           <MiniMap thumb={thumb} running={running} noGraph={noGraph} />
         </div>
         <div className="flex flex-1 flex-col px-4 pt-3.5 pb-4">
