@@ -16,30 +16,14 @@ const TILE: Record<ModelId, string> = {
 };
 
 function Glyph({ id }: { id: ModelId }) {
-  if (id === "deepseek") {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-[62%]">
-        <path d="M3 13.5c2.2 0 3.3-3 5.5-3s3.3 3 5.5 3 3.3-3 5.5-3" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-        <path d="M5 18c1.6 0 2.4-1.6 4-1.6s2.4 1.6 4 1.6 2.4-1.6 4-1.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity=".55" />
-        <circle cx="16.5" cy="6.5" r="1.6" fill="currentColor" />
-      </svg>
-    );
-  }
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-[66%]">
-      <circle cx="12" cy="12" r="4.2" fill="currentColor" />
-      {Array.from({ length: 8 }, (_, index) => (
-        <path
-          key={index}
-          d="M12 2.6v2.6"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          transform={`rotate(${index * 45} 12 12)`}
-          opacity={index % 2 ? 0.55 : 1}
-        />
-      ))}
-    </svg>
+    <img
+      src={`${import.meta.env.BASE_URL}models/${id === "deepseek" ? "deepseek" : "openai"}.svg`}
+      alt=""
+      aria-hidden="true"
+      className="size-[72%] object-contain"
+      draggable={false}
+    />
   );
 }
 
