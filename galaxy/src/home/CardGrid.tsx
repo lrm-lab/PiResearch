@@ -63,6 +63,11 @@ export function CardGrid() {
   );
 }
 
+/** Map height from the node count: a dense study gets a taller picture, a thin one a short card. */
+function mapHeight(nodes: number): number {
+  return Math.max(120, Math.min(300, 104 + nodes * 11));
+}
+
 const Card = memo(function Card({ row, observer }: { row: HistoryRow; observer: React.RefObject<IntersectionObserver | null> }) {
   const id = row.id;
   const thumb = useHome((state) => state.thumbs[id]);
@@ -80,7 +85,7 @@ const Card = memo(function Card({ row, observer }: { row: HistoryRow; observer: 
   return (
     <div ref={ref} className={`home-card is-${row.status}`} data-study={id}>
       <a href={galaxyStudyHref(id)} className="home-card-link" data-study-link="" data-id={id}>
-        <span className="home-card-thumb">
+        <span className="home-card-thumb" style={{ height: mapHeight(thumb?.ok ? thumb.nodes.length : 0) }}>
           <ThumbSvg thumb={thumb} />
         </span>
         <span className="home-card-caption">
