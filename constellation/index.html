@@ -258,6 +258,8 @@ button.satellite.retreat{animation:chip-back .34s cubic-bezier(.16,.8,.28,1) for
 .section h3::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
 #status-section h3{color:#4ade80}
 #notes-section h3{color:#facc15}
+#notes-section.fail h3{color:#ff5d6c}
+#notes-section.fail .notes{padding-left:12px;border-left:3px solid #ff5d6c55;color:#ffc2cc}
 #children-section h3{color:#c084fc}
 #steps-section h3{color:#fb7185}
 #status{color:#f0f0f0;font-size:15px;line-height:1.4}
@@ -1773,7 +1775,16 @@ function select(id, stepIndex){
   renderSelectionHeading(node,step);
   document.querySelector("#agents").textContent = "";
   document.querySelector("#status").textContent = goal ? "" : (STATUS[node.status] || node.status || "—");
-  document.querySelector("#notes").textContent = node.notes || (goal ? "" : "还没有备注");
+  const flagEdge = (view.edges || []).find(edge => edge.relation === "error" && edge.to === node.id);
+  const cancelled = node.status === "cancelled";
+  const failed = node.status !== "resolved" && (Boolean(flagEdge) || cancelled);
+  const notesSection = document.querySelector("#notes-section");
+  notesSection.classList.toggle("fail", failed && !goal);
+  const flagTitle = flagEdge ? ((nodeById(flagEdge.from) || {}).title || flagEdge.from) : "";
+  notesSection.querySelector("h3").textContent = failed ? `没有完成${flagTitle ? ` · 被「${flagTitle}」标记` : ""}` : "备注";
+  document.querySelector("#notes").textContent = failed
+    ? (node.notes || (cancelled && !flagEdge ? "这项任务已被取消。" : "这项任务被核验标记为存在错误。"))
+    : (node.notes || (goal ? "" : "还没有备注"));
   renderChildren(node);
   const steps = document.querySelector("#steps");
   steps.innerHTML = "";

@@ -133,6 +133,8 @@ function Body({ node }: { node: ViewNode }) {
         </details>
       )}
 
+      {!node.goal && <FailureNote node={node} />}
+
       {node.goal ? <GoalSummary /> : <TaskFacts node={node} />}
 
       {!node.goal && (
@@ -170,6 +172,23 @@ function Section({ label, count, children }: { label: string; count?: number; ch
       </h3>
       {children}
     </section>
+  );
+}
+
+/** The failure callout: why this task did not finish, in one glance. */
+function FailureNote({ node }: { node: ViewNode }) {
+  const view = useGalaxy((state) => state.view);
+  const cancelled = node.status === "cancelled";
+  const flagEdge = (view?.edges ?? []).find((edge) => edge.relation === "error" && edge.to === node.id);
+  if (node.status === "resolved" || (!flagEdge && !cancelled)) return null;
+  const flagTitle = flagEdge ? ((view?.nodes ?? []).find((item) => item.id === flagEdge.from)?.title ?? flagEdge.from) : null;
+  return (
+    <div className="detail-fail" role="note">
+      <p className="detail-fail-title">没有完成{flagTitle ? ` · 被「${flagTitle}」标记` : ""}</p>
+      <p className="detail-fail-text">
+        {cancelled && !flagEdge ? "这项任务已被取消。" : node.notes.trim() || "核验流程标记这项任务存在错误。"}
+      </p>
+    </div>
   );
 }
 
