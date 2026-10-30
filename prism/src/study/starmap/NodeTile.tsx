@@ -6,7 +6,7 @@ import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
 import { agentTone } from "../../lib/palette";
 import { TONE_CLASS, type TaskTone } from "../../lib/status";
 import type { ViewNode } from "../../types/api";
-import { AgentFace } from "../../ui/AgentAvatar";
+import { AgentAvatar } from "../../ui/AgentAvatar";
 import { agentMood } from "../../lib/mood";
 import { cx } from "../../ui/cx";
 import { estimateGoalCard } from "./labels";
@@ -91,7 +91,7 @@ export function NodeTile(props: CommonProps & { r: number; tone: TaskTone; runni
           {unassigned ? (
             <span aria-hidden="true">?</span>
           ) : (
-            <AgentFace mood={agentMood(node, tone === "error")} />
+            <AgentAvatar name={node.agents[0]!} size="md" mood={agentMood(node, tone === "error")} className="size-full" />
           )}
         </button>
         <span aria-hidden="true" className="sm-sel" style={{ borderRadius: ringRadius(6) }} />

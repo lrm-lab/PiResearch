@@ -1,19 +1,32 @@
-// CoForge's agent avatar: a rounded square on the avatar tone with the brand's light-violet →
-// violet gradient hairline frame. `xs` (24px) is the round one, `sm` the 36 × 40 message avatar.
-import type { Tone } from "../types/api";
-import { agentTone } from "../lib/palette";
+// CoForge's agent avatar: the mascot sticker (a Rive canvas over its still picture) instead of
+// initials, sized to the avatar box. The still picture shows until the first Rive frame draws and
+// whenever the runtime cannot load; reduced motion keeps the still picture.
+
+import { useMemo, useState } from "react";
+import { useMediaQuery, REDUCED_MOTION_QUERY } from "../lib/media";
 import type { Mood } from "../lib/mood";
 import { MOOD_LABEL } from "../lib/mood";
+import type { MascotActivity } from "./mascot/contract";
+import { mascotOf, mascotStaticUrl } from "./mascot/contract";
+import { MascotCanvas } from "./mascot/MascotCanvas";
 import { cx } from "./cx";
 import "./avatar.css";
 
 export type AvatarSize = "xxs" | "xs" | "sm" | "md";
 
 const SIZE: Record<AvatarSize, string> = {
-  xxs: "size-5 rounded-full text-[0.625rem]",
-  xs: "size-6 rounded-full text-xs",
-  sm: "h-10 w-9 rounded-[10px] text-sm",
-  md: "size-12 rounded-xl text-md",
+  xxs: "size-5",
+  xs: "size-6",
+  sm: "size-9",
+  md: "size-11",
+};
+
+const ACTIVITY: Record<Mood, MascotActivity> = {
+  calm: "idle",
+  focus: "working",
+  puzzled: "thinking",
+  angry: "error",
+  happy: "idle",
 };
 
 /** Readable short label for an agent id: "fact_verifier" → "FV", "fiscal" → "F". */
@@ -23,73 +36,49 @@ export function agentInitials(name: string): string {
   return (name[0] ?? "?").toUpperCase();
 }
 
-/** The face CoForge draws on an avatar: two eyes and a mouth, one shape per mood. */
-export function AgentFace({ mood, className }: { mood: Mood; className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={cx("prism-face", className)} data-mood={mood}>
-      {mood === "happy" ? (
-        <>
-          <path d="M6.4 10.4q1.6-1.7 3.2 0" />
-          <path d="M14.4 10.4q1.6-1.7 3.2 0" />
-        </>
-      ) : mood === "angry" ? (
-        <>
-          <path d="M6.2 8.6 9.6 10" />
-          <path d="M17.8 8.6 14.4 10" />
-          <circle cx="7.9" cy="11.4" r="1.15" />
-          <circle cx="16.1" cy="11.4" r="1.15" />
-        </>
-      ) : (
-        <>
-          <circle cx="8.3" cy="10.4" r="1.25" />
-          <circle cx="15.7" cy="10.4" r="1.25" />
-        </>
-      )}
-      {mood === "calm" && <path d="M9.4 16h5.2" />}
-      {mood === "focus" && <path d="M9.6 15.4q2.4 1.7 4.8 0" />}
-      {mood === "puzzled" && <path d="M9.2 15.9q1.4-1.4 2.8 0t2.8 0" />}
-      {mood === "angry" && <path d="M9.4 16.9q2.6-2.1 5.2 0" />}
-      {mood === "happy" && <path d="M8.8 15.2q3.2 2.9 6.4 0" />}
-    </svg>
-  );
-}
-
 export function AgentAvatar({
   name,
-  tone,
   size = "xs",
-  mood,
+  mood = "calm",
   className,
   ring = false,
 }: {
   name: string;
-  tone: Tone | string | undefined;
+  /** Kept for call sites that still pass the task tone; the mascot carries the colour. */
+  tone?: string;
   size?: AvatarSize;
-  /** When set, the avatar shows the agent's face instead of its initials. */
   mood?: Mood;
   className?: string;
   /** Separator ring for stacked avatars. */
   ring?: boolean;
 }) {
+  const mascot = useMemo(() => mascotOf(name), [name]);
+  const reduced = useMediaQuery(REDUCED_MOTION_QUERY);
+  const [hovered, setHovered] = useState(false);
+  const [drawn, setDrawn] = useState(false);
+  const [failed, setFailed] = useState(false);
   return (
     <span
-      title={name}
-      className={cx(
-        "prism-avatar relative inline-flex shrink-0 items-center justify-center font-semibold text-white select-none",
-        SIZE[size],
-        ring && "ring-[1.5px] ring-[var(--color-bg-primary)]",
-        className,
-      )}
-      style={{ backgroundColor: agentTone(tone) }}
+      title={`${name} · ${MOOD_LABEL[mood]}`}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      className={cx("prism-avatar relative inline-flex shrink-0 items-center justify-center select-none", SIZE[size], ring && "ring-[1.5px] ring-[var(--color-bg-primary)]", className)}
     >
-      {mood ? (
-        <AgentFace mood={mood} />
-      ) : (
-        <span aria-hidden="true">{agentInitials(name)}</span>
+      <img
+        src={mascotStaticUrl(mascot)}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="size-full object-contain transition-opacity duration-200"
+        style={{ opacity: drawn ? 0 : 1 }}
+      />
+      {!reduced && !failed && (
+        <span className="absolute inset-0">
+          <MascotCanvas mascot={mascot} activity={ACTIVITY[mood]} hovered={hovered} onReady={() => setDrawn(true)} onFailed={() => setFailed(true)} />
+        </span>
       )}
       <span className="sr-only">
-        {name}
-        {mood ? `，${MOOD_LABEL[mood]}` : ""}
+        {name}，{MOOD_LABEL[mood]}
       </span>
     </span>
   );

@@ -13,6 +13,8 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/noto-sans-sc": "^5.2.8",
+    "@rive-app/canvas-lite": "2.44.0",
+    "@rive-app/react-canvas-lite": "4.36.0",
     "@untitledui/icons": "^0.0.23",
     "motion": "^14.4.0",
     "react": "~19.3.1",
