@@ -701,6 +701,83 @@ html.home-doc {
     opacity 0.4s ease;
 }
 
+.home-imgs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 18px 4px 52px;
+  list-style: none;
+}
+
+.home-img {
+  position: relative;
+}
+
+.home-img img {
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  object-fit: cover;
+}
+
+.home-img button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #2a3350;
+  color: #cfd6e8;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.home-img:hover button,
+.home-img button:focus-visible {
+  opacity: 1;
+}
+
+.home-attach {
+  display: grid;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--home-faint);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.home-attach svg {
+  width: 15px;
+  height: 15px;
+}
+
+.home-attach:hover {
+  color: #cfd6e8;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.home-attach:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .home-composer-foot {
   display: flex;
   align-items: center;

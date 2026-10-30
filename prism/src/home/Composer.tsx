@@ -6,7 +6,7 @@
 // slides in at the top of the grid (Studies), then the study opens; errors show inline under the box.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { AlertCircle, Stars02 } from "@untitledui/icons";
+import { AlertCircle, ImagePlus, Stars02, XClose } from "@untitledui/icons";
 import { AnimatePresence, motion } from "motion/react";
 import { useMediaQuery, REDUCED_MOTION_QUERY } from "../lib/media";
 import { getModelChoice } from "../lib/model";
@@ -15,12 +15,14 @@ import { cx } from "../ui/cx";
 import { COMPOSER_PLACEHOLDER, EXAMPLE_QUESTIONS } from "./examples";
 import { flags, navigate } from "./flags";
 import { enterAction } from "./format";
+import { imagePayload, pastedImages, readImages, type AttachedImage } from "./images";
 import { ModelChip } from "./ModelSettings";
 import { submitQuestion } from "./mutations";
 import { useHome } from "./store";
 
 const MAX_LENGTH = 8000;
-const EMPTY_QUESTION = "先写下要研究的问题。";
+const EMPTY_QUESTION = "先写下要研究的问题，或附上一张图。";
+const IMAGE_QUESTION = "请调研图片中的内容。";
 
 /** Types and erases `lines` in turn while `enabled`. */
 function useTypewriter(lines: readonly string[], enabled: boolean): string {
@@ -68,8 +70,10 @@ function useTypewriter(lines: readonly string[], enabled: boolean): string {
 
 export function Composer({ className }: { className?: string }) {
   const [value, setValue] = useState("");
+  const [images, setImages] = useState<AttachedImage[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -108,6 +112,7 @@ export function Composer({ className }: { className?: string }) {
     submitted.current = false;
     setBusy(false);
     setValue("");
+    setImages([]);
   }, [pending]);
 
   // Back from the study page through the bfcache: re-enable the form.
@@ -121,6 +126,18 @@ export function Composer({ className }: { className?: string }) {
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
   }, []);
+
+  const addImages = useCallback(
+    async (files: Iterable<File>) => {
+      const { images: added, error: rejected } = await readImages(files, images);
+      if (added.length) {
+        setImages((current) => [...current, ...added]);
+        setError(null);
+      }
+      if (rejected) setError(rejected);
+    },
+    [images],
+  );
 
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
     const action = enterAction({
@@ -141,7 +158,7 @@ export function Composer({ className }: { className?: string }) {
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       if (busy) return;
-      const question = value.trim();
+      const question = value.trim() || (images.length ? IMAGE_QUESTION : "");
       if (!question) {
         setError(EMPTY_QUESTION);
         areaRef.current?.focus();
@@ -150,7 +167,7 @@ export function Composer({ className }: { className?: string }) {
       setError(null);
       setBusy(true);
       const model = getModelChoice();
-      const result = await submitQuestion(question, model);
+      const result = await submitQuestion(question, model, imagePayload(images));
       if (!result.ok) {
         setError(result.error);
         setBusy(false);
@@ -168,7 +185,7 @@ export function Composer({ className }: { className?: string }) {
         reducedMotion ? 0 : 900,
       );
     },
-    [busy, value, reducedMotion],
+    [busy, value, images, reducedMotion],
   );
 
   const count = value.length;
@@ -200,6 +217,13 @@ export function Composer({ className }: { className?: string }) {
               if (error) setError(null);
             }}
             onKeyDown={onKeyDown}
+            onPaste={(event) => {
+              const files = pastedImages(event.clipboardData);
+              if (files.length) {
+                event.preventDefault();
+                void addImages(files);
+              }
+            }}
             className={cx(
               "block max-h-48 min-h-[4.5rem] w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-md text-primary outline-none placeholder:text-quaternary focus-visible:outline-none",
               showTyping && "placeholder:text-transparent",
@@ -215,8 +239,61 @@ export function Composer({ className }: { className?: string }) {
             </span>
           )}
         </div>
+        <AnimatePresence initial={false}>
+          {images.length > 0 && (
+            <motion.ul
+              key="images"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex list-none flex-wrap gap-2 overflow-hidden px-4 pt-2"
+              aria-label="已附图片"
+            >
+              {images.map((image) => (
+                <motion.li key={image.id} layout initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} className="group/img relative">
+                  <img
+                    src={image.dataUrl}
+                    alt={image.name}
+                    className="size-11 rounded-lg border border-secondary object-cover"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`移除 ${image.name}`}
+                    disabled={busy}
+                    onClick={() => setImages((current) => current.filter((item) => item.id !== image.id))}
+                    className="absolute -top-1.5 -right-1.5 grid size-4.5 cursor-pointer place-items-center rounded-full bg-primary-solid text-white opacity-0 shadow-xs transition-opacity group-hover/img:opacity-100 focus-visible:opacity-100"
+                  >
+                    <XClose aria-hidden="true" className="size-3" />
+                  </button>
+                </motion.li>
+              ))}
+            </motion.ul>
+          )}
+        </AnimatePresence>
         <div className="flex items-center justify-between gap-3 px-3 pt-1 pb-3">
           <div className="flex min-w-0 items-center gap-3">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              hidden
+              onChange={(event) => {
+                const files = event.target.files;
+                if (files?.length) void addImages(files);
+                event.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              aria-label="添加图片"
+              title="添加图片，或直接粘贴截图"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+              className="grid size-8 cursor-pointer place-items-center rounded-lg text-quaternary transition hover:bg-secondary hover:text-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ImagePlus aria-hidden="true" className="size-4.5" />
+            </button>
             <ModelChip disabled={busy} />
             <span id="home-ask-hint" className="truncate font-mono text-xs text-quaternary max-sm:hidden">
               ⏎ 发送 · ⇧⏎ 换行
