@@ -6,7 +6,8 @@ import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
 import { agentTone } from "../../lib/palette";
 import { TONE_CLASS, type TaskTone } from "../../lib/status";
 import type { ViewNode } from "../../types/api";
-import { agentInitials } from "../../ui/AgentAvatar";
+import { AgentFace } from "../../ui/AgentAvatar";
+import { agentMood } from "../../lib/mood";
 import { cx } from "../../ui/cx";
 import { estimateGoalCard } from "./labels";
 import { PrismMark } from "./PrismMark";
@@ -87,7 +88,11 @@ export function NodeTile(props: CommonProps & { r: number; tone: TaskTone; runni
           )}
           style={{ borderRadius: radius, fontSize: Math.round(size * 0.36), backgroundColor: unassigned ? undefined : agentTone(node.tone) }}
         >
-          <span aria-hidden="true">{unassigned ? "?" : agentInitials(node.agents[0]!)}</span>
+          {unassigned ? (
+            <span aria-hidden="true">?</span>
+          ) : (
+            <AgentFace mood={agentMood(node, tone === "error")} />
+          )}
         </button>
         <span aria-hidden="true" className="sm-sel" style={{ borderRadius: ringRadius(6) }} />
         {inProgress && <span aria-hidden="true" className="sm-beam prism-beam" style={{ borderRadius: ringRadius(3) }} />}

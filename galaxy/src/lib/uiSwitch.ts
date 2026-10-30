@@ -8,7 +8,7 @@ export const UI_KEY = "piresearch-ui";
 
 export const UI_OPTIONS: readonly { id: UiChoice; name: string; label: string }[] = [
   { id: "galaxy", name: "Galaxy", label: "星系" },
-  { id: "prism", name: "Prism", label: "棱镜" },
+  { id: "prism", name: "CoForge", label: "主题" },
   { id: "2d", name: "2D", label: "经典" },
 ];
 

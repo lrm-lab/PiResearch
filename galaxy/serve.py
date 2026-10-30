@@ -62,7 +62,7 @@ SWITCH_TEMPLATE = """<style id="pr-ui-switch-style">
 @media(max-width:640px){.pr-ui-switch{top:12px;right:12px}.pr-ui-switch .pr-zh{display:none}.pr-ui-switch a{padding:8px 10px}.pr-ui-switch.in-bar{margin-right:8px}}
 @media(prefers-reduced-motion:reduce){.pr-ui-switch a{transition:none}}
 </style>
-<nav class="pr-ui-switch" id="pr-ui-switch" aria-label="切换界面"><a href="__GALAXY__" data-ui="galaxy" title="Galaxy 星系">Galaxy<span class="pr-zh">星系</span></a><a href="__PRISM__" data-ui="prism" title="Prism 棱镜">Prism<span class="pr-zh">棱镜</span></a><a href="__2D__" data-ui="2d" title="2D 经典" aria-current="page">2D<span class="pr-zh">经典</span></a></nav>
+<nav class="pr-ui-switch" id="pr-ui-switch" aria-label="切换界面"><a href="__GALAXY__" data-ui="galaxy" title="Galaxy 星系">Galaxy<span class="pr-zh">星系</span></a><a href="__PRISM__" data-ui="prism" title="CoForge 主题">CoForge<span class="pr-zh">主题</span></a><a href="__2D__" data-ui="2d" title="2D 经典" aria-current="page">2D<span class="pr-zh">经典</span></a></nav>
 <script>(function(){var s=document.getElementById("pr-ui-switch");if(!s)return;
 try{if(window.self!==window.top){s.remove();return}}catch(e){s.remove();return}
 var r=document.getElementById("open-report")||document.getElementById("settings");if(r&&r.parentNode){s.classList.add("in-bar");r.parentNode.insertBefore(s,r)}

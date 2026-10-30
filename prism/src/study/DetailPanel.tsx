@@ -11,6 +11,7 @@ import { headingPane } from "../lib/heading";
 import { TONE_CLASS } from "../lib/status";
 import type { ViewNode } from "../types/api";
 import { AgentAvatar } from "../ui/AgentAvatar";
+import { agentMood, MOOD_LABEL } from "../lib/mood";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
@@ -290,8 +291,9 @@ function TaskBody({ node }: { node: ViewNode }) {
             <span className="inline-flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
               {node.agents.map((agent) => (
                 <span key={agent} className="inline-flex items-center gap-2">
-                  <AgentAvatar name={agent} tone={node.tone} size="xs" />
+                  <AgentAvatar name={agent} tone={node.tone} size="xs" mood={agentMood(node)} />
                   {agent}
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-tertiary">{MOOD_LABEL[agentMood(node)]}</span>
                 </span>
               ))}
             </span>
