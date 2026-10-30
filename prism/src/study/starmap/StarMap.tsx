@@ -130,7 +130,8 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
 
   // Labels.
   const running = view.running !== false;
-  const compactOnly = compact;
+  // Narrow maps (a phone in portrait) keep the ids only: full titles collide in dense clusters.
+  const compactOnly = compact || size.w < 520;
   const liveOf = (node: ViewNode) => (running && node.status === "in_progress" && node.live.length ? node.live[node.live.length - 1]! : undefined);
   const spots = useMemo(() => {
     if (size.w < 10) return new Map<string, LabelSpot | null>();

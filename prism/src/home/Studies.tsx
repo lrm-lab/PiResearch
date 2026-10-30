@@ -73,9 +73,9 @@ export function Studies({ scroller }: { scroller: HTMLElement | null }) {
 
   return (
     <div className="pb-12">
-      <div className="sticky top-0 z-10 flex h-12 items-center justify-between gap-4 bg-primary/90 backdrop-blur">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 bg-primary/90 py-1 backdrop-blur sm:h-12 sm:flex-nowrap sm:gap-4 sm:py-0">
         <FilterPills items={tabs} value={filter} onChange={setFilter} />
-        <label className="relative my-auto block w-28 shrink-0 sm:w-56">
+        <label className="relative my-auto block w-full shrink-0 sm:w-56">
           <SearchLg aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-fg-quaternary" />
           <input
             type="search"
