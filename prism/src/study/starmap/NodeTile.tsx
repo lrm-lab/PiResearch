@@ -90,7 +90,7 @@ export function NodeTile(props: CommonProps & { r: number; tone: TaskTone; runni
           {unassigned ? (
             <span aria-hidden="true">?</span>
           ) : (
-            <AgentAvatar name={node.agents[0]!} size="md" mood={agentMood(node, tone === "error")} className="size-full" />
+            <AgentAvatar name={node.agents[0]!} seed={node.id} size="md" mood={agentMood(node, tone === "error")} className="size-full" />
           )}
         </button>
         <span aria-hidden="true" className="sm-sel" style={{ borderRadius: ringRadius(6) }} />
