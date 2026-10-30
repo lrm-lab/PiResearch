@@ -2,7 +2,8 @@
 // theme control (亮色 / 暗色 / 跟随系统). Both are small segmented controls in CoForge's button style.
 
 import { Monitor01, Moon01, Sun } from "@untitledui/icons";
-import type { ComponentType, SVGProps } from "react";
+import { useId, type ComponentType, type SVGProps } from "react";
+import { motion } from "motion/react";
 import { setThemeChoice, useThemeChoice, useThemePinned, type ThemeChoice } from "../lib/theme";
 import { saveUi, UI_OPTIONS, uiHref } from "../lib/uiSwitch";
 import { cx } from "./cx";
@@ -13,10 +14,13 @@ const SEGMENT =
 const SEGMENT_ON = "bg-brand-primary text-brand-secondary";
 const SEGMENT_OFF = "text-tertiary hover:bg-primary_hover hover:text-secondary";
 
-/** Galaxy · Prism · 2D. Links; the click saves the preference, then the browser opens the same page there. */
+
+/** The three frontends as one icon pill: a mark each, a white thumb under the current one, the
+ * name in a tooltip. Links; the click saves the preference, then the browser opens the same page. */
 export function UiSwitch({ studyId }: { studyId?: string | null }) {
+  const layoutId = useId();
   return (
-    <nav aria-label="切换界面" className={SEGMENT_GROUP}>
+    <nav aria-label="切换界面" className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-full bg-secondary p-0.5 ring-1 ring-border-primary ring-inset">
       {UI_OPTIONS.map((option) => {
         const current = option.id === "prism";
         return (
@@ -24,17 +28,57 @@ export function UiSwitch({ studyId }: { studyId?: string | null }) {
             key={option.id}
             href={uiHref(option.id, studyId)}
             aria-current={current ? "page" : undefined}
+            aria-label={`${option.name} ${option.label}`}
             title={`${option.name} ${option.label}`}
             onClick={() => saveUi(option.id)}
             onAuxClick={() => saveUi(option.id)}
-            className={cx(SEGMENT, "px-2.5", current ? SEGMENT_ON : SEGMENT_OFF)}
+            className={cx(
+              "relative inline-flex size-8 items-center justify-center rounded-full outline-none transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-ring",
+              current ? "text-brand-secondary" : "text-quaternary hover:text-secondary",
+            )}
           >
-            {option.name}
-            <span className={cx("font-medium opacity-70 max-lg:hidden", current && "opacity-80")}>{option.label}</span>
+            {current && (
+              <motion.span
+                layoutId={layoutId}
+                transition={{ type: "spring", stiffness: 460, damping: 34 }}
+                className="absolute inset-0 rounded-full bg-primary shadow-xs ring-1 ring-secondary ring-inset"
+              />
+            )}
+            <span className="relative inline-flex">
+              <UiMark id={option.id} />
+            </span>
           </a>
         );
       })}
     </nav>
+  );
+}
+
+/** One frontend's mark: a ringed planet, a prism, and a node graph. */
+function UiMark({ id }: { id: "galaxy" | "prism" | "2d" }) {
+  const common = { width: 17, height: 17, viewBox: "0 0 20 20", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  if (id === "galaxy")
+    return (
+      <svg {...common}>
+        <circle cx="10" cy="10" r="4.2" />
+        <ellipse cx="10" cy="10" rx="8.4" ry="3.4" transform="rotate(-24 10 10)" />
+        <circle cx="15.6" cy="6.2" r="1.1" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  if (id === "prism")
+    return (
+      <svg {...common}>
+        <path d="M10 2.6 17 16H3L10 2.6Z" />
+        <path d="M10 2.6v13.4M6.4 9.2h7.2" opacity=".55" />
+      </svg>
+    );
+  return (
+    <svg {...common}>
+      <circle cx="5.2" cy="6" r="2.1" />
+      <circle cx="14.8" cy="8.4" r="2.1" />
+      <circle cx="8.4" cy="15" r="2.1" />
+      <path d="m7.1 6.7 5.6 1.2M6.2 8l1.5 4.9M13.5 10.3l-3.5 3.3" opacity=".6" />
+    </svg>
   );
 }
 

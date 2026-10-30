@@ -3,7 +3,6 @@
 // compact card. Both are real buttons positioned in screen space.
 
 import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
-import { agentTone } from "../../lib/palette";
 import { TONE_CLASS, type TaskTone } from "../../lib/status";
 import type { ViewNode } from "../../types/api";
 import { AgentAvatar } from "../../ui/AgentAvatar";
@@ -83,10 +82,10 @@ export function NodeTile(props: CommonProps & { r: number; tone: TaskTone; runni
           {...handlersOf(props)}
           className={cx(
             "sm-node relative flex size-full cursor-pointer items-center justify-center font-semibold select-none",
-            unassigned ? "border border-dashed border-primary bg-primary text-quaternary" : "prism-avatar text-white",
+            unassigned ? "border border-dashed border-primary bg-primary text-quaternary" : "prism-avatar bg-transparent text-white",
             node.status === "cancelled" && "opacity-50 saturate-50",
           )}
-          style={{ borderRadius: radius, fontSize: Math.round(size * 0.36), backgroundColor: unassigned ? undefined : agentTone(node.tone) }}
+          style={{ borderRadius: radius, fontSize: Math.round(size * 0.36) }}
         >
           {unassigned ? (
             <span aria-hidden="true">?</span>
