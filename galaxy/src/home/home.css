@@ -643,8 +643,13 @@ html.home-doc {
     0 0 56px -8px rgba(170, 140, 255, 0.95);
 }
 
+/* The press keeps the hover's glow and only settles the lift: one effect, not two. */
 .home-launch:active:not(:disabled) {
-  transform: scale(0.96);
+  transform: translateY(-1px) scale(1.03);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
+    0 12px 32px -6px rgba(72, 211, 228, 0.9),
+    0 0 56px -8px rgba(170, 140, 255, 0.95);
 }
 
 .home-launch:focus-visible {
