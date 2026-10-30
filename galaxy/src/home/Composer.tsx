@@ -112,14 +112,10 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       if (busy) return;
-      const area = areaRef.current;
-      if (area && value.trim() && !area.checkValidity()) {
-        area.reportValidity();
-        return;
-      }
       const question = value.trim() || (images.length ? IMAGE_QUESTION : "");
       if (!question) {
-        area?.reportValidity();
+        setError("先写下要研究的问题，或附上一张图。");
+        areaRef.current?.focus();
         return;
       }
       setError(null);
