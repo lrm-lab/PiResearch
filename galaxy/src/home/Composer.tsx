@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { navigate } from "./flags";
 import { enterAction } from "./format";
+import { imagePayload, pastedImages, readImages, type AttachedImage } from "./images";
 import { getModelChoice } from "../lib/model";
 import { ModelChip } from "./ModelSettings";
 import { gallery } from "./motion";
@@ -12,6 +13,7 @@ import { submitQuestion } from "./mutations";
 import { useHome } from "./store";
 
 const MAX_LENGTH = 8000;
+const IMAGE_QUESTION = "请调研图片中的内容。";
 const PLACEHOLDER = "写下要查清的问题。可以包含范围、时间和必须回答的要点。";
 /** Longest a launch may take before we navigate anyway. */
 const LAUNCH_WATCHDOG_MS = 4500;
@@ -20,10 +22,12 @@ const COMPOSER_GAP = 14;
 
 export function Composer({ firstRun }: { firstRun: boolean }) {
   const [value, setValue] = useState("");
+  const [images, setImages] = useState<AttachedImage[]>([]);
   const [busy, setBusy] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dockRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -77,6 +81,18 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
     if (!launch) setLaunching(false);
   }, [launch]);
 
+  const addImages = useCallback(
+    async (files: Iterable<File>) => {
+      const { images: added, error: rejected } = await readImages(files, images);
+      if (added.length) {
+        setImages((current) => [...current, ...added]);
+        setError(null);
+      }
+      if (rejected) setError(rejected);
+    },
+    [images],
+  );
+
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
     const action = enterAction({
       key: event.key,
@@ -97,14 +113,18 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
       event.preventDefault();
       if (busy) return;
       const area = areaRef.current;
-      if (area && !area.checkValidity()) {
+      if (area && value.trim() && !area.checkValidity()) {
         area.reportValidity();
         return;
       }
-      const question = value.trim();
+      const question = value.trim() || (images.length ? IMAGE_QUESTION : "");
+      if (!question) {
+        area?.reportValidity();
+        return;
+      }
       setError(null);
       setBusy(true);
-      const result = await submitQuestion(question, getModelChoice());
+      const result = await submitQuestion(question, getModelChoice(), imagePayload(images));
       if (!result.ok) {
         setError(result.error);
         setBusy(false);
@@ -126,7 +146,7 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
         if (useHome.getState().launch?.href === result.href) navigate(result.href);
       }, LAUNCH_WATCHDOG_MS);
     },
-    [busy, value],
+    [busy, value, images],
   );
 
   const count = value.length;
@@ -150,7 +170,6 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
             className="home-composer-input"
             name="question"
             rows={1}
-            required
             maxLength={MAX_LENGTH}
             aria-label="研究问题"
             placeholder={PLACEHOLDER}
@@ -160,6 +179,13 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
             aria-describedby={error ? "home-ask-error" : "home-ask-hint"}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={onKeyDown}
+            onPaste={(event) => {
+              const files = pastedImages(event.clipboardData);
+              if (files.length) {
+                event.preventDefault();
+                void addImages(files);
+              }
+            }}
           />
           <button ref={buttonRef} type="submit" className="home-launch" aria-label="开始研究" title="开始研究" disabled={busy}>
             <span className="home-launch-ring" aria-hidden="true" />
@@ -175,7 +201,51 @@ export function Composer({ firstRun }: { firstRun: boolean }) {
             </svg>
           </button>
         </div>
+        {images.length > 0 && (
+          <ul className="home-imgs" aria-label="已附图片">
+            {images.map((image) => (
+              <li key={image.id} className="home-img">
+                <img src={image.dataUrl} alt={image.name} />
+                <button
+                  type="button"
+                  aria-label={`移除 ${image.name}`}
+                  disabled={busy}
+                  onClick={() => setImages((current) => current.filter((item) => item.id !== image.id))}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="home-composer-foot">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            hidden
+            onChange={(event) => {
+              const files = event.target.files;
+              if (files?.length) void addImages(files);
+              event.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            className="home-attach"
+            aria-label="添加图片"
+            title="添加图片，或直接粘贴截图"
+            disabled={busy || launching}
+            onClick={() => fileRef.current?.click()}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3.5" y="4.5" width="17" height="15" rx="3" />
+              <circle cx="9" cy="10" r="1.6" />
+              <path d="m5.5 17.5 4.2-4.2a1.5 1.5 0 0 1 2.1 0l6.7 6.7" />
+              <path d="M16 8.5h4M18 6.5v4" />
+            </svg>
+          </button>
           <ModelChip disabled={busy || launching} />
           <span id="home-ask-hint" className="home-composer-hint">
             <kbd>Enter</kbd> 开始研究 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 换行

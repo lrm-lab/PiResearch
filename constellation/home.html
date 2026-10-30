@@ -86,7 +86,17 @@ textarea:focus{outline:none}
 .chip[aria-expanded="true"] svg.chev{transform:rotate(180deg)}
 button.chip:hover,button.chip[aria-expanded="true"]{background:#262628;border-color:#4a4a4e;color:#fff}
 button.chip:focus-visible{outline:2px solid #8b7cf6;outline-offset:2px}
-.model-pick{position:absolute;left:12px;bottom:12px;z-index:2}
+.model-pick{position:absolute;left:12px;bottom:12px;z-index:2;display:flex;align-items:center;gap:6px}
+.attach{display:grid;place-items:center;width:26px;height:26px;padding:0;border:1px solid #3a3a3a;border-radius:8px;background:#1c1c1c;color:#8a8a8a;cursor:pointer}
+.attach:hover{background:#2a2a2a;color:#e5e5e5}
+.attach:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.attach svg{width:15px;height:15px}
+.imgstrip{position:absolute;left:180px;right:64px;bottom:12px;z-index:2;display:flex;gap:6px;padding:2px;overflow-x:auto;scrollbar-width:none}
+.imgstrip::-webkit-scrollbar{display:none}
+.imgstrip .img{position:relative;flex:none}
+.imgstrip .img img{display:block;width:34px;height:34px;border-radius:8px;border:1px solid #3a3a3a;object-fit:cover}
+.imgstrip .img button{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;width:15px;height:15px;padding:0;border:0;border-radius:50%;background:#3a3a3a;color:#e5e5e5;font-size:10px;line-height:1;cursor:pointer}
+.imgstrip .img button:hover{background:#4a4a4a}
 .pick-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:15;width:188px;padding:5px;border:1px solid #333;border-radius:12px;background:#171719;box-shadow:0 18px 50px rgba(0,0,0,.7);animation:panel-in .18s cubic-bezier(.16,1,.3,1);transform-origin:0 0}
 .pick-menu[hidden]{display:none}
 .pick-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border:0;border-radius:8px;background:transparent;color:#d0d0d4;font-size:13px;font-weight:550;text-align:left}
@@ -193,11 +203,21 @@ body.confirm-open{overflow:hidden}
 <main class="page">
   <form class="ask" id="ask">
     <div class="composer">
-      <textarea id="question" name="question" required maxlength="8000" aria-label="研究问题" placeholder="写下要查清的问题。可以包含范围、时间和必须回答的要点。"></textarea>
+      <textarea id="question" name="question" maxlength="8000" aria-label="研究问题" placeholder="写下要查清的问题。可以包含范围、时间和必须回答的要点。"></textarea>
       <div class="model-pick" id="model-pick">
         <button type="button" class="chip" id="model-chip" aria-haspopup="menu" aria-expanded="false" aria-controls="model-menu" aria-label="研究模型"></button>
         <div class="pick-menu" id="model-menu" role="menu" aria-label="研究模型" hidden></div>
+        <button type="button" class="attach" id="attach" aria-label="添加图片" title="添加图片，或直接粘贴截图">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.5" y="4.5" width="17" height="15" rx="3"/>
+            <circle cx="9" cy="10" r="1.6"/>
+            <path d="m5.5 17.5 4.2-4.2a1.5 1.5 0 0 1 2.1 0l6.7 6.7"/>
+            <path d="M16 8.5h4M18 6.5v4"/>
+          </svg>
+        </button>
       </div>
+      <input type="file" id="attach-input" accept="image/png,image/jpeg,image/webp" multiple hidden>
+      <div class="imgstrip" id="imgstrip" hidden></div>
       <button class="launch" type="submit" aria-label="开始研究">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path class="flame" d="M12 17.2c1.15 1.35 1.25 2.7 0 4.3-1.25-1.6-1.15-2.95 0-4.3z"/>
@@ -660,19 +680,78 @@ document.querySelector("#question").addEventListener("keydown", event => {
   if(!button.disabled) form.requestSubmit(button);
 });
 
+const IMAGE_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
+const IMAGE_MAX_COUNT = 9, IMAGE_MAX_TOTAL = 12 * 1024 * 1024;
+const pendingImages = [];
+const imgstrip = document.querySelector("#imgstrip");
+
+function renderImages(){
+  imgstrip.hidden = pendingImages.length === 0;
+  imgstrip.replaceChildren(...pendingImages.map((image, index) => {
+    const cell = document.createElement("span");
+    cell.className = "img";
+    const thumb = document.createElement("img");
+    thumb.src = image.data; thumb.alt = image.name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `移除 ${image.name}`);
+    remove.textContent = "×";
+    remove.addEventListener("click", () => { pendingImages.splice(index, 1); renderImages(); });
+    cell.append(thumb, remove);
+    return cell;
+  }));
+}
+
+function addImageFiles(files){
+  const error = document.querySelector("#ask-error");
+  let total = pendingImages.reduce((sum, item) => sum + item.bytes, 0);
+  let rejected = "";
+  for(const file of files){
+    if(pendingImages.length >= IMAGE_MAX_COUNT){ rejected = `一次最多附 ${IMAGE_MAX_COUNT} 张图。`; break; }
+    if(!IMAGE_MIME.has(file.type)){ rejected ||= "只支持 PNG、JPEG、WebP 图片。"; continue; }
+    if(total + file.size > IMAGE_MAX_TOTAL){ rejected ||= "图片总共不能超过 12MB。"; continue; }
+    total += file.size;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if(typeof reader.result === "string"){
+        pendingImages.push({name: file.name || "image", mime: file.type, data: reader.result, bytes: file.size});
+        renderImages();
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+  if(rejected){ error.hidden = false; error.textContent = rejected; }
+  else error.hidden = true;
+}
+
+document.querySelector("#attach").addEventListener("click", () => document.querySelector("#attach-input").click());
+document.querySelector("#attach-input").addEventListener("change", event => {
+  if(event.target.files.length) addImageFiles(event.target.files);
+  event.target.value = "";
+});
+document.querySelector("#question").addEventListener("paste", event => {
+  const files = [...event.clipboardData.items].filter(i => i.kind === "file" && i.type.startsWith("image/")).map(i => i.getAsFile()).filter(Boolean);
+  if(files.length){ event.preventDefault(); addImageFiles(files); }
+});
+
 document.querySelector("#ask").addEventListener("submit", async event => {
   event.preventDefault();
-  const question = document.querySelector("#question").value.trim();
+  const question = document.querySelector("#question").value.trim() || (pendingImages.length ? "请调研图片中的内容。" : "");
   const button = event.currentTarget.querySelector(".launch");
-  if(button.disabled) return;
   const error = document.querySelector("#ask-error");
+  if(button.disabled) return;
+  if(!question){
+    error.hidden = false;
+    error.textContent = "先写下要研究的问题，或附上一张图。";
+    return;
+  }
   error.hidden = true;
   button.disabled = true;
   try {
     const response = await fetch("/api/questions", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({question, model}),
+      body: JSON.stringify({question, model, images: pendingImages.length ? pendingImages : undefined}),
     });
     const payload = await response.json();
     if(!response.ok){
