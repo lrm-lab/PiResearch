@@ -144,7 +144,7 @@ function PendingCard({ question, model, ref }: { question: string; model?: strin
       animate={{ opacity: 1, y: 0, scale: 1 }}
       className={cx(CARD_CLASS, BEAM_CLASS)}
     >
-      <div className="overflow-hidden rounded-t-[11px] border-b border-secondary">
+      <div className="aspect-[320/176] overflow-hidden rounded-t-[11px] border-b border-secondary">
         <MiniMap thumb={undefined} running noGraph={false} />
       </div>
       <div className="flex flex-1 flex-col px-4 pt-3.5 pb-4">
