@@ -4,7 +4,7 @@
 import { GitBranch01 } from "@untitledui/icons";
 import { motion } from "motion/react";
 import { Tooltip } from "../primitives";
-import { ChatOrb } from "./ChatOrb";
+import { AgentAvatar } from "../../ui/AgentAvatar";
 import { SHELL_ID, SHELL_SPRING } from "./ChatPanel";
 
 export function AskBar({ pulse, onOpen, onFollowup }: { pulse: number; onOpen: () => void; onFollowup: () => void }) {
@@ -22,7 +22,7 @@ export function AskBar({ pulse, onOpen, onFollowup }: { pulse: number; onOpen: (
           onClick={onOpen}
           className="flex h-full min-w-0 flex-1 items-center gap-3 rounded-full text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
-          <ChatOrb size={28} pulse={pulse} />
+          <AgentAvatar name="主 agent" seed="main" mood={pulse ? "happy" : "calm"} className="size-7" />
           <span className="truncate text-sm text-placeholder">问问主 agent…</span>
         </button>
         <Tooltip label="继续调研" side="top" align="end">

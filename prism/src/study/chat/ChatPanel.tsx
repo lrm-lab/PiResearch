@@ -7,7 +7,8 @@ import { ModelTag } from "../../ui/ModelMark";
 import { cx } from "../../ui/cx";
 import type { ChatMessage } from "../../types/api";
 import { Tooltip } from "../primitives";
-import { ChatOrb } from "./ChatOrb";
+import { AgentAvatar } from "../../ui/AgentAvatar";
+import type { Mood } from "../../lib/mood";
 import { DraftCard } from "./DraftCard";
 import type { ReportChat } from "./useReportChat";
 
@@ -57,10 +58,23 @@ function Reply({ text, live, cite }: { text: string; live: boolean; cite: Cite }
   );
 }
 
+/** The main agent wears a CoForge mascot whose face tracks the conversation. */
+function ChatMascot({ thinking, pulse, className }: { thinking?: boolean; pulse?: number; className?: string }) {
+  const [happy, setHappy] = useState(false);
+  useEffect(() => {
+    if (!pulse) return;
+    setHappy(true);
+    const timer = setTimeout(() => setHappy(false), 1600);
+    return () => clearTimeout(timer);
+  }, [pulse]);
+  const mood: Mood = thinking ? "puzzled" : happy ? "happy" : "calm";
+  return <AgentAvatar name="主 agent" seed="main" mood={mood} className={className} />;
+}
+
 function AssistantRow({ children, thinking = false, pulse = 0 }: { children?: ReactNode; thinking?: boolean; pulse?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="flex gap-2.5">
-      <ChatOrb size={20} thinking={thinking} pulse={pulse} className="mt-1" />
+      <ChatMascot thinking={thinking} pulse={pulse} className="mt-0.5 size-6" />
       <div className="min-w-0 flex-1">{children}</div>
     </motion.div>
   );
@@ -80,7 +94,7 @@ function EmptyThread({ onPick, disabled }: { onPick: (text: string) => void; dis
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-6 px-2 py-8">
       <motion.div initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}>
-        <ChatOrb size={64} />
+        <ChatMascot className="size-16" />
       </motion.div>
       <div className="flex flex-col items-stretch gap-2">
         {SUGGESTIONS.map((text, index) => (
@@ -204,7 +218,7 @@ export function ChatPanel({
         className="flex min-h-0 flex-1 flex-col"
       >
         <header className="flex h-14 shrink-0 items-center gap-2.5 border-b border-secondary px-3.5">
-          <ChatOrb size={26} thinking={Boolean(turn && turn.phase === "waiting")} pulse={chat.pulse} />
+          <ChatMascot thinking={Boolean(turn && turn.phase === "waiting")} pulse={chat.pulse} className="size-7" />
           <h2 className="text-sm font-semibold text-primary">主 agent</h2>
           <ModelTag id={modelId} />
           <span className="flex-1" />

@@ -10,7 +10,7 @@ import { prismStudyHref } from "../../lib/api";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { useStudy } from "../store";
-import { ChatOrb } from "./ChatOrb";
+import { AgentAvatar } from "../../ui/AgentAvatar";
 import type { ReportChat } from "./useReportChat";
 
 const RIPPLE = ["#8f6ff2", "#22d3ee", "#f472b6"] as const;
@@ -123,7 +123,7 @@ export function DraftCard({ chat, onSpawn }: { chat: ReportChat; onSpawn: (from:
           {loading ? (
             <div role="status" className="flex flex-col gap-3 py-1">
               <div className="flex items-center gap-2.5">
-                <ChatOrb size={22} thinking />
+                <AgentAvatar name="主 agent" seed="main" mood="puzzled" className="size-6" />
                 <span className="prism-shimmer ml-1.5 text-sm font-medium text-tertiary">整理中…</span>
               </div>
               <div className="space-y-2" aria-hidden="true">

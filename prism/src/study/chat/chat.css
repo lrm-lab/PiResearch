@@ -1,121 +1,7 @@
 /*
- * Report chat: the main agent's orb (a prism sphere that breathes, thinks and pulses), the chat
- * markdown tuned down from the report's, citation chips, the heading flash and the spawn ripple.
+ * Report chat: chat markdown tuned down from the report's, citation chips, the heading flash and
+ * the spawn ripple.
  */
-
-@property --orb-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
-.prism-orb {
-  --s: 28px;
-  position: relative;
-  display: inline-block;
-  flex: none;
-  width: var(--s);
-  height: var(--s);
-  border-radius: 9999px;
-}
-
-.prism-orb__body {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at 32% 26%, rgb(255 255 255 / 0.95) 0, rgb(255 255 255 / 0) 34%),
-    radial-gradient(circle at 70% 82%, rgb(33 19 77 / 0.5) 0, rgb(33 19 77 / 0) 55%),
-    conic-gradient(from var(--orb-angle), #8f6ff2, #22d3ee, #34d399, #fbbf24, #f472b6, #8f6ff2);
-  box-shadow:
-    0 0 calc(var(--s) * 0.5) rgb(143 111 242 / 0.45),
-    inset 0 -2px 5px rgb(33 19 77 / 0.25);
-  animation:
-    prism-orb-spin 9s linear infinite,
-    prism-orb-breathe 3.6s ease-in-out infinite;
-}
-
-.prism-orb--thinking .prism-orb__body {
-  animation:
-    prism-orb-spin 2.4s linear infinite,
-    prism-orb-breathe 1.2s ease-in-out infinite;
-}
-
-@keyframes prism-orb-spin {
-  to {
-    --orb-angle: 360deg;
-  }
-}
-
-@keyframes prism-orb-breathe {
-  0%,
-  100% {
-    transform: scale(0.94);
-    filter: saturate(1);
-  }
-  50% {
-    transform: scale(1.04);
-    filter: saturate(1.25);
-  }
-}
-
-.prism-orb__orbit {
-  position: absolute;
-  inset: calc(var(--s) * -0.42);
-  border-radius: 9999px;
-  animation: prism-orb-orbit 1.6s linear infinite;
-  pointer-events: none;
-}
-
-.prism-orb__orbit + .prism-orb__orbit {
-  inset: calc(var(--s) * -0.62);
-  animation-duration: 2.3s;
-  animation-direction: reverse;
-}
-
-.prism-orb__orbit::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: max(3px, calc(var(--s) * 0.14));
-  aspect-ratio: 1;
-  margin-left: calc(max(3px, var(--s) * 0.14) / -2);
-  border-radius: 9999px;
-  background: var(--dot, #22d3ee);
-  box-shadow: 0 0 6px var(--dot, #22d3ee);
-}
-
-.prism-orb__orbit + .prism-orb__orbit::before {
-  --dot: #f472b6;
-}
-
-@keyframes prism-orb-orbit {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.prism-orb__ring {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 2px solid #a993ff;
-  opacity: 0;
-  pointer-events: none;
-  animation: prism-orb-ring 0.9s ease-out;
-}
-
-@keyframes prism-orb-ring {
-  from {
-    opacity: 0.85;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(2.4);
-  }
-}
 
 /* ---- chat markdown (the report's .prism-doc, smaller) ---- */
 
@@ -297,28 +183,12 @@
   }
 }
 
-/* ---- the orb and quote chips in the ask bar / selection button ---- */
-
-.prism-askbar-glow {
-  background:
-    linear-gradient(var(--color-bg-primary), var(--color-bg-primary)) padding-box,
-    conic-gradient(from var(--orb-angle), #8f6ff2, #22d3ee, #f472b6, #fbbf24, #8f6ff2) border-box;
-  border: 1px solid transparent;
-  animation: prism-orb-spin 10s linear infinite;
-}
+/* ---- quote chips in the ask bar / selection button ---- */
 
 @media (prefers-reduced-motion: reduce) {
-  .prism-orb__body,
-  .prism-orb--thinking .prism-orb__body,
-  .prism-askbar-glow,
   .prism-chat-live > :last-child::after,
   .prism-chat-live > :is(ul, ol):last-child > li:last-child::after {
     animation: none;
-  }
-
-  .prism-orb__orbit,
-  .prism-orb__ring {
-    display: none;
   }
 
   .prism-doc [data-cite-flash="true"] {
