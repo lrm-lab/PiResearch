@@ -67,7 +67,7 @@ export const MiniMap = memo(function MiniMap({
   const caption = !ok ? (noGraph ? "没有任务图" : thumb && running ? "正在等待派发任务" : null) : null;
 
   return (
-    <div className="relative aspect-[320/176] overflow-hidden bg-secondary" aria-hidden="true">
+    <div className="relative size-full overflow-hidden bg-secondary" aria-hidden="true">
       <div className="home-map-grid absolute inset-0" />
       <div
         className="absolute inset-0"
