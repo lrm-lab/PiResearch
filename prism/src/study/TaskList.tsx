@@ -166,13 +166,14 @@ const Row = memo(function Row({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, delay: Math.max(0, delay), ease: EASE_OUT }}
     >
-      <button
+      <motion.button
         type="button"
         data-row={node.id}
         aria-current={selected || undefined}
         onClick={() => select(selected ? null : node.id)}
         onPointerEnter={() => hover(node.id)}
         onPointerLeave={() => unhover(node.id)}
+        whileTap={{ scale: 0.988 }}
         className={cx(
           "group relative flex w-full items-center gap-3 border-b border-secondary px-4 py-3 text-left outline-none transition-colors duration-100 sm:gap-4 sm:px-6",
           "focus-visible:bg-primary_hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring",
@@ -186,7 +187,14 @@ const Row = memo(function Row({
             <span className={cx("truncate text-md font-semibold", node.status === "cancelled" ? "text-tertiary line-through decoration-1" : "text-primary")}>
               {node.title || "未命名任务"}
             </span>
-            <span className="hidden shrink-0 font-mono text-xs text-quaternary uppercase sm:inline">{node.id}</span>
+            <span
+              className={cx(
+                "hidden shrink-0 font-mono text-xs text-quaternary uppercase transition-opacity duration-150 sm:inline",
+                selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+              )}
+            >
+              {node.id}
+            </span>
           </span>
           <span className="mt-1 flex min-w-0 items-center gap-x-3 gap-y-1 text-sm text-tertiary">
             {node.agents.length ? (
@@ -234,7 +242,7 @@ const Row = memo(function Row({
             <span className="text-quaternary">—</span>
           )}
         </span>
-      </button>
+      </motion.button>
     </motion.li>
   );
 });
