@@ -264,14 +264,38 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
   const brand = theme === "dark" ? BRAND[400] : BRAND[600];
   const { resolved, total } = progress(view);
   const toggle = (id: string) => select(selectedId === id ? null : id);
+  // A hover redraw can shift labels under a still cursor, so leaving a tile waits a beat —
+  // the next hover cancels it instead of the focus state flickering between neighbours.
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (leaveTimer.current ? clearTimeout(leaveTimer.current) : undefined), []);
+  const hoverNode = useCallback(
+    (id: string) => {
+      if (leaveTimer.current) {
+        clearTimeout(leaveTimer.current);
+        leaveTimer.current = null;
+      }
+      hover(id);
+    },
+    [hover],
+  );
+  const unhoverNode = useCallback(
+    (id: string) => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+      leaveTimer.current = setTimeout(() => {
+        leaveTimer.current = null;
+        unhover(id);
+      }, 80);
+    },
+    [unhover],
+  );
   const handlers = {
     onToggle: toggle,
     onSelect: select,
-    onHover: hover,
-    onUnhover: unhover,
+    onHover: hoverNode,
+    onUnhover: unhoverNode,
     onFocus: (id: string, visible: boolean) => {
       setFocusId(id);
-      if (visible) hover(id);
+      if (visible) hoverNode(id);
     },
     onBlur: unhover,
   };
@@ -419,8 +443,6 @@ export function StarMap({ view, rightInset, bottomInset, compact }: { view: Snap
             tabIndex={-1}
             data-label={node.id}
             onClick={() => toggle(node.id)}
-            onPointerEnter={(event) => event.pointerType !== "touch" && hover(node.id)}
-            onPointerLeave={(event) => event.pointerType !== "touch" && unhover(node.id)}
             className={cx(
               "sm-label absolute z-10 block rounded-md bg-primary/80 text-left backdrop-blur-sm outline-none",
               small ? "px-1 py-px text-xs" : "px-1.5 py-0.5",
