@@ -227,7 +227,7 @@ function Field({ label, count, stack = false, children }: { label: string; count
         stack ? "flex flex-col gap-2" : "flex min-h-11 items-center justify-between gap-4",
       )}
     >
-      <dt className="flex shrink-0 items-center gap-1.5 text-sm text-tertiary">
+      <dt className="flex shrink-0 items-center gap-1.5 text-sm tracking-wide text-tertiary">
         {label}
         {count !== undefined && count > 0 && <span className="text-quaternary tabular">{count}</span>}
       </dt>
@@ -389,7 +389,7 @@ function LinkChip({ id, children }: { id: string; children: ReactNode }) {
       onPointerLeave={() => unhover(id)}
       onFocus={() => hover(id)}
       onBlur={() => unhover(id)}
-      className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-lg bg-primary px-2 text-xs font-medium shadow-xs ring-1 ring-border-secondary outline-none ring-inset transition hover:bg-primary_hover hover:ring-border-primary focus-visible:outline-2 focus-visible:outline-focus-ring"
+      className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-lg bg-primary px-2 text-xs font-medium shadow-xs ring-1 ring-border-secondary outline-none ring-inset transition-[background-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:bg-primary_hover hover:shadow-sm hover:ring-border-primary focus-visible:outline-2 focus-visible:outline-focus-ring active:translate-y-0 active:scale-[0.97]"
     >
       {children}
     </button>
@@ -413,7 +413,7 @@ function ChildList({ node }: { node: ViewNode }) {
               onClick={() => select(child.id)}
               onPointerEnter={() => hover(child.id)}
               onPointerLeave={() => unhover(child.id)}
-              className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left outline-none transition hover:bg-primary_hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+              className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left outline-none transition-[background-color,transform] duration-150 hover:bg-primary_hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring active:scale-[0.98]"
             >
               <StatusIcon tone={tone} pulse={tone === "progress"} />
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-secondary group-hover:text-primary">{child.title || "未命名任务"}</span>
